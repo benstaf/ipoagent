@@ -4,6 +4,7 @@ from .key_rotator import KeyRotator
 from .prompt import INSTRUCTIONS_PROMPT
 from .tools import (
     VALID_TOOLS,
+    Calculator,
     EDGARSearch,
     ParseHtmlPage,
     RetrieveInformation,
@@ -12,6 +13,7 @@ from .tools import (
 )
 
 __all__ = [
+    "Calculator",
     "EDGARSearch",
     "INSTRUCTIONS_PROMPT",
     "KeyRotator",

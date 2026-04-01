@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import re
 from typing import Any
@@ -10,11 +11,70 @@ from model_library.agent import Tool, ToolOutput
 from model_library.base import LLM
 from tavily import AsyncTavilyClient
 
+from simpleeval import SimpleEval
+
 from .exceptions import retry_http_errors
 from .key_rotator import KeyRotator, get_rotator
 
-MAX_END_DATE = "2025-04-07"
-VALID_TOOLS = ["web_search", "retrieve_information", "parse_html_page", "edgar_search"]
+
+MAX_END_DATE = "2026-03-01"
+VALID_TOOLS = ["web_search", "retrieve_information", "parse_html_page", "edgar_search", "calculator"]
+
+
+class Calculator(Tool):
+    name = "calculator"
+    description = (
+        "Evaluate a mathematical expression and return the result. "
+        "Use this tool for all arithmetic calculations instead of computing by hand. "
+        "Supports: +, -, *, /, // (floor division), ** (exponentiation), % (modulo), "
+        "and parentheses for grouping. "
+        "Available functions: abs(), round(), min(), max(), int(), float(), floor(), ceil(), sqrt(), log(), log10(). "
+        "Examples: '(revenue - costs) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', 'round(14060 / 2148, 2)'."
+    )
+    parameters: dict[str, Any] = {
+        "expression": {
+            "type": "string",
+            "description": "The mathematical expression to evaluate",
+        }
+    }
+    required: list[str] = ["expression"]
+
+    def __init__(self) -> None:
+        self._evaluator = SimpleEval(
+            functions={
+                "abs": abs,
+                "round": round,
+                "min": min,
+                "max": max,
+                "int": int,
+                "float": float,
+                "floor": math.floor,
+                "ceil": math.ceil,
+                "sqrt": math.sqrt,
+                "log": math.log,
+                "log10": math.log10,
+            }
+        )
+
+    async def execute(self, args: dict[str, Any], state: dict[str, Any], logger: logging.Logger) -> ToolOutput:
+        expression = args.get("expression", "")
+        if not expression:
+            return ToolOutput(output="Error: expression must not be empty", error="empty expression")
+        try:
+            result = self._evaluator.eval(expression)
+            return ToolOutput(output=str(result))
+        except ZeroDivisionError:
+            error_msg = f"Error: division by zero in '{expression}'"
+            logger.warning(error_msg)
+            return ToolOutput(output=error_msg, error=error_msg)
+        except OverflowError:
+            error_msg = f"Error: numerical overflow in '{expression}'"
+            logger.warning(error_msg)
+            return ToolOutput(output=error_msg, error=error_msg)
+        except Exception as e:
+            logger.warning(f"Calculator error for '{expression}': {e}")
+            error_msg = f"Error: invalid expression '{expression}'"
+            return ToolOutput(output=error_msg, error=error_msg)
 
 
 class SubmitFinalResult(Tool):
@@ -55,11 +115,11 @@ class TavilyWebSearch(Tool):
         },
         "start_date": {
             "type": "string",
-            "description": "(optional) The start date for the search range for in the format YYYY-MM-DD",
+            "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date.",
         },
         "end_date": {
             "type": "string",
-            "description": f"(optional) The end date to search range in the format YYYY-MM-DD. If the value is later than {MAX_END_DATE}, it will be set to {MAX_END_DATE}.",
+            "description": f"(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than {MAX_END_DATE}, it will be set to {MAX_END_DATE}.",
         },
         "number_of_results": {
             "type": "integer",
@@ -282,7 +342,7 @@ class ParseHtmlPage(Tool):
     }
     required = ["url", "key"]
 
-    @retry_http_errors(429, 503)
+    @retry_http_errors(429)
     async def _parse_html_page(self, url: str) -> str:
         async with aiohttp.ClientSession() as session:
             try:

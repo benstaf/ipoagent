@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from .tools import (
     VALID_TOOLS,
+    Calculator,
     EDGARSearch,
     ParseHtmlPage,
     RetrieveInformation,
@@ -36,6 +37,7 @@ def get_agent(
         "retrieve_information": RetrieveInformation,
         "parse_html_page": ParseHtmlPage,
         "edgar_search": EDGARSearch,
+        "calculator": Calculator,
     }
 
     selected_tools: list[Tool] = []
