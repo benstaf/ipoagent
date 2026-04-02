@@ -29,7 +29,7 @@ class Calculator(Tool):
         "Supports: +, -, *, /, ** (exponentiation), % (modulo), "
         "and parentheses for grouping. "
         "Available functions: abs(), min(), max(), sqrt(), log(), log10(). "
-        "Examples: '(revenue - costs) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'."
+        "Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'."
     )
     parameters: dict[str, Any] = {
         "expression": {
