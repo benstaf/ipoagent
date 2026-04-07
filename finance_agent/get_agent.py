@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from model_library.agent import Agent, AgentConfig, AgentHooks, TimeLimit, TurnLimit, TurnResult, default_before_query, truncate_oldest
+from model_library.agent import Agent, AgentConfig, AgentHooks, TimeLimit, TurnResult, default_before_query, truncate_oldest
 from model_library.base import LLM, LLMConfig, RawResponse, TextInput
 from model_library.base.input import InputItem
 from model_library.exceptions import MaxContextWindowExceededError
@@ -24,7 +24,7 @@ MAX_TIME_SECONDS = 120 * 60  # 2 hours
 
 class Parameters(BaseModel):
     model_name: str
-    max_turns: int = 50
+    max_time_seconds: int = MAX_TIME_SECONDS
     tools: list[str] = VALID_TOOLS
     llm_config: LLMConfig
 
@@ -62,14 +62,13 @@ def get_agent(
     #
     # The loop exits when:
     # - submit_final_result tool returns done=True -> break, no final_error
-    # - max_turns exceeded -> while condition fails, final_error = MaxTurnsExceeded
     # - max_time exceeded -> time limit triggers, final_error = MaxTimeExceeded
     # - query error re-raised by before_query -> caught by outer except, final_error set
     # - context window exceeded -> before_query truncates history, continues (not a stop)
     # - text-only response (no tool calls) -> continues (overridden below, default would stop)
     #
     # Answer extraction (default_determine_answer):
-    # - On final_error (max_turns, max_time, query error, etc): returns ""
+    # - On final_error (max_time, query error, etc): returns ""
     # - On clean exit: returns done tool output (submit_final_result)
     # - Fallback to LLM text: exists in default but is dead code here, because
     #   _should_stop=False means the only clean exit (no final_error) is the done tool break,
@@ -104,8 +103,7 @@ def get_agent(
         tools=selected_tools,
         name="finance",
         config=AgentConfig(
-            turn_limit=TurnLimit(max_turns=parameters.max_turns),
-            time_limit=TimeLimit(max_seconds=MAX_TIME_SECONDS),
+            time_limit=TimeLimit(max_seconds=parameters.max_time_seconds),
         ),
         hooks=AgentHooks(
             before_query=_before_query,

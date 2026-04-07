@@ -102,10 +102,10 @@ async def main():
         help="List of tools to make available to the agent",
     )
     parser.add_argument(
-        "--max-turns",
+        "--max-time",
         type=int,
-        default=50,
-        help="Maximum number of turns for the agent to take before stopping",
+        default=120 * 60,
+        help="Maximum time in seconds for the agent to run before stopping (default: 7200 = 2 hours)",
     )
     parser.add_argument(
         "--parallelism",
@@ -134,7 +134,7 @@ async def main():
 
     parameters = Parameters(
         model_name=args.model,
-        max_turns=args.max_turns,
+        max_time_seconds=args.max_time,
         tools=args.tools,
         llm_config=LLMConfig(
             max_tokens=args.max_tokens,
