@@ -26,7 +26,7 @@ async def run_tests_parallel(
 
     async def process_question(question: str, question_index: int):
         async with semaphore:
-            agent = await get_agent(parameters, log_dir=log_dir)
+            agent = get_agent(parameters, log_dir=log_dir)
             result = await agent.run(
                 build_input(question),
                 question_id=f"q{question_index:03d}",
@@ -111,7 +111,7 @@ async def main():
         "--max-turns",
         type=int,
         default=50,
-        help="Maximum number of agent turns (default: 50)",
+        help="Maximum number of agent turns for local testing (default: 50). The benchmark evaluation workflow uses time limits only.",
     )
     parser.add_argument(
         "--parallelism",

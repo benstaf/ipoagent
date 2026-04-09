@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from model_library.agent import Agent, AgentConfig, AgentHooks, AgentResult, TimeLimit, TurnLimit, TurnResult, default_before_query, truncate_oldest
-from model_library.base import LLM, LLMConfig, RawResponse, TextInput, TokenRetryParams
+from model_library.agent import Agent, AgentConfig, AgentHooks, TimeLimit, TurnLimit, TurnResult, default_before_query, truncate_oldest
+from model_library.base import LLM, LLMConfig, RawResponse, TextInput
 from model_library.base.input import InputItem, SystemInput
 from model_library.exceptions import MaxContextWindowExceededError
 from model_library.registry_utils import get_raw_model, get_registry_model
@@ -29,28 +29,30 @@ class Parameters(BaseModel):
     max_turns: int | None = None
     tools: list[str] = VALID_TOOLS
     llm_config: LLMConfig
-    token_retry_params: TokenRetryParams | None = None
 
 
 def build_input(question: str) -> list[InputItem]:
     return [SystemInput(text=SYSTEM_PROMPT), TextInput(text=QUESTION_PROMPT.format(question=question))]
 
-async def get_agent(
+
+def create_llm(parameters: Parameters) -> LLM:
+    """Create an LLM instance from parameters. Handles registry vs raw model selection."""
+    if parameters.llm_config.custom_endpoint:
+        config = parameters.llm_config.model_copy()
+        config.supports_tools = True
+        config.supports_temperature = config.temperature is not None
+        return get_raw_model(parameters.model_name, config=config)
+    return get_registry_model(parameters.model_name, parameters.llm_config)
+
+
+def get_agent(
     parameters: Parameters,
     llm: LLM | None = None,
     log_dir: Path | None = None,
 ) -> Agent:
     """Helper method to instantiate an agent with the given parameters"""
     if llm is None:
-        if parameters.llm_config.custom_endpoint:
-            parameters.llm_config.supports_tools = True
-            parameters.llm_config.supports_temperature = parameters.llm_config.temperature is not None
-            llm = get_raw_model(parameters.model_name, config=parameters.llm_config)
-        else:
-            llm = get_registry_model(parameters.model_name, parameters.llm_config)
-
-    if parameters.token_retry_params:
-        await llm.init_token_retry(token_retry_params=parameters.token_retry_params)
+        llm = create_llm(parameters)
 
     available_tools: dict[str, type[Tool]] = {
         "web_search": TavilyWebSearch,
