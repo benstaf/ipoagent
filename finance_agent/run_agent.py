@@ -1,14 +1,12 @@
 import argparse
 import asyncio
 import json
-import os
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from model_library.agent import AgentResult
 from model_library.base import LLMConfig
-from pydantic import SecretStr
 from tqdm.asyncio import tqdm
 
 from .get_agent import Parameters, build_input, get_agent, MAX_TIME_SECONDS
@@ -125,18 +123,6 @@ async def main():
         default=Path("logs"),
         help="Directory where per-question agent logs are written",
     )
-    parser.add_argument(
-        "--custom-endpoint",
-        type=str,
-        default=None,
-        help="Custom API endpoint URL (falls back to CUSTOM_ENDPOINT env var)",
-    )
-    parser.add_argument(
-        "--custom-api-key",
-        type=str,
-        default=None,
-        help="API key for the custom endpoint (falls back to CUSTOM_API_KEY env var)",
-    )
     args = parser.parse_args()
 
     env_file = Path(".env")
@@ -150,24 +136,15 @@ async def main():
     else:
         raise Exception("No questions provided. One of --question-file or --questions must be used.")
 
-    custom_endpoint = args.custom_endpoint or os.environ.get("CUSTOM_ENDPOINT")
-    custom_api_key = args.custom_api_key or os.environ.get("CUSTOM_API_KEY")
-
-    llm_config_kwargs: dict[str, Any] = {
-        "max_tokens": args.max_tokens,
-        "temperature": args.temperature,
-    }
-    if custom_endpoint:
-        llm_config_kwargs["custom_endpoint"] = custom_endpoint
-    if custom_api_key:
-        llm_config_kwargs["custom_api_key"] = SecretStr(custom_api_key)
-
     parameters = Parameters(
         model_name=args.model,
         max_time_seconds=args.max_time,
         max_turns=args.max_turns,
         tools=args.tools,
-        llm_config=LLMConfig(**llm_config_kwargs),
+        llm_config=LLMConfig(
+            max_tokens=args.max_tokens,
+            temperature=args.temperature,
+        ),
     )
 
     await run_tests_parallel(

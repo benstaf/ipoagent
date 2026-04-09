@@ -4,7 +4,7 @@ from model_library.agent import Agent, AgentConfig, AgentHooks, TimeLimit, TurnL
 from model_library.base import LLM, LLMConfig, RawResponse, TextInput
 from model_library.base.input import InputItem, SystemInput
 from model_library.exceptions import MaxContextWindowExceededError
-from model_library.registry_utils import get_raw_model, get_registry_model
+from model_library.registry_utils import get_registry_model
 from pydantic import BaseModel
 
 from .prompt import QUESTION_PROMPT, SYSTEM_PROMPT
@@ -36,12 +36,7 @@ def build_input(question: str) -> list[InputItem]:
 
 
 def create_llm(parameters: Parameters) -> LLM:
-    """Create an LLM instance from parameters. Handles registry vs raw model selection."""
-    if parameters.llm_config.custom_endpoint:
-        config = parameters.llm_config.model_copy()
-        config.supports_tools = True
-        config.supports_temperature = config.temperature is not None
-        return get_raw_model(parameters.model_name, config=config)
+    """Create an LLM instance from parameters using the model registry."""
     return get_registry_model(parameters.model_name, parameters.llm_config)
 
 
