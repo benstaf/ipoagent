@@ -2,11 +2,7 @@ from typing import Any
 
 from model_library.agent import AgentResult, TurnSummary
 from model_library.base import LLMConfig, TokenRetryParams
-from model_library.base.input import SystemInput, TextInput
-from model_library.registry_utils import get_registry_model
-
-from .get_agent import Parameters, get_agent
-from .prompt import QUESTION_PROMPT, SYSTEM_PROMPT
+from .get_agent import Parameters, build_input, get_agent
 
 
 def create_override_config(**kwargs: object) -> LLMConfig:
@@ -43,23 +39,18 @@ async def get_custom_model(
 ):
     from vals.sdk.types import OutputObject  # pyright: ignore
 
+    token_retry_params = parameters.pop("token_retry_params", None)
+
     params = Parameters(
         model_name=model_name,
         llm_config=create_override_config(**parameters),
+        token_retry_params=TokenRetryParams.model_validate(token_retry_params) if token_retry_params else None,
     )
 
-    llm = get_registry_model(model_name, params.llm_config)
-
-    token_retry_params = parameters.get("token_retry_params", None)
-    if token_retry_params:
-        await llm.init_token_retry(
-            token_retry_params=TokenRetryParams.model_validate(token_retry_params),
-        )
-
     async def custom_call(test_input: str, files: dict, context: dict, question_id: str, run_id: str):
-        agent = get_agent(params, llm=llm)
+        agent = await get_agent(params)
         result = await agent.run(
-            [SystemInput(text=SYSTEM_PROMPT), TextInput(text=QUESTION_PROMPT.format(question=test_input))],
+            build_input(test_input),
             question_id=question_id,
             run_id=run_id,
         )

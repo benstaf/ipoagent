@@ -1,17 +1,17 @@
 import argparse
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from model_library.agent import AgentResult
 from model_library.base import LLMConfig
-from model_library.base.input import SystemInput, TextInput
+from pydantic import SecretStr
 from tqdm.asyncio import tqdm
 
-from .get_agent import Parameters, get_agent
-from .prompt import QUESTION_PROMPT, SYSTEM_PROMPT
+from .get_agent import Parameters, build_input, get_agent
 from .tools import VALID_TOOLS
 
 
@@ -26,9 +26,9 @@ async def run_tests_parallel(
 
     async def process_question(question: str, question_index: int):
         async with semaphore:
-            agent = get_agent(parameters, log_dir=log_dir)
+            agent = await get_agent(parameters, log_dir=log_dir)
             result = await agent.run(
-                [SystemInput(text=SYSTEM_PROMPT), TextInput(text=QUESTION_PROMPT.format(question=question))],
+                build_input(question),
                 question_id=f"q{question_index:03d}",
             )
             return result
@@ -104,8 +104,14 @@ async def main():
     parser.add_argument(
         "--max-time",
         type=int,
-        default=120 * 60,
-        help="Maximum time in seconds for the agent to run before stopping (default: 7200 = 2 hours)",
+        default=60 * 60,
+        help="Maximum time in seconds for the agent to run before stopping (default: 60 minutes)",
+    )
+    parser.add_argument(
+        "--max-turns",
+        type=int,
+        default=50,
+        help="Maximum number of agent turns (default: 50)",
     )
     parser.add_argument(
         "--parallelism",
@@ -118,6 +124,18 @@ async def main():
         type=Path,
         default=Path("logs"),
         help="Directory where per-question agent logs are written",
+    )
+    parser.add_argument(
+        "--custom-endpoint",
+        type=str,
+        default=None,
+        help="Custom API endpoint URL (falls back to CUSTOM_ENDPOINT env var)",
+    )
+    parser.add_argument(
+        "--custom-api-key",
+        type=str,
+        default=None,
+        help="API key for the custom endpoint (falls back to CUSTOM_API_KEY env var)",
     )
     args = parser.parse_args()
 
@@ -132,14 +150,24 @@ async def main():
     else:
         raise Exception("No questions provided. One of --question-file or --questions must be used.")
 
+    custom_endpoint = args.custom_endpoint or os.environ.get("CUSTOM_ENDPOINT")
+    custom_api_key = args.custom_api_key or os.environ.get("CUSTOM_API_KEY")
+
+    llm_config_kwargs: dict[str, Any] = {
+        "max_tokens": args.max_tokens,
+        "temperature": args.temperature,
+    }
+    if custom_endpoint:
+        llm_config_kwargs["custom_endpoint"] = custom_endpoint
+    if custom_api_key:
+        llm_config_kwargs["custom_api_key"] = SecretStr(custom_api_key)
+
     parameters = Parameters(
         model_name=args.model,
         max_time_seconds=args.max_time,
+        max_turns=args.max_turns,
         tools=args.tools,
-        llm_config=LLMConfig(
-            max_tokens=args.max_tokens,
-            temperature=args.temperature,
-        ),
+        llm_config=LLMConfig(**llm_config_kwargs),
     )
 
     await run_tests_parallel(
