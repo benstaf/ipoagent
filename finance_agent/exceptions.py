@@ -39,40 +39,43 @@ def retry_with_policy(policy: RetryPolicy) -> Callable:
         @retry_with_policy({429: 20, 503: 3})
         async def fetch(url): ...
     """
-    attempt_counts: dict[int, int] = {}
-
-    def should_retry(exception: Exception) -> bool:
-        code = _get_status_code(exception)
-        if code is None:
-            for c in policy:
-                if str(c) in str(exception):
-                    code = c
-                    break
-        if code is None or code not in policy:
-            return False
-
-        attempt_counts[code] = attempt_counts.get(code, 0) + 1
-        if attempt_counts[code] > policy[code]:
-            return False
-
-        logger.error(f"{code} error: {exception}")
-        return True
-
     overall_max = max(policy.values()) if policy else 1
 
     def decorator(func: Callable) -> Callable:
-        @backoff.on_exception(
-            backoff.expo,
-            Exception,
-            max_tries=overall_max,
-            max_value=120,
-            base=2,
-            factor=3,
-            jitter=backoff.full_jitter,
-            giveup=lambda e: not should_retry(e),
-        )
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            return await func(*args, **kwargs)
+            attempt_counts: dict[int, int] = {}
+
+            def should_retry(exception: Exception) -> bool:
+                code = _get_status_code(exception)
+                if code is None:
+                    for c in policy:
+                        if str(c) in str(exception):
+                            code = c
+                            break
+                if code is None or code not in policy:
+                    return False
+
+                attempt_counts[code] = attempt_counts.get(code, 0) + 1
+                if attempt_counts[code] > policy[code]:
+                    return False
+
+                logger.error(f"{code} error: {exception}")
+                return True
+
+            @backoff.on_exception(
+                backoff.expo,
+                Exception,
+                max_tries=overall_max,
+                max_value=120,
+                base=2,
+                factor=3,
+                jitter=backoff.full_jitter,
+                giveup=lambda e: not should_retry(e),
+            )
+            async def _retrying(*a: Any, **kw: Any) -> Any:
+                return await func(*a, **kw)
+
+            return await _retrying(*args, **kwargs)
 
         return wrapper
 
