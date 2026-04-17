@@ -5,6 +5,7 @@ from typing import Any
 import aiohttp
 import backoff
 import httpx
+from tavily import UsageLimitExceededError
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,8 @@ def _get_status_code(exception: Exception) -> int | None:
         return exception.status
     if isinstance(exception, httpx.HTTPStatusError):
         return exception.response.status_code
+    if isinstance(exception, UsageLimitExceededError):
+        return 429
     return None
 
 
