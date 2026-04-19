@@ -436,7 +436,7 @@ class PriceHistory(Tool):
     parameters: dict[str, Any] = {
         "ticker": {
             "type": "string",
-            "description": "The ticker symbol.",
+            "description": "The ticker symbol (e.g. 'AAPL', '^IXIC').",
         },
         "start_date": {
             "type": "string",
