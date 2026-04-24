@@ -173,13 +173,11 @@ class TavilyWebSearch(Tool):
 
         if end_date:
             _validate_date_format("end_date", end_date)
-            if end_date > MAX_END_DATE:
-                end_date = MAX_END_DATE
+            end_date = min(end_date, MAX_END_DATE)
 
         if start_date:
             _validate_date_format("start_date", start_date)
-            if start_date > MAX_END_DATE:
-                start_date = MAX_END_DATE
+            start_date = min(start_date, MAX_END_DATE)
             if start_date > end_date:
                 raise ValueError(
                     f"Parameter start_date '{start_date}' was set to a date that is later than end_date '{end_date}'"
@@ -294,11 +292,8 @@ class EDGARSearch(Tool):
         _validate_date_format("start_date", start_date)
         _validate_date_format("end_date", end_date)
 
-        if start_date > MAX_END_DATE:
-            start_date = MAX_END_DATE
-
-        if end_date > MAX_END_DATE:
-            end_date = MAX_END_DATE
+        start_date = min(start_date, MAX_END_DATE)
+        end_date = min(end_date, MAX_END_DATE)
 
         if start_date > end_date:
             raise ValueError(
@@ -600,6 +595,8 @@ class PriceHistory(Tool):
 
             _validate_date_format("start_date", start_date)
             _validate_date_format("end_date", end_date)
+            start_date = min(start_date, MAX_END_DATE)
+            end_date = min(end_date, MAX_END_DATE)
             if start_date > end_date:
                 raise ValueError(
                     f"start_date '{start_date}' is later than end_date '{end_date}'."
