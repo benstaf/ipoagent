@@ -468,9 +468,16 @@ class PriceHistory(Tool):
         "ticker": {
             "type": "string",
             "description": (
-                "Ticker symbol. For equity use the bare symbol (AAPL, SPY). "
-                "For crypto use concatenated lowercase pair like 'btcusd'. "
-                "For FX use concatenated lowercase pair like 'audusd'."
+                "Ticker symbol. High-level symbology rules: "
+                "(1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). "
+                "Symbols are case-insensitive and contain only letters and dashes. "
+                "(2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. "
+                "(3) Securities are identified by the ticker as listed on the primary US exchange; "
+                "non-US listings, OTC pink sheets, indices, and futures are generally not covered. "
+                "(4) Tickers can be reused after delisting; data is point-in-time for the entity "
+                "that held the ticker on each date. "
+                "(5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. "
+                "(6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
             ),
         },
         "start_date": {
