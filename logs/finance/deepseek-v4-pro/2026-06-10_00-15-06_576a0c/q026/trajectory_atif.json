@@ -1,0 +1,443 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "0d899945-e536-406b-9e56-882074ae9d55",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "deepseek-v4-pro",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-10T00:15:08.396028+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-10T00:15:08.396028+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe glossary defines Starshield as a secure government satellite network. Which reporting segment includes Starshield revenue and what revenue contribution disclosure, if any, is provided?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-10T00:15:08.396028+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "The question asks about Starshield's definition in the glossary and which reporting segment includes Starshield revenue, plus any revenue contribution disclosure. Let me start by parsing the SpaceX S-1 filing to find this information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_2425928329774eb08bad51f7",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_2425928329774eb08bad51f7",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3308,
+        "completion_tokens": 139,
+        "cached_tokens": 2944,
+        "cost_usd": 0.00598
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-10T00:15:33.990595+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now let me search for the glossary definition of Starshield and also look for segment information related to Starshield.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_cc56c18dd0804012b7afdc41",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the glossary definition of \"Starshield\" in {{spacex_s1}}? Retrieve the exact text of the definition."
+          }
+        },
+        {
+          "tool_call_id": "call_ebd9400d2c284123821cdb57",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Which reporting segment includes Starshield revenue and what revenue contribution disclosures are provided for Starshield in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_cc56c18dd0804012b7afdc41",
+            "content": "Based on the provided text, the exact glossary definition of \"Starshield\" is:\n\n**\u201cStarshield\u201d refers to a secure satellite network designed specifically for government customers and national security applications.**"
+          },
+          {
+            "source_call_id": "call_ebd9400d2c284123821cdb57",
+            "content": "Based on the provided text chunks, here is the analysis:\n\n**Which reporting segment includes Starshield revenue?**\n\nThe **Connectivity** segment includes Starshield revenue. This is stated explicitly in several places, for example: \"Connectivity contract revenue for Starshield customers...\" and \"We generate government revenue via long term contracts for Starshield...\".\n\n**What revenue contribution disclosures are provided for Starshield in this chunk?**\n\nThe provided chunks contain **no specific quantitative revenue contribution disclosures** for Starshield as a separate line item. The text does not provide a standalone revenue figure or percentage contribution specifically attributed to Starshield.\n\nInstead, the disclosures regarding Starshield revenue within this chunk are qualitative in nature:\n1.  **Classification:** The revenue is classified within the Connectivity segment, specifically as part of \"Enterprise & Government\" revenue, which also includes Starlink Mobile service offerings as per a footnote.\n2.  **Recognition Policy:** Detailed descriptions of the revenue recognition policy for Starshield are provided, noting it is recognized over time on a cost-to-cost input basis for complex, multi-year contracts.\n3.  **Context within Growth Drivers:** The text mentions growth in \"Connectivity enterprise and government sales\" as a driver for overall Connectivity and consolidated revenue increases, a category which encompasses Starshield. For the first quarter of 2026, it notes the Connectivity segment's revenue increase was \"as our Starlink Subscriber base continued to grow as well as an increase in revenue from\" (though the sentence cuts off, its placement directly follows the subscriber base growth statement)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3472,
+        "completion_tokens": 155,
+        "cached_tokens": 3200,
+        "cost_usd": 0.00623
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-10T00:17:54.970802+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "I have the glossary definition and the segment information. Let me now try to get more specific information about any quantitative Starshield revenue disclosures. Let me also look at the segment disclosure more carefully.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8f0f1ead18264e118b68bf58",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the full segment reporting disclosure from {{spacex_s1}}, including descriptions of the Connectivity segment and any breakdown of revenue within that segment, especially regarding Starshield or government contracts."
+          }
+        },
+        {
+          "tool_call_id": "call_80454cd2eb504db9bd026ee0",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Search for any quantitative revenue figures specifically attributed to Starshield, including percentages, dollar amounts, or contract values in {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8f0f1ead18264e118b68bf58",
+            "content": "NOTE X \u2014 SEGMENT REPORTING AND CONNECTIVITY REVENUE DISCLOSURE\n\n**Segment Description**\n\nSpace Exploration Technologies Corp. and its wholly owned subsidiaries, collectively referred to as the \u201cCompany\u201d or \u201cSpaceX,\u201d operate three segments \u2013 (i) the Space segment designs, manufactures, and launches reusable rockets to provide high cadence, reliable, and affordable access to space at unprecedented scale, (ii) the Connectivity segment operates a worldwide high-speed, low-latency broadband network powered by thousands of Starlink satellites in Low-Earth Orbit, delivering connectivity to millions of consumer, enterprise, and government customers through our Starlink offering, and (iii) the AI segment operates a vertically integrated AI platform spanning a frontier LLM Grok, AI solutions for consumer and enterprise customers, X \u2014 a real-time information, entertainment, and free speech platform.\n\n**Revenue Recognition \u2013 Connectivity Segment**\n\n*Broadband, Mobile, and Starshield Services*\n\nConnectivity segment generates revenue from (i) the broadband and mobile connectivity services provided through Starlink and (ii) the sale of the Starlink Kit (inclusive of the terminal). The Company provides connectivity services and Starlink Kits to consumers or enterprise and government customers.\n\nThe Company recognizes revenue from broadband and mobile connectivity services over time as the customer simultaneously receives and consumes the benefits provided. The Company generates service revenue from (i) fixed-price services that require advance or recurring monthly payments by the customer or (ii) variable-priced services based on actual data consumption. The amounts received from customers for advanced payments for broadband and mobile connectivity services are recognized either ratably over the subscription term or based on actual data consumption. The Company\u2019s broadband contracts are generally month-to-month and the revenue recognized for these recurring consumer customers is equal to the amount billed in that month. The Company\u2019s mobile connectivity agreements are generally multi-year contractual obligations that range from one to five years, although the customer can generally terminate at any time.\n\nThe Company recognizes revenue over time for certain contracts related to our Starshield business that are multi-year in nature. For revenue that is recognized over time, we use the cost-to-cost input method. The Company records revenue based upon costs (such as materials and labor hours) incurred to date relative to the total estimated cost at completion.\n\nConnectivity contract revenue for Starshield customers is mostly derived from fixed-price contracts related to the development of a secure satellite network designed specifically for government and national security applications. The Company recognizes revenue over time when the Company\u2019s performance on the contract creates an asset with no alternative use and when the Company has an enforceable right to payment for performance to date. The Company measures progress on these contracts using the cost-to-cost input method, as the Company believes this represents the most appropriate measure towards satisfaction of its performance obligation. Under the cost-to-cost input method, the Company records revenue based upon costs (such as materials and labor hours) incurred to date relative to the total estimated cost at completion.\n\n*Starlink Kit Revenue*\n\nThe Company records revenue for the Starlink Kit upon delivery to the customer, or in the instance of certain enterprise customers, when it is installed. Starlink Kit revenue is reported net of sales returns, credits, and allowances.\n\n*Cost of Revenue \u2013 Connectivity Segment*\n\nConnectivity segment\u2019s cost of revenue includes depreciation (inclusive of launch, satellite, and ground infrastructure costs), Starlink Kit costs, shipping and handling costs, ground operating expenses, employee compensation costs (including salaries, benefits, and share-based compensation) for our engineering and operations teams, payment processor fees, warranty expense, inventory excess and obsolescence, and customs and duties.\n\n**Revenue Disaggregated by Type and Segment**\n\nRevenue disaggregated by type and segment is as follows:\n\n|  | Year Ended December 31, |  |  |  |  |  |\n| --- | --- | --- | --- | --- | --- | --- |\n|  | **2025** |  | **2024** |  | **2023** |  |\n| Launch Services ........................................................................... | $2,576 |  | $2,584 |  | $1,964 |  |\n| Launch & Development ............................................................... | 1,510 |  | 1,212 |  | 1,593 |  |\n| Space ............................................................................................. | 4,086 |  | 3,796 |  | 3,557 |  |\n| Consumer ..................................................................................... | 7,208 |  | 4,830 |  | 2,817 |  |\n| Enterprise & Government (1) ........................................................ | 4,179 |  | 2,769 |  | 1,052 |  |\n| Connectivity ................................................................................. | 11,387 |  | 7,599 |  | 3,869 |  |\n| Advertising ................................................................................... | 1,844 |  | 1,728 |  | 2,323 |  |\n| AI Solutions & Infrastructure ...................................................... | 1,357 |  | 892 |  | 638 |  |\n| AI .................................................................................................. | 3,201 |  | 2,620 |  | 2,961 |  |\n| Total revenues ......................................................................... | $18,674 |  | $14,015 |  | $10,387 |  |\n\n(1) Enterprise & Government revenue includes revenue from Starlink Mobile service offerings.\n\nFor the three months ended March 31, revenue disaggregated by type and segment is as follows:\n\n|  | Three Months Ended March 31, |  |  |\n| --- | --- | --- | --- |\n|  | **2026** |  | **2025** |\n| Launch Services ................................................................................................... | $330 |  | $566 |\n| Launch & Development ........................................................................................ | 289 |  | 299 |\n| Space ........................................................................................................................ | 619 |  | 865 |\n| Consumer .............................................................................................................. | 2,148 |  | 1,492 |\n| Enterprise & Government (1) ................................................................................. | 1,109 |  | 983 |\n| Connectivity ............................................................................................................ | 3,257 |  | 2,475 |\n| Advertising ............................................................................................................ | 343 |  | 443 |\n| AI Solutions & Infrastructure ............................................................................... | 475 |  | 284 |\n| AI .............................................................................................................................. | 818 |  | 727 |\n| Total revenues ......................................................................................................... | $4,694 |  | $4,067 |\n\n(1) Enterprise & Government revenue includes revenue from Starlink Mobile service offerings.\n\n**Deferred Revenue**\n\nDeferred revenue is recorded when cash payments are received or due, in advance of the Company\u2019s performance. Deferred revenue primarily relates to Space agreements and Connectivity enterprise and government contracts. Total deferred revenue as of December 31, 2024 was $10,179 million, of which $4,080 million was recognized as revenue for the year ended December 31, 2025. Total deferred revenue as of December 31, 2025 was $12,116 million.\n\n**Segment Operating Results \u2013 Year Ended December 31, 2023**\n\n|  | Year Ended December 31, 2023 |  |  |  |  |\n| --- | --- | --- | --- | --- | --- |\n|  | **Space** |  | **Connectivity** |  | **AI** |\n| Revenue ............................................................. | $3,557 |  | $3,869 |  | $2,961 |\n| Costs and expenses: |  |  |  |  |  |\n| Cost of revenue ................................................. | 1,669 |  | 2,786 |  | 1,655 |\n| Research and development ............................... | 1,538 |  | 381 |  | 186 |\n| Selling, general, and administrative ................. | 351 |  | 233 |  | 1,081 |\n| Restructuring charges ....................................... | \u2014 |  | \u2014 |  | 237 |\n| Impairment ........................................................ | \u2014 |  | \u2014 |  | 3,775 |\n| Total costs and expenses ................................ | 3,558 |  | 3,400 |  | 6,934 |\n| Income (loss) from operations ......................... | (1) |  | 469 |  | (3,973) |\n| Supplemental segment information: |  |  |  |  |  |\n| Depreciation and amortization ............................ | $571 |  | $884 |  | $1,180 |\n| Share-based compensation .................................. | $427 |  | $249 |  | $3 |\n| Impairment .......................................................... | $\u2014 |  | $\u2014 |  | $3,775 |\n| Capital expenditures ............................................ | $1,497 |  | $2,455 |  | $463 |\n\n**Connectivity Segment Revenue Composition (MD&A)**\n\nWe generate revenue in our Connectivity segment primarily through subscription fees from consumer subscribers. We drive consumer revenue through monthly subscription fees based on geographic market and download speed, recognizing revenue ratably over the service period, plus typically a one-time sale of a kit. In addition, we generate revenue from enterprises through contracts structured as a combination of subscriptions, data consumption, and capacity, or on a percentage-of-completion basis, depending on each customer\u2019s particular needs. We generate government revenue via long term contracts for Starshield, a secure satellite network designed specifically for government customers and national security applications. We also earn Starlink Mobile revenue through revenue-sharing arrangements with MNO partners, based on connectivity services included in their plans.\n\nIn 2025, revenue from consumer subscribers represented over 60% of Connectivity segment revenue. We expect revenue from consumer subscribers, as well as enterprise and government customers, to be the primary driver of Connectivity segment growth, and that Starlink Mobile will become a significant new contributor of Connectivity revenue."
+          },
+          {
+            "source_call_id": "call_80454cd2eb504db9bd026ee0",
+            "content": "None of the provided chunks contain quantitative revenue figures (dollar amounts, percentages, or contract values) specifically attributed to **Starshield**. All references to Starshield are qualitative, describing the nature of the contracts, revenue recognition policies (cost-to-cost input method), and management judgments required for cost estimation. Starshield is mentioned as part of government revenue within the Connectivity segment, but no separate Starshield revenue amount is disclosed."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4010,
+        "completion_tokens": 184,
+        "cached_tokens": 3456,
+        "cost_usd": 0.007545
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-10T00:18:12.618236+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me now synthesize the findings:\n\n1. The glossary defines \"Starshield\" as: \"a secure satellite network designed specifically for government customers and national security applications.\"\n\n2. Starshield revenue is included in the **Connectivity** segment, specifically within \"Enterprise & Government\" revenue.\n\n3. As for revenue contribution disclosure: there is NO separate quantitative disclosure for Starshield revenue. The filing does not break out Starshield as a separate line item. It is rolled up into \"Enterprise & Government\" within the Connectivity segment. The only quantitative disclosure related to Connectivity composition is that \"in 2025, revenue from consumer subscribers represented over 60% of Connectivity segment revenue.\"\n\nLet me also check if there's any additional disclosure about Starshield in the MD&A or risk factors that might give more color.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_cda667cd279c4c57adb75e2e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Search for any additional disclosures about Starshield in the MD&A, risk factors, or business sections of {{spacex_s1}} - including any backlog, contract values, customer concentration, or percentage of revenue disclosures related to Starshield or government satellite contracts."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_cda667cd279c4c57adb75e2e",
+            "content": "Based on the provided text, there are no additional quantitative disclosures regarding Starshield's backlog, contract values, customer concentration, or percentage of revenue. The search results do not contain that specific information.\n\nThe excerpts include only qualitative descriptions of the Starshield business. The relevant disclosures found are:\n\n**Business Overview:**\n*   \"Separately with Starshield, we have leveraged our commercial LEO satellite constellation engineering learnings and operational experiences to develop a secure, dedicated satellite network designed specifically for United States Government customers and national security applications.\"\n*   \"We generate government revenue via long term contracts for Starshield, a secure satellite network designed specifically for government customers and national security applications.\"\n\n**Revenue Recognition:**\n*   \"The Company recognizes revenue over time for certain contracts related to our Starshield business that are multi-year in nature. For revenue that is recognized over time, we use the cost-to-cost input method.\"\n*   \"The Company\u2019s Starshield contracts are complex and require the Company to estimate the total costs to perform over the term of the contracts, as well as the measurement of progress towards completion for each performance obligation.\"\n\n**Risk Factors:**\n*   The risk factor sections discuss general risks related to government contracts (competitive bidding, audits, geopolitical perceptions) but do not single out Starshield with specific financial metrics."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6368,
+        "completion_tokens": 265,
+        "cached_tokens": 3968,
+        "cost_usd": 0.01361
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-10T00:18:25.565839+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a comprehensive picture. Let me compile the answer.\n\nSummary:\n1. The glossary defines \"Starshield\" as \"a secure satellite network designed specifically for government customers and national security applications.\"\n2. Starshield revenue is included in the **Connectivity** segment, specifically within the \"Enterprise & Government\" revenue line.\n3. No separate quantitative revenue contribution disclosure is provided for Starshield - it is not broken out as a separate line item. The filing provides qualitative descriptions of Starshield as part of government revenue within Connectivity. The only quantitative composition disclosure for Connectivity is that consumer subscribers represented over 60% of Connectivity segment revenue in 2025.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8c99038c3fc0417a999e1240",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Starshield: Glossary Definition, Reporting Segment, and Revenue Disclosure\n\n### Glossary Definition\n\nThe S-1 glossary defines **\"Starshield\"** as:\n\n> \"a secure satellite network designed specifically for government customers and national security applications.\"\n\n---\n\n### Reporting Segment\n\nStarshield revenue is included in the **Connectivity** segment. Specifically, it falls within the **\"Enterprise & Government\"** revenue line within Connectivity, alongside Starlink Mobile service offerings.\n\nThe business overview section confirms this classification:\n\n> \"We generate government revenue via long term contracts for Starshield, a secure satellite network designed specifically for government customers and national security applications.\"\n\nAnd the segment footnote states:\n\n> \"(1) Enterprise & Government revenue includes revenue from Starlink Mobile service offerings.\"\n\n---\n\n### Revenue Contribution Disclosure\n\n**No separate quantitative revenue contribution is disclosed for Starshield.** The filing does not break out Starshield as a discrete revenue line item, nor does it provide a percentage contribution, dollar amount, backlog figure, or any other quantitative metric specific to Starshield.\n\nThe Connectivity segment's revenue is disaggregated into only two categories:\n\n| Category | FY2025 | FY2024 | FY2023 |\n|---|---|---|---|\n| Consumer | $7,208M | $4,830M | $2,817M |\n| Enterprise & Government | $4,179M | $2,769M | $1,052M |\n\nStarshield revenue is fully subsumed within the **Enterprise & Government** line, with no further granularity provided.\n\nThe sole quantitative composition disclosure for the Connectivity segment is:\n\n> \"In 2025, revenue from consumer subscribers represented over 60% of Connectivity segment revenue.\"\n\nThis implies Enterprise & Government (which includes Starshield) represented less than 40% of Connectivity revenue in 2025, but no further breakdown isolating Starshield is available.\n\n---\n\n### Additional Context\n\nThe filing does describe Starshield's characteristics qualitatively:\n\n- **Contract type:** Multi-year, fixed-price contracts recognized over time using the **cost-to-cost input method**.\n- **Revenue recognition:** Revenue is recognized when performance creates an asset with no alternative use and the Company has an enforceable right to payment. Progress is measured via costs incurred relative to total estimated cost at completion.\n- **Risk disclosure:** Starshield contracts are described as \"complex\" and require significant management judgment in estimating total costs and measuring progress toward completion.\n\n**Conclusion:** While the Connectivity segment inclusion and the nature of Starshield are clearly disclosed, the S-1 provides **no separate quantitative revenue contribution disclosure** for Starshield. Investors cannot determine from the filing what portion of Connectivity or total company revenue is attributable to Starshield specifically."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8c99038c3fc0417a999e1240",
+            "content": "## Starshield: Glossary Definition, Reporting Segment, and Revenue Disclosure\n\n### Glossary Definition\n\nThe S-1 glossary defines **\"Starshield\"** as:\n\n> \"a secure satellite network designed specifically for government customers and national security applications.\"\n\n---\n\n### Reporting Segment\n\nStarshield revenue is included in the **Connectivity** segment. Specifically, it falls within the **\"Enterprise & Government\"** revenue line within Connectivity, alongside Starlink Mobile service offerings.\n\nThe business overview section confirms this classification:\n\n> \"We generate government revenue via long term contracts for Starshield, a secure satellite network designed specifically for government customers and national security applications.\"\n\nAnd the segment footnote states:\n\n> \"(1) Enterprise & Government revenue includes revenue from Starlink Mobile service offerings.\"\n\n---\n\n### Revenue Contribution Disclosure\n\n**No separate quantitative revenue contribution is disclosed for Starshield.** The filing does not break out Starshield as a discrete revenue line item, nor does it provide a percentage contribution, dollar amount, backlog figure, or any other quantitative metric specific to Starshield.\n\nThe Connectivity segment's revenue is disaggregated into only two categories:\n\n| Category | FY2025 | FY2024 | FY2023 |\n|---|---|---|---|\n| Consumer | $7,208M | $4,830M | $2,817M |\n| Enterprise & Government | $4,179M | $2,769M | $1,052M |\n\nStarshield revenue is fully subsumed within the **Enterprise & Government** line, with no further granularity provided.\n\nThe sole quantitative composition disclosure for the Connectivity segment is:\n\n> \"In 2025, revenue from consumer subscribers represented over 60% of Connectivity segment revenue.\"\n\nThis implies Enterprise & Government (which includes Starshield) represented less than 40% of Connectivity revenue in 2025, but no further breakdown isolating Starshield is available.\n\n---\n\n### Additional Context\n\nThe filing does describe Starshield's characteristics qualitatively:\n\n- **Contract type:** Multi-year, fixed-price contracts recognized over time using the **cost-to-cost input method**.\n- **Revenue recognition:** Revenue is recognized when performance creates an asset with no alternative use and the Company has an enforceable right to payment. Progress is measured via costs incurred relative to total estimated cost at completion.\n- **Risk disclosure:** Starshield contracts are described as \"complex\" and require significant management judgment in estimating total costs and measuring progress toward completion.\n\n**Conclusion:** While the Connectivity segment inclusion and the nature of Starshield are clearly disclosed, the S-1 provides **no separate quantitative revenue contribution disclosure** for Starshield. Investors cannot determine from the filing what portion of Connectivity or total company revenue is attributable to Starshield specifically."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6915,
+        "completion_tokens": 739,
+        "cached_tokens": 6272,
+        "cost_usd": 0.0168375
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 24073,
+    "total_completion_tokens": 1482,
+    "total_cached_tokens": 19840,
+    "total_cost_usd": 0.050202500000000004,
+    "total_steps": 7
+  }
+}

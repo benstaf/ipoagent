@@ -1,0 +1,555 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "f400f21d-db7a-473d-ad3e-bac02f601ef1",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "deepseek-v4-pro",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-10T00:52:13.345316+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-10T00:52:13.345316+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe filing references long-duration initiatives including Starship, Terafab, and AI compute expansion. Which initiatives appear primarily tied to near-term revenue generation versus long-duration strategic investment, and what does that distinction imply about execution and monetization timing?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-10T00:52:13.345316+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me analyze this question carefully. The user is asking me to examine the SpaceX S-1 filing to identify which initiatives are primarily tied to near-term revenue generation versus long-duration strategic investment, and what that distinction implies about execution and monetization timing.\n\nLet me start by parsing the primary filing and then searching for information about Starship, Terafab, and AI compute expansion within it.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e0a9a3796d8f4b6e9d6c8f60",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1_main"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e0a9a3796d8f4b6e9d6c8f60",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1_main"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3325,
+        "completion_tokens": 175,
+        "cached_tokens": 0,
+        "cost_usd": 0.0100625
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-10T00:53:52.301929+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me now retrieve information about Starship, Terafab, and AI compute expansion from the filing. I'll search for each of these initiatives separately to understand their nature - whether they're tied to near-term revenue or long-duration strategic investment.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_6807ea7499154334b8c1bcbd",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about Starship, including its development status, revenue generation, commercial contracts, and whether it is generating near-term revenue or considered a long-duration strategic investment? Include all material disclosures about Starship in {{spacex_s1_main}}."
+          }
+        },
+        {
+          "tool_call_id": "call_c63e6811f53046e28f196262",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about Terafab, including what it is, its development status, revenue generation potential, and whether it is generating near-term revenue or considered a long-duration strategic investment in {{spacex_s1_main}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_d7e24db7237e4dcea0a9758d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about AI compute expansion, including its development status, revenue generation, commercial contracts, and whether it is generating near-term revenue or considered a long-duration strategic investment in {{spacex_s1_main}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_6807ea7499154334b8c1bcbd",
+            "content": "Based on the provided text, here is what the filing discloses about Starship, organized by your requested categories:\n\n### Development Status\n*   **Current Testing:** The company has executed **11 Starship flight tests** to date and has scheduled a 12th flight test.\n*   **Next-Generation Debut:** The 12th flight test will debut the **next generation Starship vehicle and Super Heavy booster**, powered by the next evolution of the Raptor engine.\n*   **Current Classification:** Starship is a **fully reusable rocket** composed of boosters, ships, and Raptor engines and is **currently in the development stage**.\n*   **Key Milestone:** The company expects to achieve **commencement of payload delivery to orbit in 2026**.\n*   **Specific Requirements Noted:** Full reusability of Starship\u2019s upper stage and in-orbit refueling are **not required** to deploy the next-generation V3 satellites and V2 Mobile satellites in low-Earth orbit.\n\n### Revenue Generation and Commercial Contracts\n*   **No Current Revenue:** The filing contains **no disclosure of any current revenue** being generated by Starship.\n*   **Contract Inclusion:** \"Launch and Development\" contracts, which can range from one to fourteen years, include work for government agency space programs utilizing Starship. However, the majority of Starship costs are currently expensed to Research and development as incurred.\n*   **Inter-segment Activity:** For internal Starlink satellite launches, the company does not recognize any inter-segment revenue. The filing does not disclose any external commercial Starship launch contracts.\n\n### Financial Treatment and Near-Term Revenue vs. Long-Duration Strategic Investment\nThe filing consistently frames Starship as a **long-duration strategic investment** that is a significant expense driver with no near-term revenue and will ultimately have a different financial treatment upon commercialization.\n\n*   **No Near-Term Revenue:** Starship is not generating revenue. Its development is materially increasing costs and reducing Segment Adjusted EBITDA in the Space segment.\n\n*   **Heavy R&D Expense (Not Capitalized):** A majority of Starship costs are **expensed to Research and development as incurred**. The Space segment's R&D expenses \"mainly relate to the development, build, and testing of Starship.\"\n    *   In the three months ended March 31, 2026, the Space segment funded **$930 million** in R&D for the Starship program.\n    *   In the year ended December 31, 2025, the Space segment funded **$3,004 million** in R&D for the Starship program (a significant acceleration from $1,835 million in 2024).\n\n*   **Long-Duration Strategic Investment:** The filing explicitly states Starship is the **\"key enabler of our long-term growth strategy by unlocking entirely new categories of missions.\"** The long-term vision includes point-to-point terrestrial travel, space tourism, in-orbit manufacturing, passenger/cargo transport to the Moon and Mars, and energy production on the Moon and Mars.\n\n*   **Future Capitalization:** The financial treatment of Starship will change upon commercialization. The filing states, **\"At commercialization, Starship costs generally will be capitalized and then depreciated in cost of revenue of the segment associated with the payload delivered.\"** This confirms the asset is a long-term investment that will shift from an expensed R&D cost to a capitalized asset on the balance sheet only when it becomes operational.\n\n### Material Disclosures Cited in Your Preamble\nAll of the material risks you outlined are confirmed in the filing:\n*   **Development delays materially impairing deployment:** Delays in Starship development would materially and adversely affect the ability to deploy next-generation V3 satellites, V2 Mobile satellites, and orbital AI compute infrastructure, impacting revenue and growth.\n*   **Falcon Dependency:** The current operational rockets, Falcon 9 and Falcon Heavy, \"are not capable of deploying V3 satellites and V2 Mobile satellites,\" making Starship indispensable for these strategic initiatives.\n*   **Capital Investment Risk:** The development of Starship \"will require the investment of significant additional capital resources,\" and prioritizing this long-term growth may reduce near-term profitability."
+          },
+          {
+            "source_call_id": "call_c63e6811f53046e28f196262",
+            "content": "Based on the provided text, here is what the filing says about Terafab:\n\n**What it is:**\nTerafab is defined as a \"chip manufacturing initiative with a long-term goal of producing one terawatt of compute hardware each year.\" It is a strategic collaboration with Tesla and Intel, designed to vertically integrate the design, fabrication, and deployment of advanced logic and memory chips. The strategy involves a single, closed-loop plant covering the design of lithography masks, fabrication, and advanced packaging. The facility is expected to produce two kinds of chips: one optimized for terrestrial use (primarily in Tesla\u2019s Optimus robots and vehicles) and another optimized for the space environment for SpaceX's orbital compute infrastructure.\n\n**Development Status:**\nThe project is in its very early stages. While a general framework for the collaboration has been agreed upon with Tesla, \"any specific projects undertaken pursuant to this framework will be subject to separate negotiations and agreements (including any development timelines, milestones and capital expenditures) and have not yet been determined.\" The filing notes that a \"variety of details relating to our collaboration, including, but not limited to, financial terms, intellectual property rights, and the ultimate term of our collaboration\" have not been finalized.\n\n**Revenue Generation Potential:**\nThe filing does not explicitly describe Terafab as a direct revenue generator. Its stated purpose is internal and strategic: to \"alleviate potential future chip shortages at SpaceX,\" \"optimize compute performance,\" and \"potentially reduce overall compute costs.\" It is viewed as a way to augment access to compute hardware, enabling the company to scale its AI compute platform more efficiently with speed and cost advantages from vertical integration. The filing explicitly states the company still expects to \"continue sourcing a significant portion of our compute hardware from third-party suppliers\" and views Terafab as \"complementary to these relationships.\"\n\n**Near-Term Revenue vs. Long-Duration Strategic Investment:**\nThe filing clearly indicates Terafab is a **long-duration strategic investment** and not a source of near-term revenue. It is listed alongside other massive, long-term capital expenditures such as Starship development, satellite constellations, and AI compute infrastructure. The preamble explicitly warns that prioritizing these long-term investments, which would include Terafab, \"may reduce near-term profitability\" as the company \"prioritize[s] long-term growth over near-term financial performance.\" The description of the project as having a \"long-term goal\" and being in the \"very early stages\" with no finalized timelines or milestones confirms its status as a future-oriented, strategic initiative rather than a near-term profit center."
+          },
+          {
+            "source_call_id": "call_d7e24db7237e4dcea0a9758d",
+            "content": "The filing portrays AI compute expansion as a **core, capital-intensive strategic initiative** that is still in an early, high-investment phase. While the AI segment is already generating revenue and has secured certain commercial compute contracts, the company emphasizes a **multi-year investment horizon** with no expectation of near-term profitability. The compute build-out is explicitly positioned as a **long-duration strategic investment** aimed at achieving AGI-scale infrastructure and unlocking future markets rather than delivering immediate returns.\n\n---\n\n### Development Status\n\n- **Terrestrial compute:** The company is actively deploying **gigawatt-scale AI compute infrastructure**, including facilities like the COLOSSUS II facility in Memphis. In 2025, AI segment R&D spending accelerated to **$5,064 million** (up from $1,176 million in 2024) to speed up Grok\u2019s development. Capital expenditures for the AI segment alone reached **$7,723 million in Q1 2026**.\n- **Orbital AI compute:** The company plans to begin deploying **orbital AI compute satellites as early as 2028**, with a long-term goal of launching **100 gigawatts of compute to space per year**. This is described as a unique capability leveraging reusable rockets and low-cost satellite manufacturing.\n- **Chip manufacturing:** The company has a strategic collaboration with Tesla and Intel to build **Terafab**, intended to be the world\u2019s largest chip manufacturing facility, eventually targeting **one terawatt of annual compute production** capacity. This is in the planning stage, with specific projects subject to future agreements.\n- **Overall posture:** The filing repeatedly frames speed, scale, and vertical integration as competitive necessities. Infrastructure is described as **fundamentally constrained** for frontier AI, and massive compute is seen as a critical differentiator.\n\n---\n\n### Revenue Generation\n\n- The AI segment **does generate revenue**: $3,201 million in 2025 and $818 million in Q1 2026, primarily from AI consumer subscriptions, advertising on X, and likely early compute monetization.\n- Despite this revenue, the segment is **deeply unprofitable**. In 2025, it posted an operating loss of **$(6,355) million** and negative Segment Adjusted EBITDA of **$(1,237) million**. In Q1 2026, the operating loss was **$(2,469) million** with Segment Adjusted EBITDA of **$(609) million**.\n- The filing explicitly states the AI segment has incurred **significant operating losses since inception** and that the company **may not achieve profitability** in this segment or may not sustain it if achieved. The commercial value proposition of frontier AI models is called **\u201clargely unproven.\u201d**\n\n---\n\n### Commercial Contracts\n\n- **Anthropic cloud services agreement (May 2026):** The company entered into a contract to provide **access to its compute capacity** for a monthly fee through May 2029, with capacity ramping at a reduced fee initially. This reflects the strategy to **monetize unused compute capacity**.\n- **Cursor partnership:** A coding/software development collaboration that is part of the company\u2019s evolving commercial and technical strategies.\n- **Valor hardware lease (April 2026):** A five-year equipment lease for AI infrastructure hardware worth **$6,587 million** in undiscounted lease payments.\n- **Turbine acquisition (April 2026):** An asset purchase of mobile gas turbines for approximately **$2,000 million** to power data centers.\n- **Non-cancelable commitments:** As of the filing date, the company had **$25,451 million** in contractual commitments, **primarily related to AI infrastructure and third-party cloud capacity**, with the majority due in 2027 ($21,476 million).\n- The filing also notes an intent to **sell high\u2011performance compute capacity to a limited number of third\u2011party customers** while simultaneously using that capacity for internal model development.\n\n---\n\n### Near-Term Revenue vs. Long-Duration Strategic Investment\n\nThe prospectus unequivocally frames AI compute expansion as a **long-duration strategic investment**, not a near-term profit play:\n\n- The company states it **\u201cexpect[s] a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA.\u201d**\n- It acknowledges that **capital expenditures will continue to increase for the foreseeable future** and that the company may **\u201cprioritize long\u2011term growth over near\u2011term financial performance,\u201d** which could result in **periods of reduced profitability or increased losses**.\n- The risks section warns that the **returns on AI investments may not be adequate to justify the capital deployed** and that **scaling laws may not hold**, potentially undermining the strategy.\n- Even the 2025 revenue of $3.2 billion is dwarfed by operating losses of $6.4 billion and massive capex, reinforcing that current revenue is incidental to the investment phase rather than indicative of an established, profitable business.\n\n**Bottom line:** The AI compute expansion is a **nascent, loss-making endeavor** with some early commercial contracts and revenue, but the filing is clear that it is a **long-term strategic bet** on AGI, orbital compute, and vertical integration\u2014with no assurance of near-term profitability and a deliberately long investment runway."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3526,
+        "completion_tokens": 305,
+        "cached_tokens": 3200,
+        "cost_usd": 0.007865
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-10T00:54:53.790139+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a good picture of the three initiatives. Let me also look at the segment information to understand what is generating near-term revenue versus long-duration investments. Let me also look for specific revenue-generating initiatives mentioned in the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4a4dbc0ca3a241cbaaaabf94",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the near-term revenue generating activities and initiatives discussed in the filing? What does the filing say about Falcon 9, Falcon Heavy, Starlink, Dragon, and any other revenue-generating products or services? Focus on which products/services are currently generating revenue and profit in {{spacex_s1_main}}."
+          }
+        },
+        {
+          "tool_call_id": "call_23ae83cccbb64c59ac0cc56c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing disclose about the Space segment's revenue breakdown, including launch services, Starlink revenue, and other space-related revenue? Include growth rates and segment profitability in {{spacex_s1_main}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4a4dbc0ca3a241cbaaaabf94",
+            "content": "Based on the provided filing excerpts, here is a breakdown of near-term revenue-generating activities and initiatives, focusing on what is currently generating revenue and profit.\n\n### Space Segment: Currently Generating Revenue\n\nThe filing states the Space segment generates revenue **primarily through launch and mission services** provided to commercial and government customers. The core revenue-generating products are:\n\n*   **Falcon 9 & Falcon Heavy:** These are the workhorses for revenue generation through **Launch Services**.\n    *   They deploy payloads to their intended orbits for both commercial and government customers.\n    *   Falcon 9 is explicitly called \"the backbone of our launch revenue base; generating high-margin recurring cash flows.\"\n    *   **Profitability Driver:** The filing highlights that **cost of revenue is decreasing** due to \"increased reusability of our Falcon launch vehicles resulting in lower depreciation,\" which lowers the cost of each launch and improves margins.\n\n*   **Dragon:** This spacecraft generates revenue as part of **Launch and Development** services.\n    *   It is used for mission services, specifically mentioned in the context of government agency space programs (e.g., NASA's Cargo Resupply Services missions to the International Space Station).\n\n*   **Launch and Development Services:** This is a distinct revenue stream, separate from simple Launch Services. It involves the development of spacecraft and provision of launch/mission services, primarily for government customers, using Falcon 9, Falcon Heavy, Starship (in a development capacity), and Dragon.\n\n### Connectivity Segment: Currently Generating Revenue\n\nThe Connectivity segment generates its own revenue, which is distinct from the Space segment. The filing clarifies that internal Starlink launches do *not* generate Space segment revenue.\n\n*   **Starlink:** Generates revenue from two main activities:\n    *   **Subscription Services:** Broadband and mobile connectivity services provided to consumers, enterprises, and government customers. As of March 31, 2026, the company had \"approximately 10.3 million Starlink Subscribers.\"\n    *   **Product Sales:** The sale of the Starlink Kit (terminal).\n    *   **Enterprise Solutions:** Contracts with companies like United Airlines, Carnival, and Maersk, based on \"a combination of subscriptions, data consumption, capacity, or other pricing.\"\n\n### Products Not Currently Generating Revenue or Profit\n\n*   **Starship:** Is explicitly described as \"currently in the development stage.\" It is not a near-term revenue generator. A majority of Starship costs are expensed to Research and Development as incurred, making it a significant cost center for the Space segment.\n\n### Key Internal Activity (Not Revenue Generating)\n\n*   **Internal Launches (Starlink Satellites):** The filing makes a clear distinction that when Falcon 9 launches are dedicated to deploying the company's own Starlink satellites, **\"we do not recognize revenue for those launches in our Space segment.\"** Instead, the costs are capitalized and depreciated within the Connectivity segment. This internal absorption of launch capacity is a stated reason that \"Space revenue growth to continue to be lower than total company revenue growth.\""
+          },
+          {
+            "source_call_id": "call_23ae83cccbb64c59ac0cc56c",
+            "content": "Based on the provided filing excerpts, here is what is disclosed about the Space segment's revenue breakdown, Starlink revenue, growth rates, and profitability:\n\n**Revenue Breakdown**\n\nThe Space segment's revenue is broken down into two categories: **Launch Services** and **Launch & Development**. The filing provides the percentage of each relative to total Space segment revenue for the periods presented.\n\n| Category | Three Months Ended March 31, | | Year Ended December 31, | | |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n| | **2026** | **2025** | **2025** | **2024** | **2023** |\n| Launch Services | 53.3% | 65.4% | 63.0% | 68.2% | 55.2% |\n| Launch & Development | 46.7% | 34.6% | 37.0% | 31.8% | 44.8% |\n\n**Starlink Revenue**\n\nThe filing is explicit that the Space segment does not record revenue for the launch of its own Starlink satellites. These launches are treated as an internal activity.\n> \"For launches of our Starlink satellites, the Company does not recognize any inter-segment revenue, rather those launch costs are capitalized in satellites in Property, plant, and equipment, net... Our Space segment revenue only reflects our customer launches and customer activities.\"\n\nStarlink revenue is reported entirely within the **Connectivity segment**, which generated $11,387 million in 2025 and $3,257 million in Q1 2026.\n\n**Growth Rates**\n\nThe filing mentions year-over-year revenue changes for the Space segment but does not provide a calculated growth rate percentage. The data provided allows for calculation:\n*   **FY2024 vs. FY2023**: Space segment revenue increased by **$239 million**, or **6.7%**, to ~$3,796 million. This was driven by a $620 million increase in Launch Services from higher Falcon 9 launches, partially offset by a $381 million decrease in Launch and Development revenue.\n*   **FY2025 vs. FY2024**: Space segment revenue increased by **$290 million** to $4,086 million, primarily due to increases in Launch and Development.\n\nThe company expects Space revenue growth to be lower than its total company growth because internal demand from the Connectivity and AI segments will absorb most of the growth in launch capacity.\n\n**Segment Profitability**\n\nProfitability metrics for the Space segment show a significant operating loss, primarily due to heavy investment in the Starship program.\n\n| Metric | Three Months Ended March 31, | | Year Ended December 31, | | |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n| **(in millions)** | **2026** | **2025** | **2025** | **2024** | **2023** |\n| Income (Loss) from Operations | $(662) | $(70) | $(657) | $21 | $(1) |\n| Segment Adjusted EBITDA | $(351) | $224 | $653 | $1,154 | $997 |\n\nThe substantial operating losses are driven by research and development expenses for the Starship program. The Space segment funded **$3,004 million** in R&D in 2025 and **$930 million** in Q1 2026."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6324,
+        "completion_tokens": 232,
+        "cached_tokens": 0,
+        "cost_usd": 0.01813
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-10T00:55:47.009653+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now let me also look at the Connectivity segment to understand if it's near-term revenue generating or long-duration, and the AI segment's current state.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bc793a422670449eaf3e8782",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing disclose about the Connectivity segment (Starlink), including its revenue, profitability, subscriber growth, and whether it is generating near-term profits versus being a long-duration strategic investment in {{spacex_s1_main}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_2ed050d521144ad4bd9b16e2",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about the overall company strategy, capital allocation priorities, and how it balances near-term profitability against long-term growth investments? Include any discussion of how the different segments interact and fund each other in {{spacex_s1_main}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bc793a422670449eaf3e8782",
+            "content": "Based on the filing, here is what is disclosed about the Connectivity segment (Starlink):\n\n### Is it a Near-Term Profit Generator or a Long-Duration Strategic Investment?\n\nThe filing clearly portrays the Connectivity segment as a **near-term and rapidly growing profit generator**, not a long-duration strategic investment operating at a loss. It is one of the company's core profit centers.\n\n*   The company states its Space and Connectivity segments \"contributed the substantial majority of our consolidated revenue... demonstrating the benefits of their scale and operating leverage in our vertically integrated business model.\"\n*   In contrast, the strategic, long-duration investment role is explicitly assigned to the Space segment's Starship program (\"key enabler of our long-term growth strategy\") and the AI segment (\"earlier stage of development and continued investments to support long-term growth\").\n\n### Revenue\n\nThe Connectivity segment is a massive and accelerating revenue driver for the company.\n\n*   **Revenue Growth**: Segment revenue increased by **49.8%** in 2025 to **$11,387 million**, up from the 34.9% company-wide growth in 2024. For Q1 2026, revenue was **$3,257 million**, a 31.6% increase year-over-year.\n*   **Revenue Sources**: Revenue is generated from (i) broadband and mobile connectivity services and (ii) the sale of Starlink Kits (terminals). The customer base is split into consumers and enterprise/government clients.\n*   **Enterprise & Government**: This is a significant growth area, with revenue increases driven by aviation, maritime, mobility, and other enterprise businesses. Enterprise & Government revenue includes Starlink Mobile service offerings.\n\n### Profitability\n\nThe segment is highly profitable and showing strong operating leverage, with income from operations growing faster than revenue.\n\n*   **Income from Operations**:\n    *   **2025**: **$4,423 million** (a **120.4%** increase from $2,006 million in 2024).\n    *   **2024**: $2,006 million (a significant increase from $469 million in 2023).\n    *   **Q1 2026**: **$1,188 million** (up from $1,033 million in Q1 2025).\n*   **Segment Adjusted EBITDA**:\n    *   **2025**: **$7,168 million** (an **86.2%** increase from $3,849 million in 2024).\n    *   **2024**: $3,849 million (up from $1,602 million in 2023).\n    *   **Q1 2026**: **$2,087 million** (up from $1,618 million in Q1 2025).\n\n### Subscriber Growth\n\nSubscriber growth is the primary driver of the segment's financial success, though it is partially offset by a decreasing Average Revenue Per User (ARPU).\n\n*   **Starlink Subscribers**:\n    *   **Q1 2026**: **10.3 million** (a 104.7% growth rate compared to Q1 2025).\n    *   **End of 2025**: **8.9 million** (a 99.9% growth rate compared to 2024).\n    *   **End of 2024**: **4.4 million**.\n    *   **End of 2023**: **2.3 million**.\n*   **Starlink ARPU**: The Average Revenue Per User has been declining as the subscriber base expands internationally.\n    *   **Q1 2026**: **$66/month** (a 22.9% decline year-over-year).\n    *   **2025**: **$81/month** (an 11.2% decline from $91 in 2024).\n    *   **2024**: **$91/month**.\n    *   **2023**: **$99/month**.\n*   The filing attributes the ARPU decline primarily to \"international expansion and the addition of lower priced service plans.\"\n*   **Scale**: As of March 31, 2026, service was provided across 164 countries, territories, and other markets with approximately 9,600 satellites in orbit."
+          },
+          {
+            "source_call_id": "call_2ed050d521144ad4bd9b16e2",
+            "content": "Based on the provided filing excerpts, here is the analysis of the company's overall strategy, capital allocation priorities, the balance between near-term profitability and long-term growth, and the interaction between segments:\n\n### Overall Company Strategy\n\nThe company's strategy is to act as an ambitious, vertically integrated innovation engine capturing growth across three domains: Space, Connectivity, and AI. The strategy is explicitly focused on long-term value creation through technological leadership and speed, rather than maximizing near-term margins. Key elements include:\n*   **Technological Leadership:** Prioritizing execution speed, capacity expansion, and solving hard technical problems. The company believes speed is a competitive advantage.\n*   **Vertical Integration:** Leveraging extreme vertical integration for high velocity and superior cost efficiency at scale.\n*   **Long-Term Vision:** Pursuing multiple ambitious, capital-intensive projects in parallel (such as Starship and orbital AI compute) to compound advantages and unlock new large addressable markets over time.\n*   **Segment Interaction:** The Space segment provides a \"foundational competitive advantage that enables all other parts of our business,\" while the Connectivity and AI segments are expected to be the primary drivers of near-term revenue growth.\n\n### Capital Allocation Priorities\n\nThe capital allocation strategy is centered on funding massive, long-term infrastructure buildouts, with a clear historical flow of funds between segments:\n\n*   **Historical Funding Engine:** The company initially raised capital to fund the Space segment. As Space generated Segment Adjusted EBITDA, that cash flow, along with additional external equity, was invested into building the Connectivity segment. This created a flywheel where a mature segment funds the next.\n*   **Current Priorities:** The priority has now shifted to massive investment in the AI segment and the next-generation Starship platform. The company intends to use IPO proceeds specifically for:\n    *   Expansion of AI compute infrastructure.\n    *   Enhancements to launch infrastructure and launch vehicles.\n    *   Increases in the scale and capacity of satellite constellations.\n*   **Future Funding for AI:** The company expects a \"multi-year investment horizon\" and plans to \"allocate substantial capital to expand our compute infrastructure\" for the AI segment before it achieves sustained positive Segment Adjusted EBITDA. It plans to fund this by accessing debt and equity financing solutions available as a public company.\n\n### Balancing Near-Term Profitability and Long-Term Growth Investments\n\nThe filing explicitly states that the company consistently prioritizes long-term growth over near-term financial performance.\n\n*   **Deliberate Trade-off:** The approach is summarized directly: *\"We continue to prioritize execution speed, capacity expansion, and technological leadership over near\u2011term margin optimization. We believe that this approach maximizes long\u2011term value creation.\"*\n*   **Financial Evidence of the Trade-off:** The filing provides concrete examples of how long-term investments directly impact near-term profitability:\n    *   In 2025, the Space segment generated an operating loss of **$(657) million** while funding **$3,004 million** in R&D for the Starship program.\n    *   Also in 2025, the AI segment (xAI) accelerated its R&D investment in Grok to **$5,064 million**, up significantly from $1,176 million in 2024, resulting in a Segment Adjusted EBITDA of **$(1,237) million**.\n*   **Flexibility to Adjust:** Despite the commitment to long-term projects, the company retains flexibility. It can adjust spending and reallocate capital expenditures from one segment to another (e.g., from AI to Space or Connectivity) if near-term data center needs decrease or scale more slowly than expected.\n*   **Explicit Risk Warning:** The filing warns investors that the company may \"increase or accelerate the pace of any of these investments at any time, which could result in periods of reduced profitability or increased losses as we prioritize long-term growth over near-term financial performance.\" It notes a history of net losses and a significant accumulated deficit of **$41,311 million** as of March 31, 2026."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7929,
+        "completion_tokens": 206,
+        "cached_tokens": 6272,
+        "cost_usd": 0.0140425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-10T00:57:09.710465+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now let me also look at specific details about the AI segment to understand the distinction between revenue that is currently being generated and the long-duration nature of the compute buildout. Let me also look for any discussion of V3 satellites and V2 Mobile satellites which seem to be near-term Starlink-related initiatives.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e4a51454508c41d6857863a6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about V3 satellites and V2 Mobile satellites? Are they near-term revenue generating initiatives or long-duration strategic investments? What is the timeline for deployment and revenue generation in {{spacex_s1_main}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_256e733f26fc4b4796e13848",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing disclose about the AI segment's current revenue sources - Grok subscriptions, X advertising, compute monetization - and how these relate to near-term revenue generation versus the long-duration AI compute infrastructure buildout? Include the financial details of the AI segment in {{spacex_s1_main}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e4a51454508c41d6857863a6",
+            "content": "The filing characterizes **V3 satellites** and **V2 Mobile satellites** somewhat differently in terms of revenue timeline and strategic positioning:\n\n### V3 Satellites\n- **Classification:** Near\u2011term revenue\u2011generating initiative.  \n- **Purpose:** Next\u2011generation Starlink broadband satellites delivering ~1 Tbps downlink capacity each, enabling a 20\u00d7 increase in capacity per Starship launch versus Falcon 9. This directly scales the existing, revenue\u2011producing consumer/enterprise broadband service.  \n- **Deployment timeline:** Expected to begin deploying on Starship in the **second half of 2026**, with the potential to rapidly expand network capacity and support additional subscriber revenue.  \n- **Revenue generation:** Revenue would begin soon after deployment, as the satellites augment the existing subscriber\u2011based broadband business.\n\n### V2 Mobile Satellites\n- **Classification:** Longer\u2011duration strategic investment.  \n- **Purpose:** Next\u2011generation mobile satellites designed to provide comprehensive satellite\u2011to\u2011mobile services (broadband data, IoT, 5G connectivity). They are the foundation of the \u201cGen2\u201d mobile service, which represents a new, more advanced offering beyond the current V1 Mobile (text/voice) service.  \n- **Deployment timeline:** Planned for **2027**, contingent on Starship availability, completion of the EchoStar spectrum acquisition, and U.S. and international regulatory approvals.  \n- **Revenue generation:** Commercial Gen2 service cannot commence until the satellites are in orbit and the spectrum transfer closes. The filing indicates that while U.S. regulatory authorizations are expected in Q2\u2011Q3 2026, revenue from the enhanced mobile services will likely materialize only after the 2027 deployment and subsequent operational ramp\u2011up\u2014making this a multi\u2011year strategic bet rather than an immediate revenue driver.\n\n### Key Dependency\nBoth satellite types require Starship for deployment (Falcon 9 and Falcon Heavy cannot carry them). Therefore, any Starship delay directly shifts their timelines and associated revenue impacts."
+          },
+          {
+            "source_call_id": "call_256e733f26fc4b4796e13848",
+            "content": "The filing presents the AI segment\u2019s current revenue as a mix of **advertising, subscriptions, data licensing, and API access**, while simultaneously pouring enormous capital into a **long\u2011duration compute infrastructure buildout** that far outweighs near\u2011term earnings. The two are openly linked: the company explicitly prioritises speed and scale of infrastructure over near\u2011term margin optimisation, betting that the resulting compute capacity will create a durable competitive advantage and unlock much larger revenue streams later.\n\n### Current Revenue Sources (Near\u2011Term Generation)\n\n**1. Advertising on X**\n- Revenue is recognised when a user engages with an ad on X (per the advertiser\u2019s selected criteria).\n- Advertising remains a \u201ccore monetization channel\u201d for the AI segment, with plans to grow revenue per user through AI\u2011driven targeting, richer ad formats, and integration with Grok.\n- **Financials:** In FY2025, ad revenue **increased by $116 million**, but in Q1 2026 it **fell by $100 million** due to \u201can overhaul of the Company\u2019s advertising platform which impacted ad sales for a short period of time.\u201d The segment experienced seasonality, with spending typically highest in Q4.\n\n**2. AI Solutions & Infrastructure**  \nThis category bundles three revenue streams:\n- **Subscriptions** \u2013 Premium subscriptions on X and **Grok** (month\u2011to\u2011month to one\u2011year terms), recognised ratably over the subscription period.\n- **Data licensing** \u2013 Revenue from licensing data, typically recognised ratably over the period (month\u2011to\u2011month up to two years) as the customer consumes the data.\n- **API access to Grok models** \u2013 Stand\u2011ready access (ratably over the contract term, usually monthly or up to one year) or usage\u2011based arrangements (recognised as consumed).\n\n**Financial details for AI segment revenue:**\n\n| Period | Total AI Revenue | Growth Driver | Key Numbers |\n|--------|------------------|----------------|-------------|\n| **FY2025** | **$3,201 million** | AI solutions & infrastructure up **$465 million** (subscriptions up **$365 million**, data licensing up **$88 million**); advertising up $116 million. | Total AI revenue +22.2% YoY |\n| **Q1 2026** | **$818 million** | AI solutions & infrastructure up **$191 million** (Grok & X subscriptions up **$177 million**, data licensing up **$12 million**); advertising **down $100 million**. | Total AI revenue +12.5% vs. Q1 2025 |\n\nThus, **Grok subscriptions are the fastest\u2011growing near\u2011term revenue driver**, while advertising on X provides scale but can be volatile.\n\n**3. Compute Monetisation (External)**\nThe filing mentions an evolving, non\u2011trivial effort to **monetise unused compute capacity** through \u201ccloud compute services agreements with Anthropic.\u201d However, this is presented as a parallel, early\u2011stage strategy that creates operational complexity and demands significant management attention; it is **not yet a material, stable revenue line** in the same way subscriptions and advertising are.\n\n### The Long\u2011Duration AI Compute Infrastructure Buildout\n\nThe AI segment is in an **early, massively investment\u2011heavy phase**. The company is building **gigawatt\u2011scale AI compute infrastructure** (including the COLOSSUS II facility in Memphis and plans for orbital compute) to support Grok\u2019s development and future AGI capabilities. Key financial indicators of this buildout:\n\n- **Capex:** AI segment capital expenditures were **$7,723 million in Q1 2026 alone** (and $7.7 billion+ implied for FY2025 as well).\n- **R&D:** AI segment R&D expense surged to **$5,064 million in FY2025** (vs. $1,176 million in 2024), driven by *depreciation of GPU hardware* and cloud/data\u2011center infrastructure costs as the company expands AI data centers. In Q1 2026, AI R&D increased by **$1,471 million** YoY largely for the same reasons.\n- **Cost of Revenue:** AI cost of revenue jumped **$491 million in FY2025** (29.1%) due to higher infrastructure/cloud computing costs tied to subscriber growth. Q1 2026 saw a more modest $5 million increase, but the filing expects cost of revenue to \u201cincrease in absolute dollars as we grow our revenue\u201d while decreasing as a percentage of revenue over time as products monetise.\n- **Segment Profitability:** The segment is deeply unprofitable because of this investment:\n  - FY2025: Loss from operations **$(6,355) million**, Segment Adjusted EBITDA **$(1,237) million**.\n  - Q1 2026: Loss from operations **$(2,469) million**, Segment Adjusted EBITDA **$(609) million**.\n\n### How Near\u2011Term Revenue and Long\u2011Term Buildout Relate\n\nThe filing is explicit that **current revenue (advertising, subscriptions, licensing) does not cover the enormous infrastructure costs**, and the company intends it that way. The strategy states:\n\n> \u201cWe plan to prioritize growth and investment to capture significant opportunities in AI applications and compute infrastructure.\u201d \u2026 \u201cWe believe speed is a competitive advantage, and periodically we decide to increase and accelerate our investments. \u2026 As a result, our operating results, margins and profitability may fluctuate from period to period as we continue to prioritize execution speed, capacity expansion, and technological leadership over near\u2011term margin optimization.\u201d\n\nThus, the near\u2011term AI revenues\u2014particularly Grok subscriptions, which are scaling quickly\u2014are viewed as an early proof point and a mechanism to eventually monetise the user base, but **the financial model is dominated by the buildout of compute capacity that is expected to unlock AGI and massive future demand**. The filing even notes that \u201cwithout large\u2011scale, power\u2011efficient infrastructure, AGI cannot be deployed broadly or economically\u2014making such infrastructure a critical strategic differentiator.\u201d Long\u2011term, the company expects to monetise the compute through multiple channels: consumer subscriptions, enterprise Grok deployments, compute\u2011as\u2011a\u2011service (e.g., Anthropic deal), and advertising\u2014but all of that hinges on first owning the infrastructure at unprecedented scale."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9834,
+        "completion_tokens": 249,
+        "cached_tokens": 0,
+        "cost_usd": 0.027075
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-10T00:58:54.506142+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a very comprehensive picture. Let me also look for any specific discussion of how the Falcon 9 and Starlink businesses serve as cash generators, and the explicit framing of near-term vs. long-duration initiatives.\n\nLet me also look at the use of proceeds to see what the IPO money is going toward, which would help clarify the near-term vs long-duration distinction.\n\nLet me also look for any discussion of the direct-to-cell (D2C) / Starlink Mobile service, which might be a nearer-term initiative.\n\nActually, I think I have enough information to answer the question comprehensively. Let me organize my analysis:\n\n**Near-Term Revenue Generation Initiatives:**\n\n1. **Falcon 9 / Falcon Heavy Launch Services** - \"the backbone of our launch revenue base; generating high-margin recurring cash flows\"\n2. **Starlink Consumer & Enterprise Broadband** - 10.3M subscribers, $11.4B revenue in 2025, highly profitable (Segment Adj. EBITDA of $7.2B)\n3. **V3 Starlink Satellites** - Deploying H2 2026 on Starship, directly scales existing revenue-generating broadband business\n4. **Grok Subscriptions & X Advertising** - $3.2B in revenue in 2025, fastest-growing revenue driver within AI segment\n5. **Dragon / NASA missions** - Part of Launch & Development revenue\n\n**Long-Duration Strategic Investments:**\n\n1. **Starship** - Development stage, no revenue, $3B+ annual R&D expense, commercialization will trigger capitalization\n2. **Terafab** - Very early stage, no finalized agreements, long-term goal of 1 TW annual compute production\n3. **Orbital AI Compute** - Deployment starting as early as 2028, 100 GW to space per year\n4. **Gigawatt-scale AI Compute Infrastructure (COLOSSUS II, etc.)** - Massive capex ($7.7B in Q1 2026 alone), deeply unprofitable\n5. **V2 Mobile Satellites (Gen2)** - 2027 deployment, requires spectrum acquisition and regulatory approvals\n\n**Bridge/Hybrid:**\n\n- **AI segment revenue** - Generates near-term revenue but is embedded within a massively loss-making long-duration buildout\n- **V1 Mobile (D2C text/voice)** - Existing service generating some revenue but Gen2 is the long-duration play\n\n**Implications for Execution and Monetization Timing:**\n\n1. The company operates a \"funding flywheel\" - mature Falcon/Starlink cash flows fund Starship and AI buildout\n2. Starship is the critical path dependency - both V3 satellites (near-term revenue) and V2 Mobile/orbital compute (long-duration) require it\n3. The AI segment is simultaneously near-term revenue and long-duration investment, creating a unique tension\n4. Execution risk is concentrated in Starship - delays cascade across all initiatives\n5. Monetization timing varies drastically: V3 satellites (H2 2026), V2 Mobile (2027+), orbital compute (2028+), Terafab (undetermined)\n6. The company explicitly prioritizes long-term growth over near-term profitability\n\nLet me now submit my final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7bec27c8a5c7446eb8df048c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about the use of IPO proceeds? How does the company plan to allocate the capital raised, and what does this reveal about near-term versus long-duration priorities in {{spacex_s1_main}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_fe8295a3c6884f02be7eeec4",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing disclose about Starlink Direct-to-Cell / V1 Mobile service? Is it currently generating revenue and what is its relationship to the V2 Mobile satellites in {{spacex_s1_main}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7bec27c8a5c7446eb8df048c",
+            "content": "Based on the filing excerpts, the company plans to allocate the net proceeds from its initial public offering (IPO) to several growth-oriented, capital-intensive initiatives. The core statement in the \u201cUse of Proceeds\u201d section reads:\n\n> \u201cWe intend to use the net proceeds from this offering to fund our growth strategy, including the expansion of our AI compute infrastructure, enhancements to our launch infrastructure and launch vehicles, increases in the scale and capacity of our satellite constellations, and any remaining amounts for general corporate purposes.\u201d\n\nHowever, there is a separate, mandatory requirement tied to existing debt. A later section detailing the SpaceX Bridge Loan states that the company **must apply an amount equal to the net proceeds of a qualified IPO (including this offering) to repay outstanding borrowings under that loan**. This suggests that a portion (or potentially all) of the IPO proceeds will first be used to satisfy that obligation, and only the remainder, if any, will be deployed for the stated growth investments. The \u201cUse of Proceeds\u201d description likely reflects the intended allocation *after* that mandatory repayment, although the exact breakdown is not specified.\n\n### How the allocation reveals near\u2011term versus long\u2011duration priorities\n\nThe planned spending pattern is overwhelmingly oriented toward **long\u2011duration, infrastructure\u2011heavy projects** rather than near\u2011term profitability. Several elements make this clear:\n\n1. **Multi\u2011year investment horizons** \u2013 The filing repeatedly notes that the AI segment, satellite constellations, and launch\u2011vehicle development require substantial capital over many years before delivering returns. For example, the AI segment is described as having a \u201cmulti\u2011year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA.\u201d Similarly, Starship (a next\u2011generation launch vehicle) consumed $3,004 million in R&D in 2025 alone and is expected to require significant further investment.\n\n2. **Prioritization of speed and technological leadership over margins** \u2013 In the business strategy preamble, the company explicitly states that it \u201cmay increase or accelerate the pace of any of these investments at any time, which could result in periods of reduced profitability or increased losses as we prioritize long\u2011term growth over near\u2011term financial performance.\u201d It also emphasizes that speed is a competitive advantage and that it will continue \u201cprioritizing execution speed, capacity expansion, and technological leadership over near\u2011term margin optimization.\u201d This signals that IPO capital will be used to push aggressively into frontier projects (AI compute, orbital AI, lunar infrastructure) even at the cost of short\u2011term profitability.\n\n3. **Nature of the assets being built** \u2013 The proceeds are earmarked for *base\u2011layer infrastructure*: AI compute facilities (GPUs, data centers), launch vehicles, and satellite constellations. These are foundational assets that, once deployed, are expected to unlock enormous future addressable markets (a $26.5 trillion AI market is cited), but they require years of construction and scaling. This contrasts with a near\u2011term focus on, say, marketing or short\u2011term revenue optimization.\n\n4. **Near\u2011term revenue drivers are supported differently** \u2013 While the company mentions a near\u2011term goal of growing Starlink Broadband subscribers (10.3 million subscribers as of March 2026) and monetizing the existing AI user base, those efforts are largely funded by existing operational cash flows and existing liquidity ($15.9 billion in cash and equivalents, $7.8 billion in short\u2011term marketable securities). The IPO proceeds are additionally directed at *expanding* the underlying capacity that will support those services in the future, not at immediate sales or margin gains.\n\n5. **Management flexibility and the debt repayment overhang** \u2013 The filing warns that \u201cmanagement will have significant flexibility in applying the net proceeds,\u201d and the timing of expenditures will depend on \u201ccash flows and the anticipated growth of our business.\u201d This discretion, combined with the possibility that a large share of proceeds must first repay the Bridge Loan, means the near\u2011term deployment may initially be constrained by the debt obligation. Once any residual cash is available, it will flow toward the long\u2011term capital projects listed.\n\nIn summary, the filing signals that while the company has near\u2011term growth objectives (especially in Connectivity subscribers), the IPO proceeds are targeted at **long\u2011duration, competitive\u2011moat\u2011building infrastructure**\u2014AI compute, advanced space systems, and satellite capacity\u2014that will not contribute to profits for years. This reinforces a strategic posture of accepting losses today to pursue outsized, multi\u2011decade market opportunities."
+          },
+          {
+            "source_call_id": "call_fe8295a3c6884f02be7eeec4",
+            "content": "The filing describes Starlink Direct-to-Cell (marketed as \u201cStarlink Mobile\u201d) as an operational satellite-to-mobile service that uses a dedicated constellation of approximately **650 V1 Mobile satellites** in low\u2011Earth orbit. These satellites provide **light data, SMS, and over\u2011the\u2011top voice services (e.g., WhatsApp, FaceTime)** directly to unmodified LTE handsets. The service is commercially available in **~30 countries**, serving **~7.4 million monthly unique devices** through partnerships with ~30 mobile network operators (MNOs). It is designed to eliminate mobile dead zones, and the company notes it has been used to support emergency communications after natural disasters.\n\n**Revenue generation**  \nYes, the V1 Mobile service is currently generating revenue. The filing classifies Starlink Mobile revenue under the **Enterprise & Government** line within the Connectivity segment. In the Q1 2026 vs. Q1 2025 results, the company specifically highlights that **mobile connectivity business growth contributed $85 million** to the increase in enterprise and government revenue. The business model charges MNOs either a fixed fee or a per\u2011mobile\u2011user fee, which is typically passed through to end customers. Deferred revenue for mobile services is also recorded, and the company notes that mobile connectivity agreements generally have multi\u2011year terms.\n\n**Relationship to V2 Mobile satellites**  \nV2 Mobile satellites are the **next\u2011generation** platform, designed to deliver **more comprehensive satellite\u2011to\u2011mobile services**, including broadband data, IoT connectivity, and 5G. They will be deployed beginning in **2027**, using **Starship** (Falcon rockets cannot launch V2 Mobile satellites). The V2 Mobile constellation, combined with the acquisition of EchoStar spectrum and optimized 5G protocols, is expected to increase capacity **by orders of magnitude** compared to the first\u2011generation V1 Mobile network. The filing makes clear that V1 Mobile is the current operational service, while V2 Mobile represents a major future upgrade that will enable \u201cGen2\u201d services. The V2 Mobile satellites are not yet in orbit, and their deployment depends on Starship readiness, regulatory approvals, and the closing of the EchoStar spectrum transaction. In summary, V1 Mobile is the **first\u2011phase, revenue\u2011generating** direct\u2011to\u2011cell network, and V2 Mobile is the planned **high\u2011capacity successor** that will significantly expand the service\u2019s capabilities."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11811,
+        "completion_tokens": 853,
+        "cached_tokens": 9856,
+        "cost_usd": 0.0257375
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-10T01:00:02.907497+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a very comprehensive picture. Let me synthesize everything into a clear, well-structured answer.\n\nLet me organize the initiatives on a spectrum from near-term revenue generation to long-duration strategic investment:\n\n**Primarily Near-Term Revenue Generation:**\n\n1. **Falcon 9 / Falcon Heavy Launch Services** - \"The backbone of our launch revenue base; generating high-margin recurring cash flows.\" Mature, operational, cash-generative.\n\n2. **Starlink Consumer & Enterprise Broadband** - 10.3M subscribers, $11.4B revenue in 2025, $7.2B Segment Adj. EBITDA. Highly profitable and growing.\n\n3. **V3 Starlink Satellites** - Deploying H2 2026 on Starship. Directly scales existing broadband business. Near-term revenue impact.\n\n4. **V1 Mobile (Direct-to-Cell)** - Already operational in ~30 countries, ~7.4M monthly unique devices, contributed $85M to enterprise revenue growth in Q1 2026.\n\n5. **Grok Subscriptions & X Advertising** - $3.2B revenue in 2025. Fastest-growing AI revenue stream. Near-term revenue but embedded in a deeply unprofitable segment.\n\n**Long-Duration Strategic Investments:**\n\n1. **Starship** - Development stage. No revenue. $3.0B R&D in 2025, $930M in Q1 2026. Commercialization will trigger cost capitalization. Key enabler of long-term growth.\n\n2. **Terafab** - Very early planning stage. No finalized agreements, timelines, or milestones. Long-term goal of 1 TW annual compute hardware production.\n\n3. **Orbital AI Compute** - Deployment starting as early as 2028. 100 GW to space per year goal. No near-term revenue.\n\n4. **Gigawatt-scale Terrestrial AI Compute Infrastructure** - $7.7B capex in Q1 2026 alone. $25.5B in contractual commitments, primarily for AI infrastructure. Deeply unprofitable ($6.4B operating loss in 2025).\n\n5. **V2 Mobile Satellites (Gen2)** - 2027 deployment. Requires Starship, EchoStar spectrum acquisition close, regulatory approvals.\n\nNow let me articulate the implications for execution and monetization timing.\n\nKey implications:\n\n1. **Funding Flywheel**: Mature Falcon and Starlink cash flows fund Starship and AI compute. This creates a clear sequencing dependency.\n\n2. **Starship as Critical Path**: Starship is a gating item for V3 (near-term), V2 Mobile (medium-term), and orbital compute (long-term). Any Starship delay cascades across the entire timeline.\n\n3. **AI Segment Dual Nature**: The AI segment is unusual - generating $3.2B in near-term revenue while burning $6.4B in operating losses. It's simultaneously near-term and long-duration.\n\n4. **Monetization Timeline**: \n   - V3 satellites: H2 2026 (imminent)\n   - V2 Mobile: 2027+\n   - Orbital compute: 2028+\n   - Terafab: Undetermined\n   - Starship commercialization: No specific date beyond \"commencement of payload delivery to orbit in 2026\"\n\n5. **Explicit Prioritization**: Company explicitly states it prioritizes long-term growth over near-term profitability.\n\nLet me write this up now.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_83221f299785464482ce80cb",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "# Near-Term Revenue Generation vs. Long-Duration Strategic Investment: SpaceX S-1 Analysis\n\n## Classification Framework\n\nThe S-1 filing reveals a deliberate, explicitly articulated architecture in which certain initiatives serve as near-term revenue engines while others constitute long-duration strategic investments. The distinction is not incidental\u2014it represents a structured capital-allocation philosophy that the company describes as a \"funding flywheel.\"\n\n---\n\n## Primarily Near-Term Revenue Generation\n\n### 1. Falcon 9 / Falcon Heavy Launch Services\n\n**Classification: Mature, cash-generative core operations.**\n\nThe filing states unequivocally that Falcon 9 is \"the backbone of our launch revenue base; generating high-margin recurring cash flows.\" Cost of revenue is declining due to \"increased reusability of our Falcon launch vehicles resulting in lower depreciation.\" Launch Services constituted 53.3% of Space segment revenue in Q1 2026 (63.0% in FY2025). This is the financial engine that funds the long-duration initiatives.\n\n### 2. Starlink Consumer & Enterprise Broadband (Existing Constellation)\n\n**Classification: Scaling profit center with strong operating leverage.**\n\nThe Connectivity segment generated $11,387 million in revenue in FY2025 (+49.8% YoY) and $3,257 million in Q1 2026 (+31.6% YoY). Segment Adjusted EBITDA reached $7,168 million in FY2025 (63.0% margin) and $2,087 million in Q1 2026. With 10.3 million subscribers across 164 countries and ~9,600 satellites in orbit as of March 31, 2026, this is the company's most significant near-term profit engine. Income from operations grew 120.4% in FY2025 to $4,423 million, demonstrating powerful operating leverage.\n\n### 3. V3 Starlink Satellites\n\n**Classification: Near-term revenue-scaling initiative with imminent deployment.**\n\nThe V3 satellites are next-generation broadband satellites delivering ~1 Tbps downlink capacity each, enabling a 20\u00d7 increase in capacity per Starship launch versus Falcon 9. Deployment is expected to begin in the **second half of 2026**. Critically, these satellites directly augment the existing, already-profitable broadband service\u2014meaning revenue should begin scaling shortly after deployment. The filing notes that full Starship reusability and in-orbit refueling are \"not required\" to deploy V3 satellites, reducing the technical risk to this near-term timeline.\n\n### 4. Starlink V1 Mobile (Direct-to-Cell)\n\n**Classification: Operational, revenue-generating, and scaling.**\n\nThe V1 Mobile service is commercially available in ~30 countries, serving ~7.4 million monthly unique devices through ~30 MNO partnerships using approximately 650 V1 Mobile satellites. In Q1 2026, mobile connectivity growth contributed $85 million to the increase in Enterprise & Government Connectivity revenue. This is a live, revenue-producing service\u2014not a future aspiration.\n\n### 5. AI Segment Current Revenue Streams (Grok Subscriptions, X Advertising, Data Licensing)\n\n**Classification: Near-term revenue embedded within a long-duration loss-making segment.**\n\nThe AI segment generated $3,201 million in revenue in FY2025 and $818 million in Q1 2026. AI Solutions & Infrastructure revenue (Grok subscriptions, data licensing, API access) grew $465 million in FY2025, with subscriptions alone up $365 million. However\u2014and this is the critical distinction\u2014this revenue is generated within a segment that posted a $(6,355) million operating loss in FY2025 and $(2,469) million in Q1 2026. These revenue streams are real and growing but are dwarfed by the simultaneous infrastructure buildout. They function more as early proof points and user-base monetization mechanisms than as standalone profit centers.\n\n---\n\n## Long-Duration Strategic Investments\n\n### 1. Starship\n\n**Classification: The single most consequential long-duration strategic investment in the portfolio.**\n\nStarship is \"currently in the development stage,\" generates no revenue, and consumed $3,004 million in Space segment R&D in FY2025 (up from $1,835 million in FY2024) and $930 million in Q1 2026 alone. The majority of Starship costs are \"expensed to Research and development as incurred.\" The company expects \"commencement of payload delivery to orbit in 2026\" (a milestone, not commercialization). The filing explicitly states that at commercialization, \"Starship costs generally will be capitalized and then depreciated in cost of revenue\"\u2014signaling that the asset is years from contributing positively to earnings. Starship is described as \"the key enabler of our long-term growth strategy by unlocking entirely new categories of missions.\"\n\n### 2. Terafab\n\n**Classification: Earliest-stage strategic concept with no defined timeline.**\n\nTerafab is a chip manufacturing collaboration with Tesla and Intel with \"a long-term goal of producing one terawatt of compute hardware each year.\" The filing is unusually candid about its nascency: \"any specific projects undertaken pursuant to this framework will be subject to separate negotiations and agreements (including any development timelines, milestones and capital expenditures) and have not yet been determined.\" Financial terms, intellectual property rights, and the ultimate term of the collaboration have not been finalized. There is no near-term revenue expectation whatsoever; it is a supply-chain resilience play designed to \"alleviate potential future chip shortages.\"\n\n### 3. Gigawatt-Scale Terrestrial AI Compute Infrastructure\n\n**Classification: Massive, near-term capital consumption in service of a multi-year horizon.**\n\nAI segment capital expenditures reached $7,723 million in Q1 2026 alone (more than the segment's entire FY2025 revenue). R&D expense surged to $5,064 million in FY2025 versus $1,176 million in FY2024, driven by GPU depreciation and data-center infrastructure costs. The company holds $25,451 million in contractual commitments \"primarily related to AI infrastructure and third-party cloud capacity,\" with $21,476 million due in 2027. The filing states the company expects \"a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA.\" The COLOSSUS II facility in Memphis and the $2,000 million turbine acquisition for data-center power underscore the scale and long-duration nature of this buildout.\n\n### 4. Orbital AI Compute\n\n**Classification: Longest-duration, most speculative initiative disclosed.**\n\nThe company plans to begin deploying orbital AI compute satellites \"as early as 2028,\" with a long-term goal of \"launching 100 gigawatts of compute to space per year.\" No revenue is expected in the near or medium term. This initiative depends entirely on Starship reaching operational maturity.\n\n### 5. V2 Mobile Satellites (Gen2 Direct-to-Cell)\n\n**Classification: Medium-to-long-duration strategic investment with defined prerequisites.**\n\nDeployment is planned for 2027, contingent on: (i) Starship availability, (ii) closure of the EchoStar spectrum acquisition, and (iii) U.S. and international regulatory approvals. Gen2 services\u2014broadband data, IoT, 5G connectivity\u2014represent a step-change beyond the text/voice V1 service but cannot generate revenue until satellites are in orbit. This is a bridge initiative: nearer than orbital compute but materially further out than V3 broadband satellites.\n\n---\n\n## The Bridge: Starship as the Critical Nexus\n\nStarship occupies a unique position: it is simultaneously the company's largest long-duration investment and the indispensable enabler of both near-term revenue scaling (V3 satellites) and long-duration initiatives (V2 Mobile, orbital compute). The filing is explicit: \"Falcon 9 and Falcon Heavy are not capable of deploying V3 satellites and V2 Mobile satellites.\" This creates a concentrated execution dependency\u2014Starship delays cascade across the entire initiative portfolio, affecting both near-term and long-duration timelines.\n\n---\n\n## Implications for Execution and Monetization Timing\n\n### 1. The Funding Flywheel Is Operational but Stretched\n\nThe company's capital-allocation model follows a deliberate sequence: Falcon 9/Heavy cash flows funded Starlink; Falcon + Starlink cash flows now fund Starship and AI compute. This flywheel is visible in the numbers: the Space and Connectivity segments together \"contributed the substantial majority of our consolidated revenue\" with Connectivity alone generating $7,168 million in Segment Adjusted EBITDA in FY2025. However, the flywheel is under strain\u2014combined Space segment operating losses (driven by Starship R&D) and AI segment operating losses totaled approximately $(7,012) million in FY2025, consuming essentially all of Connectivity's operating profit.\n\n### 2. Monetization Timing Is Highly Stratified\n\n| Initiative | Earliest Revenue Impact | Nature |\n|---|---|---|\n| Falcon 9 / Heavy | Current | Mature, cash-generative |\n| Starlink Broadband (existing) | Current | Scaling profitably |\n| V1 Mobile (D2C) | Current | Early revenue, scaling |\n| Grok / X subscriptions | Current | Growing but loss-making |\n| V3 Starlink Satellites | H2 2026 | Imminent revenue scaling |\n| Starship (initial payloads) | 2026 (milestone only) | No revenue until commercialization |\n| V2 Mobile (Gen2) | 2027+ | Multi-year ramp |\n| Orbital AI Compute | 2028+ | Speculative |\n| Terafab | Undetermined | Concept-stage |\n\n### 3. The AI Segment Embeds a Fundamental Tension\n\nThe AI segment is the most analytically complex: it generates $3.2 billion in near-term revenue (primarily subscriptions and advertising) but consumed $7.7 billion in quarterly capex and posted a $6.4 billion operating loss in FY2025. Management frames this as intentional\u2014\"we continue to prioritize execution speed, capacity expansion, and technological leadership over near-term margin optimization.\" The May 2026 Anthropic cloud-services agreement and the monetization of unused compute capacity represent early attempts to generate third-party revenue from the infrastructure buildout, but the filing is clear that these are ancillary to the primary objective of building AGI-scale infrastructure.\n\n### 4. Execution Risk Concentrates in Starship\n\nBecause Starship is prerequisite to V3 satellites (near-term revenue), V2 Mobile (medium-term), and orbital compute (long-term), any material Starship delay creates a domino effect. The filing explicitly warns: \"Delays in Starship development would materially and adversely affect the ability to deploy next-generation V3 satellites, V2 Mobile satellites, and orbital AI compute infrastructure, impacting revenue and growth.\" The company has conducted 11 flight tests and scheduled a 12th, suggesting real but still-incomplete progress. The absence of a stated commercialization date\u2014only a 2026 \"payload delivery to orbit\" milestone\u2014indicates the company itself does not yet have line-of-sight to revenue-generating Starship operations.\n\n### 5. The IPO Proceeds Allocation Confirms Long-Duration Bias\n\nThe stated use of proceeds\u2014\"expansion of our AI compute infrastructure, enhancements to our launch infrastructure and launch vehicles, increases in the scale and capacity of our satellite constellations\"\u2014is overwhelmingly tilted toward long-duration assets. The company explicitly warns that it \"may increase or accelerate the pace of any of these investments at any time, which could result in periods of reduced profitability or increased losses.\" With an accumulated deficit of $41,311 million as of March 31, 2026, the company is asking public investors to fund a multi-year infrastructure buildout whose returns are uncertain and distant.\n\n### 6. The Distinction Itself Is a Strategic Disclosure\n\nThe filing's clarity in distinguishing near-term revenue drivers from long-duration investments is analytically significant. It signals that management views the Falcon/Starlink profit engine as sufficiently robust to sustain years of deeply loss-making investment in Starship and AI compute. It also signals that the AI segment's current revenue\u2014while real\u2014should not be mistaken for evidence that the AI strategy is commercially validated. The company is, by its own description, in the infrastructure-construction phase of a multi-decade ambition, and near-term GAAP profitability is neither expected nor prioritized.\n\n---\n\n**Bottom line:** The S-1 draws a bright line: Falcon 9, Starlink broadband, V3 satellites, and V1 Mobile are the near-term revenue and profit engines; Starship, Terafab, orbital AI compute, gigawatt-scale terrestrial compute, and V2 Mobile are the long-duration bets consuming that cash flow. Starship is the critical-path dependency linking both categories, and its development timeline is the single most important variable governing the company's ability to execute on both near-term revenue scaling and long-duration strategic ambitions.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_83221f299785464482ce80cb",
+            "content": "# Near-Term Revenue Generation vs. Long-Duration Strategic Investment: SpaceX S-1 Analysis\n\n## Classification Framework\n\nThe S-1 filing reveals a deliberate, explicitly articulated architecture in which certain initiatives serve as near-term revenue engines while others constitute long-duration strategic investments. The distinction is not incidental\u2014it represents a structured capital-allocation philosophy that the company describes as a \"funding flywheel.\"\n\n---\n\n## Primarily Near-Term Revenue Generation\n\n### 1. Falcon 9 / Falcon Heavy Launch Services\n\n**Classification: Mature, cash-generative core operations.**\n\nThe filing states unequivocally that Falcon 9 is \"the backbone of our launch revenue base; generating high-margin recurring cash flows.\" Cost of revenue is declining due to \"increased reusability of our Falcon launch vehicles resulting in lower depreciation.\" Launch Services constituted 53.3% of Space segment revenue in Q1 2026 (63.0% in FY2025). This is the financial engine that funds the long-duration initiatives.\n\n### 2. Starlink Consumer & Enterprise Broadband (Existing Constellation)\n\n**Classification: Scaling profit center with strong operating leverage.**\n\nThe Connectivity segment generated $11,387 million in revenue in FY2025 (+49.8% YoY) and $3,257 million in Q1 2026 (+31.6% YoY). Segment Adjusted EBITDA reached $7,168 million in FY2025 (63.0% margin) and $2,087 million in Q1 2026. With 10.3 million subscribers across 164 countries and ~9,600 satellites in orbit as of March 31, 2026, this is the company's most significant near-term profit engine. Income from operations grew 120.4% in FY2025 to $4,423 million, demonstrating powerful operating leverage.\n\n### 3. V3 Starlink Satellites\n\n**Classification: Near-term revenue-scaling initiative with imminent deployment.**\n\nThe V3 satellites are next-generation broadband satellites delivering ~1 Tbps downlink capacity each, enabling a 20\u00d7 increase in capacity per Starship launch versus Falcon 9. Deployment is expected to begin in the **second half of 2026**. Critically, these satellites directly augment the existing, already-profitable broadband service\u2014meaning revenue should begin scaling shortly after deployment. The filing notes that full Starship reusability and in-orbit refueling are \"not required\" to deploy V3 satellites, reducing the technical risk to this near-term timeline.\n\n### 4. Starlink V1 Mobile (Direct-to-Cell)\n\n**Classification: Operational, revenue-generating, and scaling.**\n\nThe V1 Mobile service is commercially available in ~30 countries, serving ~7.4 million monthly unique devices through ~30 MNO partnerships using approximately 650 V1 Mobile satellites. In Q1 2026, mobile connectivity growth contributed $85 million to the increase in Enterprise & Government Connectivity revenue. This is a live, revenue-producing service\u2014not a future aspiration.\n\n### 5. AI Segment Current Revenue Streams (Grok Subscriptions, X Advertising, Data Licensing)\n\n**Classification: Near-term revenue embedded within a long-duration loss-making segment.**\n\nThe AI segment generated $3,201 million in revenue in FY2025 and $818 million in Q1 2026. AI Solutions & Infrastructure revenue (Grok subscriptions, data licensing, API access) grew $465 million in FY2025, with subscriptions alone up $365 million. However\u2014and this is the critical distinction\u2014this revenue is generated within a segment that posted a $(6,355) million operating loss in FY2025 and $(2,469) million in Q1 2026. These revenue streams are real and growing but are dwarfed by the simultaneous infrastructure buildout. They function more as early proof points and user-base monetization mechanisms than as standalone profit centers.\n\n---\n\n## Long-Duration Strategic Investments\n\n### 1. Starship\n\n**Classification: The single most consequential long-duration strategic investment in the portfolio.**\n\nStarship is \"currently in the development stage,\" generates no revenue, and consumed $3,004 million in Space segment R&D in FY2025 (up from $1,835 million in FY2024) and $930 million in Q1 2026 alone. The majority of Starship costs are \"expensed to Research and development as incurred.\" The company expects \"commencement of payload delivery to orbit in 2026\" (a milestone, not commercialization). The filing explicitly states that at commercialization, \"Starship costs generally will be capitalized and then depreciated in cost of revenue\"\u2014signaling that the asset is years from contributing positively to earnings. Starship is described as \"the key enabler of our long-term growth strategy by unlocking entirely new categories of missions.\"\n\n### 2. Terafab\n\n**Classification: Earliest-stage strategic concept with no defined timeline.**\n\nTerafab is a chip manufacturing collaboration with Tesla and Intel with \"a long-term goal of producing one terawatt of compute hardware each year.\" The filing is unusually candid about its nascency: \"any specific projects undertaken pursuant to this framework will be subject to separate negotiations and agreements (including any development timelines, milestones and capital expenditures) and have not yet been determined.\" Financial terms, intellectual property rights, and the ultimate term of the collaboration have not been finalized. There is no near-term revenue expectation whatsoever; it is a supply-chain resilience play designed to \"alleviate potential future chip shortages.\"\n\n### 3. Gigawatt-Scale Terrestrial AI Compute Infrastructure\n\n**Classification: Massive, near-term capital consumption in service of a multi-year horizon.**\n\nAI segment capital expenditures reached $7,723 million in Q1 2026 alone (more than the segment's entire FY2025 revenue). R&D expense surged to $5,064 million in FY2025 versus $1,176 million in FY2024, driven by GPU depreciation and data-center infrastructure costs. The company holds $25,451 million in contractual commitments \"primarily related to AI infrastructure and third-party cloud capacity,\" with $21,476 million due in 2027. The filing states the company expects \"a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA.\" The COLOSSUS II facility in Memphis and the $2,000 million turbine acquisition for data-center power underscore the scale and long-duration nature of this buildout.\n\n### 4. Orbital AI Compute\n\n**Classification: Longest-duration, most speculative initiative disclosed.**\n\nThe company plans to begin deploying orbital AI compute satellites \"as early as 2028,\" with a long-term goal of \"launching 100 gigawatts of compute to space per year.\" No revenue is expected in the near or medium term. This initiative depends entirely on Starship reaching operational maturity.\n\n### 5. V2 Mobile Satellites (Gen2 Direct-to-Cell)\n\n**Classification: Medium-to-long-duration strategic investment with defined prerequisites.**\n\nDeployment is planned for 2027, contingent on: (i) Starship availability, (ii) closure of the EchoStar spectrum acquisition, and (iii) U.S. and international regulatory approvals. Gen2 services\u2014broadband data, IoT, 5G connectivity\u2014represent a step-change beyond the text/voice V1 service but cannot generate revenue until satellites are in orbit. This is a bridge initiative: nearer than orbital compute but materially further out than V3 broadband satellites.\n\n---\n\n## The Bridge: Starship as the Critical Nexus\n\nStarship occupies a unique position: it is simultaneously the company's largest long-duration investment and the indispensable enabler of both near-term revenue scaling (V3 satellites) and long-duration initiatives (V2 Mobile, orbital compute). The filing is explicit: \"Falcon 9 and Falcon Heavy are not capable of deploying V3 satellites and V2 Mobile satellites.\" This creates a concentrated execution dependency\u2014Starship delays cascade across the entire initiative portfolio, affecting both near-term and long-duration timelines.\n\n---\n\n## Implications for Execution and Monetization Timing\n\n### 1. The Funding Flywheel Is Operational but Stretched\n\nThe company's capital-allocation model follows a deliberate sequence: Falcon 9/Heavy cash flows funded Starlink; Falcon + Starlink cash flows now fund Starship and AI compute. This flywheel is visible in the numbers: the Space and Connectivity segments together \"contributed the substantial majority of our consolidated revenue\" with Connectivity alone generating $7,168 million in Segment Adjusted EBITDA in FY2025. However, the flywheel is under strain\u2014combined Space segment operating losses (driven by Starship R&D) and AI segment operating losses totaled approximately $(7,012) million in FY2025, consuming essentially all of Connectivity's operating profit.\n\n### 2. Monetization Timing Is Highly Stratified\n\n| Initiative | Earliest Revenue Impact | Nature |\n|---|---|---|\n| Falcon 9 / Heavy | Current | Mature, cash-generative |\n| Starlink Broadband (existing) | Current | Scaling profitably |\n| V1 Mobile (D2C) | Current | Early revenue, scaling |\n| Grok / X subscriptions | Current | Growing but loss-making |\n| V3 Starlink Satellites | H2 2026 | Imminent revenue scaling |\n| Starship (initial payloads) | 2026 (milestone only) | No revenue until commercialization |\n| V2 Mobile (Gen2) | 2027+ | Multi-year ramp |\n| Orbital AI Compute | 2028+ | Speculative |\n| Terafab | Undetermined | Concept-stage |\n\n### 3. The AI Segment Embeds a Fundamental Tension\n\nThe AI segment is the most analytically complex: it generates $3.2 billion in near-term revenue (primarily subscriptions and advertising) but consumed $7.7 billion in quarterly capex and posted a $6.4 billion operating loss in FY2025. Management frames this as intentional\u2014\"we continue to prioritize execution speed, capacity expansion, and technological leadership over near-term margin optimization.\" The May 2026 Anthropic cloud-services agreement and the monetization of unused compute capacity represent early attempts to generate third-party revenue from the infrastructure buildout, but the filing is clear that these are ancillary to the primary objective of building AGI-scale infrastructure.\n\n### 4. Execution Risk Concentrates in Starship\n\nBecause Starship is prerequisite to V3 satellites (near-term revenue), V2 Mobile (medium-term), and orbital compute (long-term), any material Starship delay creates a domino effect. The filing explicitly warns: \"Delays in Starship development would materially and adversely affect the ability to deploy next-generation V3 satellites, V2 Mobile satellites, and orbital AI compute infrastructure, impacting revenue and growth.\" The company has conducted 11 flight tests and scheduled a 12th, suggesting real but still-incomplete progress. The absence of a stated commercialization date\u2014only a 2026 \"payload delivery to orbit\" milestone\u2014indicates the company itself does not yet have line-of-sight to revenue-generating Starship operations.\n\n### 5. The IPO Proceeds Allocation Confirms Long-Duration Bias\n\nThe stated use of proceeds\u2014\"expansion of our AI compute infrastructure, enhancements to our launch infrastructure and launch vehicles, increases in the scale and capacity of our satellite constellations\"\u2014is overwhelmingly tilted toward long-duration assets. The company explicitly warns that it \"may increase or accelerate the pace of any of these investments at any time, which could result in periods of reduced profitability or increased losses.\" With an accumulated deficit of $41,311 million as of March 31, 2026, the company is asking public investors to fund a multi-year infrastructure buildout whose returns are uncertain and distant.\n\n### 6. The Distinction Itself Is a Strategic Disclosure\n\nThe filing's clarity in distinguishing near-term revenue drivers from long-duration investments is analytically significant. It signals that management views the Falcon/Starlink profit engine as sufficiently robust to sustain years of deeply loss-making investment in Starship and AI compute. It also signals that the AI segment's current revenue\u2014while real\u2014should not be mistaken for evidence that the AI strategy is commercially validated. The company is, by its own description, in the infrastructure-construction phase of a multi-decade ambition, and near-term GAAP profitability is neither expected nor prioritized.\n\n---\n\n**Bottom line:** The S-1 draws a bright line: Falcon 9, Starlink broadband, V3 satellites, and V1 Mobile are the near-term revenue and profit engines; Starship, Terafab, orbital AI compute, gigawatt-scale terrestrial compute, and V2 Mobile are the long-duration bets consuming that cash flow. Starship is the critical-path dependency linking both categories, and its development timeline is the single most important variable governing the company's ability to execute on both near-term revenue scaling and long-duration strategic ambitions.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14097,
+        "completion_tokens": 3493,
+        "cached_tokens": 0,
+        "cost_usd": 0.0701725
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 56846,
+    "total_completion_tokens": 5513,
+    "total_cached_tokens": 19328,
+    "total_cost_usd": 0.173085,
+    "total_steps": 9
+  }
+}

@@ -1,0 +1,502 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "8708db19-9daa-445e-a47b-97359c264c44",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T16:03:38.581303+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T16:03:38.581303+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nSpaceX conducted a 5-for-1 stock split effective May 4, 2026, shortly before its May 20, 2026 S-1 filing. Forge Global's pre-split price peaked at approximately $634 per share on April 1, 2026. Adjusting for the split, calculate the split-adjusted equivalent price per share. The filing retrospectively adjusts all historical per-share data to reflect the split. Identify which specific financial statement line items or per-share disclosures in the S-1 are affected by this retroactive adjustment, and explain why an analyst comparing pre-split secondary market transaction prices to post-filing per-share metrics must apply the adjustment factor before drawing any valuation conclusions.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T16:03:38.581303+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me break down this question:\n\n1. SpaceX conducted a 5-for-1 stock split effective May 4, 2026\n2. Forge Global's pre-split price peaked at approximately $634 per share on April 1, 2026\n3. I need to calculate the split-adjusted equivalent price per share\n4. I need to identify which specific financial statement line items or per-share disclosures in the S-1 are affected by the retroactive adjustment\n5. I need to explain why an analyst must apply the adjustment factor before drawing valuation conclusions\n\nLet me first parse the SpaceX S-1 filing to find information about the stock split and affected financial statement items.\n\nThe split-adjusted price would be $634 / 5 = $126.80 per share.\n\nLet me search the filing for details about the stock split and its effects on financial statements.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0736d6354ef04b3d8c00425f",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1_may2026"
+          }
+        },
+        {
+          "tool_call_id": "call_ecb60b530d924cd58994e3f4",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "SpaceX 5-for-1 stock split May 2026 Forge Global secondary market price",
+            "start_date": "2026-04-01",
+            "end_date": "2026-05-31",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0736d6354ef04b3d8c00425f",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1_may2026"
+          },
+          {
+            "source_call_id": "call_ecb60b530d924cd58994e3f4",
+            "content": "[{\"url\": \"https://www.crowdfundinsider.com/2025/04/238392-forge-global-plans-15-for-1-stock-split\", \"title\": \"Forge Global Plans 15 For 1 Stock Split | Crowdfund Insider\", \"content\": \"Forge Global is a private securities market secondary trading platform that provides access to shares in private firms that have yet to go public. While private markets have boomed as more firms seek to remain private for as long as possible, competition has increased in providing access to private securities traded on secondary platforms. Yesterday, Forge provided insight into its Q1 performance, stating it anticipates top-line revenue of between $24.9 million and $25.1 million, an increase\", \"score\": 0.56431514, \"raw_content\": null}, {\"url\": \"https://spacexstock.com/spacex-stock-pricing-trends-in-secondary-markets\", \"title\": \"SpaceX Stock Pricing Trends In Secondary Markets\", \"content\": \"SpaceX has shown strong growth in the secondary market, with nearly 40% gains year-over-year. This performance far exceeds the 4.4% increase seen in the Forge Private Market Index, highlighting SpaceX's standout position in the private market.\", \"score\": 0.5139862, \"raw_content\": null}, {\"url\": \"https://spacexstock.com/blog/spacex-stock-pricing-trends-in-secondary-markets\", \"title\": \"SpaceX Stock Pricing Trends In Secondary Markets\", \"content\": \"SpaceX has shown strong growth in the secondary market, with nearly 40% gains year-over-year. This performance far exceeds the 4.4% increase seen in the Forge Private Market Index, highlighting SpaceX's standout position in the private market.\", \"score\": 0.5139862, \"raw_content\": null}, {\"url\": \"https://forgeglobal.com/spacex_stock#activeMarket\", \"title\": \"Invest and Sell SpaceX Stock - Forge\", \"content\": \"diversified basket of private companies (QPs only)\\u200b. Forge TrustInvest in private companies and other alternative assets through a tax-advantaged Self-Directed IRA. Selling in the private market. Secondary marketplace / Trade private companies / Buy and sell SpaceX stock. # SpaceX stock. ### To buy and sell SpaceX stock. ### Can you buy SpaceX stock? SpaceX is currently a private company; it confidentially filed on April 1, 2026, meaning its shares are not traded on public stock exchanges like\", \"score\": 0.49523994, \"raw_content\": null}, {\"url\": \"https://forgeglobal.com/spacex_stock#similarCompanies\", \"title\": \"Invest and Sell SpaceX Stock - Forge\", \"content\": \"filed on April 1, 2026, meaning its shares are not traded on public stock exchanges like the NYSE or Nasdaq. SpaceX is a private company, meaning its shares are currently not traded on public stock exchanges. Learn more about SpaceX\\u2019s private market activity in our article on\\u202fhow to invest in SpaceX stock. Yes, as a shareholder, you may be able to sell your SpaceX shares through Forge\\u2019s private market platform\\u2014subject to company policies and market interest.\", \"score\": 0.4836734, \"raw_content\": null}, {\"url\": \"https://forgeglobal.com/spacex_stock#investors\", \"title\": \"Invest and Sell SpaceX Stock - Forge\", \"content\": \"filed on April 1, 2026, meaning its shares are not traded on public stock exchanges like the NYSE or Nasdaq. SpaceX is a private company, meaning its shares are currently not traded on public stock exchanges. Learn more about SpaceX\\u2019s private market activity in our article on\\u202fhow to invest in SpaceX stock. Yes, as a shareholder, you may be able to sell your SpaceX shares through Forge\\u2019s private market platform\\u2014subject to company policies and market interest.\", \"score\": 0.4836734, \"raw_content\": null}, {\"url\": \"https://forgeglobal.com/spacex_stock#fundingAndValuation\", \"title\": \"Invest and Sell SpaceX Stock - Forge\", \"content\": \"filed on April 1, 2026, meaning its shares are not traded on public stock exchanges like the NYSE or Nasdaq. SpaceX is a private company, meaning its shares are currently not traded on public stock exchanges. Learn more about SpaceX\\u2019s private market activity in our article on\\u202fhow to invest in SpaceX stock. Yes, as a shareholder, you may be able to sell your SpaceX shares through Forge\\u2019s private market platform\\u2014subject to company policies and market interest.\", \"score\": 0.4836734, \"raw_content\": null}, {\"url\": \"https://forgeglobal.com/spacex_stock#stockNews\", \"title\": \"Invest and Sell SpaceX Stock - Forge\", \"content\": \"filed on April 1, 2026, meaning its shares are not traded on public stock exchanges like the NYSE or Nasdaq. SpaceX is a private company, meaning its shares are currently not traded on public stock exchanges. Learn more about SpaceX\\u2019s private market activity in our article on\\u202fhow to invest in SpaceX stock. Yes, as a shareholder, you may be able to sell your SpaceX shares through Forge\\u2019s private market platform\\u2014subject to company policies and market interest.\", \"score\": 0.4836734, \"raw_content\": null}, {\"url\": \"https://forgeglobal.com/spacex_stock#stockPrice\", \"title\": \"Invest and Sell SpaceX Stock - Forge\", \"content\": \"filed on April 1, 2026, meaning its shares are not traded on public stock exchanges like the NYSE or Nasdaq. SpaceX is a private company, meaning its shares are currently not traded on public stock exchanges. Learn more about SpaceX\\u2019s private market activity in our article on\\u202fhow to invest in SpaceX stock. Yes, as a shareholder, you may be able to sell your SpaceX shares through Forge\\u2019s private market platform\\u2014subject to company policies and market interest.\", \"score\": 0.4836734, \"raw_content\": null}, {\"url\": \"https://forgeglobal.com/spacex_stock#faqs\", \"title\": \"Invest and Sell SpaceX Stock - Forge\", \"content\": \"filed on April 1, 2026, meaning its shares are not traded on public stock exchanges like the NYSE or Nasdaq. SpaceX is a private company, meaning its shares are currently not traded on public stock exchanges. Learn more about SpaceX\\u2019s private market activity in our article on\\u202fhow to invest in SpaceX stock. Yes, as a shareholder, you may be able to sell your SpaceX shares through Forge\\u2019s private market platform\\u2014subject to company policies and market interest.\", \"score\": 0.4836734, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3620,
+        "completion_tokens": 390,
+        "cached_tokens": 3200,
+        "cost_usd": 0.00895
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T16:05:57.520360+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me now retrieve information from the parsed S-1 filing about the stock split and its effects on financial statements.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_6ffc51a23d7a4a22bc272077",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find information about the stock split, including the 5-for-1 stock split, split adjustment, retroactive adjustment of per-share data, and affected financial statement line items in {{spacex_s1_may2026}}"
+          }
+        },
+        {
+          "tool_call_id": "call_f974ab61ea364a36b89d4d24",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find earnings per share, net income per share, basic and diluted shares outstanding, weighted average shares, and per-share disclosures in {{spacex_s1_may2026}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_6ffc51a23d7a4a22bc272077",
+            "content": "Based on the provided financial statement notes and prospectus preamble, here is the detailed information regarding the stock split, adjustments, and affected financial statement line items:\n\n### 1. The 5-for-1 Stock Split (The \"2026 Stock Split\")\n*   **Effective Date:** May 4, 2026.\n*   **Affected Share Classes:** The split applied to the authorized, issued, and outstanding shares of the Company\u2019s **Class A, Class B, and Class C Common Stock**.\n*   **Mechanics:** Each share of the affected classes was split into five (5) shares of the same class of SpaceX Common Stock. *(Note: The text also references a prior 10-for-1 stock split that occurred in 2022).*\n\n### 2. Split Adjustments\n*   **Preferred Stock Conversion Rates:** The conversion rate of SpaceX Redeemable Convertible Preferred Stock was proportionately adjusted to factor in the 2026 Stock Split. Following the split, each share of SpaceX Redeemable Convertible Preferred Stock is convertible into **fifty (50) shares** of SpaceX Common Stock.\n*   **Conversion Price Adjustments:** The conversion price of the preferred stock is subject to adjustments set forth in the corporate charter for dilutive issuances, stock splits, and combinations.\n*   **xAI Preferred Stock Baselines:** When detailing the conversion mechanics and cash-election options for legacy xAI Redeemable Convertible Preferred Stock (e.g., the $75.46 per share cash election for eligible service providers), the terms are explicitly defined on a **\"pre-2026 Stock Split basis\"** before the split multiplier is applied to the resulting SpaceX Common Stock.\n\n### 3. Retroactive Adjustment of Per-Share Data\n*   **Retrospective Application:** Unless otherwise stated, **all share and per-share information** included in the prospectus and consolidated financial statements has been retroactively adjusted to reflect the 2026 Stock Split for **all periods presented**.\n*   **Merger Interplay:** Because of the common-control mergers of X and xAI into SpaceX, historical share counts for X, X.AI Corp., and xAI are first presented as if they were converted into SpaceX Common Stock at their respective merger exchange rates, and then those combined historical share counts are retroactively adjusted for the 2026 Stock Split.\n*   **Auditor's Dual-Dating:** The Independent Auditor's Report is dated March 30, 2026, *except* for the effects of the stock split (along with the common-control reorganizations and reportable segment changes), for which the audit report date is **May 7, 2026**.\n\n### 4. Affected Financial Statement Line Items\nThe retroactive application of the 5-for-1 split directly impacts the following line items, tables, and disclosures throughout the financial statements:\n\n**Earnings Per Share (EPS) & Income Statement Metrics:**\n*   Net income (loss) per share of common stock attributable to common shareholders (Basic and Diluted)\n*   Pro forma net loss per share of common stock (Basic and Diluted)\n*   Pro forma net tangible book value per share (used in the Dilution section to calculate immediate dilution to new IPO investors)\n\n**Share Count & Equity Metrics:**\n*   Weighted average shares used in computing net income (loss) per share (Basic and Diluted)\n*   Weighted average shares of common stock outstanding and common stock equivalents (including the assumed conversion of Redeemable Convertible Preferred Stock, stock options, restricted stock units, and ESPPs)\n*   Capital stock and shareholders' equity balances (specifically the authorized, issued, and outstanding share counts for Class A, B, C, and D Common Stock, as well as Redeemable Convertible Preferred Stock).\n\n**Statement of Comprehensive Income / Equity:**\n*   While dollar amounts like *Net Income (Loss)* and *Other Comprehensive Income (Loss)* remain unchanged by a stock split, the accompanying per-share derivations and the *Consolidated Statements of Changes in Stockholders\u2019 Equity* (share issuance, repurchase, and conversion columns) are restated to reflect the post-split share volumes."
+          },
+          {
+            "source_call_id": "call_f974ab61ea364a36b89d4d24",
+            "content": "Based on the provided financial statements and notes, here is the comprehensive extraction and summary of earnings per share (EPS), net income per share, weighted average shares outstanding, and related per-share disclosures. \n\n*(Note: All monetary and share amounts are in millions, except per share data, as stated in the financial tables.)*\n\n### 1. Historical Earnings (Loss) Per Share & Weighted Average Shares\nThe company presents a single net income (loss) per share for all classes of common stock because they have identical economic rights. In periods of net loss, basic and diluted EPS are identical because potentially dilutive securities are anti-dilutive.\n\n#### **Annual Periods (Years Ended December 31)**\n| Metric | 2025 | 2024 | 2023 |\n| :--- | :--- | :--- | :--- |\n| **Net Income (Loss)** | $(4,937) | $791 | $(4,628) |\n| **Net Income (Loss) Attributable to Common Shareholders (Basic)** | $(4,937) | $18 | $(4,628) |\n| **Net Income (Loss) Attributable to Common Shareholders (Diluted)** | $(4,937) | $21 | $(4,628) |\n| **Basic EPS** | $(1.69) | $0.01 | $(1.68) |\n| **Diluted EPS** | $(1.69) | $0.00 | $(1.68) |\n| **Weighted Average Shares (Basic)** | 2,926 | 2,848 | 2,759 |\n| **Weighted Average Shares (Diluted)** | 2,926 | 9,956 | 2,759 |\n\n#### **Interim Periods (Three Months Ended March 31)**\n| Metric | 2026 (Unaudited) | 2025 (Unaudited) |\n| :--- | :--- | :--- |\n| **Net Loss** | $(4,276) | $(528) |\n| **Net Loss Attributable to Common Shareholders (Basic & Diluted)** | $(4,947) | $(528) |\n| **Basic and Diluted EPS** | $(1.27) | $(0.18) |\n| **Weighted Average Shares (Basic & Diluted)** | 3,884 | 2,875 |\n\n---\n\n### 2. Unaudited Pro Forma EPS & Weighted Average Shares\nThe pro forma data gives effect to the Preferred Conversion (as if it occurred on January 1, 2025), the Class C Reclassification, and the effectiveness of the new charter upon the completion of the offering.\n\n| Metric | Three Months Ended Mar 31, 2026 | Year Ended Dec 31, 2025 |\n| :--- | :--- | :--- |\n| **Reported Net Loss Attributable to Common Shareholders** | $(4,947) | $(4,937) |\n| *Pro Forma Adj: Reverse Deemed Dividend (SpaceX Preferred)* | $565 | $\u2014 |\n| **Pro Forma Net Loss Attributable to Common Shareholders** | **$(4,382)** | **$(4,937)** |\n| **Reported Weighted Average Shares** | 3,884 | 2,926 |\n| *Pro Forma Adj: Preferred Conversion* | 6,723 | 6,723 |\n| **Pro Forma Weighted Average Shares** | **10,607** | **9,649** |\n| **Pro Forma Basic and Diluted EPS** | **$(0.41)** | **$(0.51)** |\n\n---\n\n### 3. EPS Reconciliations (Numerator & Denominator)\nThe reconciliation explains the adjustments made to Net Income (Loss) and Weighted Average Shares to arrive at the figures used for Basic and Diluted EPS calculations.\n\n#### **Year Ended December 31, 2024 (Profitable Period)**\n* **Numerator (Net Income):**\n  * Reported Net Income: **$791**\n  * Less: Deemed dividend: $(80)\n  * Less: Earnings allocated to participating securities: $(693)\n  * **Basic Numerator:** **$18**\n  * Add: Effect of assumed conversion of SpaceX Preferred: $3\n  * **Diluted Numerator:** **$21**\n* **Denominator (Shares):**\n  * Basic Weighted Average Shares: **2,848**\n  * Add: SpaceX Preferred Conversion: 6,771\n  * Add: Exercise of stock options: 292\n  * Add: Conversion of RSUs: 45\n  * **Diluted Weighted Average Shares:** **9,956**\n\n#### **Three Months Ended March 31, 2026 (Loss Period)**\n* **Numerator (Net Loss):**\n  * Reported Net Loss: **$(4,276)**\n  * Less: Deemed dividend (increases loss attributable to common): $(671)\n  * **Basic & Diluted Numerator:** **$(4,947)**\n* **Denominator (Shares):**\n  * **Basic & Diluted Shares:** **3,884** *(Dilutive equivalents excluded due to anti-dilution)*\n\n---\n\n### 4. Anti-Dilutive Securities Excluded\nPotentially dilutive securities are excluded from the diluted EPS calculation in loss periods because their inclusion would be anti-dilutive. \n\n| Security Type (in millions of shares) | 2025 | 2024 | 2023 | Q1 2026 | Q1 2025 |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| **xAI Redeemable Convertible Preferred Stock** | 1,369 | \u2014 | 537 | \u2014 | 1,155 |\n| **SpaceX Redeemable Convertible Preferred Stock** | 6,733 | \u2014 | 6,780 | 6,723 | 6,760 |\n| **Share-based Compensation** | 623 | 18 | 767 | 598 | 674 |\n\n---\n\n### 5. Key Per-Share Disclosures & Accounting Policies\n* **Two-Class Method:** The company uses the two-class method for participating securities (certain series of redeemable convertible preferred stock) which are entitled to receive dividends on an as-converted basis. These securities participate in undistributed earnings but **do not participate in net losses**.\n* **Diluted EPS Calculation:** Computed based on the more dilutive of (i) the two-class method or (ii) the if-converted method. \n* **Treasury Stock Method:** Used for potentially dilutive shares from outstanding share-based compensation awards (stock options, RSUs, ESPPs) when their effect is dilutive.\n* **Deemed Dividends:** The excess of fair market value over the consideration transferred for the repurchase of SpaceX Redeemable Convertible Preferred Stock is treated as a deemed dividend. This results in a decrease to net income (or an increase to net loss) attributable to common shareholders when calculating EPS.\n* **Share Repurchases & Retirements:** All SpaceX and xAI shares repurchased to date (from employees and existing shareholders) have been retired, impacting the outstanding share counts."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5645,
+        "completion_tokens": 165,
+        "cached_tokens": 0,
+        "cost_usd": 0.0157625
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T16:07:23.471781+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have comprehensive information about the stock split and its effects. Let me also retrieve information about the specific stock split disclosure and any mention of Forge Global or secondary market prices in the S-1.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d4fef8900cbb4f7792ba54bc",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find information about secondary market transactions, Forge Global, pre-split prices, secondary market trading prices, and the stock split effect on valuation in {{spacex_s1_may2026}}"
+          }
+        },
+        {
+          "tool_call_id": "call_5cac5b2a816f49b78910fdba",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the stock split note disclosure, including the 2022 stock split and 2026 stock split details, authorized shares, and how historical per-share amounts were retroactively adjusted in {{spacex_s1_may2026}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d4fef8900cbb4f7792ba54bc",
+            "content": "Based on the provided text chunks, there is **no information** available regarding secondary market transactions, Forge Global, pre-split trading prices, secondary market trading prices, or the stock split's effect on valuation. \n\nWhile the text does mention a **five-for-one forward stock split** effective May 4, 2026 (and notes that all share and per-share information, including a specific issuance to Tesla, has been retroactively adjusted or noted on a \"pre-2026 Stock Split basis\"), it strictly focuses on the accounting treatments, retrospective recasting for mergers (xAI and X), and IPO capitalization assumptions. It does not contain any data or discussions about private secondary market platforms like Forge Global or how the split impacted the company's secondary market valuation."
+          },
+          {
+            "source_call_id": "call_5cac5b2a816f49b78910fdba",
+            "content": "Based on the provided financial statement notes and prospectus excerpts, here are the details regarding the stock splits, authorized shares, retroactive adjustments, and xAI's capital structure:\n\n### 1. Authorized Share Allocations (as of March 31, 2026)\nThe Company's authorized capital stock is divided into Common Stock and Redeemable Convertible Preferred Stock:\n*   **SpaceX Common Stock (54,657 million total authorized shares):**\n    *   **Class A:** 36,132 million shares (par value $0.001 per share)\n    *   **Class B:** 6,125 million shares (par value $0.001 per share)\n    *   **Class C:** 10,000 million shares (par value $0.001 per share)\n    *   **Class D:** 2,400 million shares (par value $0.0001 per share)\n*   **SpaceX Redeemable Convertible Preferred Stock:** 2,607 million total authorized shares, of which 2,400 million shares remain undesignated.\n\n### 2. Stock Split Details\n*   **2022 Stock Split:** The Board approved a **10-for-1** stock split, pursuant to which each issued and outstanding share of SpaceX Common Stock was split into ten shares of SpaceX Common Stock.\n*   **2026 Stock Split:** Effective **May 4, 2026**, the Company effected a **5-for-1** forward stock split of its authorized, issued, and outstanding shares of Class A, Class B, and Class C Common Stock. The conversion rates of SpaceX Redeemable Convertible Preferred Stock were proportionately adjusted to factor in this split (e.g., becoming convertible into fifty shares of SpaceX Common Stock post-split).\n\n### 3. Retroactive Adjustments of Historical Per-Share Amounts\n*   **General Retroactive Adjustment:** The consolidated financial statements have been retrospectively recast for all periods presented. Unless otherwise stated, **all historical share and per-share information has been retroactively adjusted** to reflect the 2026 Stock Split across all periods presented in the prospectus.\n*   **Exception for xAI Preferred Stock:** Because xAI Redeemable Convertible Preferred Stock was legally outstanding during historical periods prior to the xAI Merger and represented a separate equity class of a legally distinct predecessor entity, its conversion into SpaceX Common Stock is recognized *only* as of the closing of the xAI Merger. Consequently, historical consolidated balance sheets and equity statements reflect xAI's preferred stock in its legal form and are **not retrospectively recast** on an as-converted basis for periods prior to the xAI Merger Date. \n\n### 4. xAI Capital Structure (Following 2025 Articles of Incorporation Amendment)\nOn **March 28, 2025**, xAI adopted an Amended and Restated Articles of Incorporation (subsequently amended through January 30, 2026) which established its pre-merger capital structure:\n*   **xAI Common Stock:** Designated into three classes: Class A common stock (\"xAI Class A\"), Class B common stock (\"xAI Class B\"), and Limited Voting common stock (\"xAI Limited Voting\").\n*   **xAI Redeemable Convertible Preferred Stock:** Consisted of several series, categorized by voting rights:\n    *   *xAI Low Vote Stock:* Series A-1, B, C, D, and E.\n    *   *xAI High Vote Stock:* Series A.\n*   **Merger Conversion Mechanics:** Upon the xAI Merger, these preferred shares converted into SpaceX Common Stock based on a pre-2026 Stock Split exchange ratio of **0.1433 shares** of SpaceX Class A (for Low Vote) or Class B (for High Vote) per preferred share, rounded up to the nearest whole number. Eligible service providers holding Series A also had the option to elect a cash payout of $75.46 per share (on a pre-2026 split basis)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8440,
+        "completion_tokens": 189,
+        "cached_tokens": 5376,
+        "cost_usd": 0.01627
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T16:09:15.133606+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have comprehensive information. Let me also look for the dilution section and pro forma net tangible book value per share, as well as any other per-share metrics.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_6d989dbe38f1470c848d9962",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the dilution section, pro forma net tangible book value per share, IPO price range, and initial public offering price per share in {{spacex_s1_may2026}}"
+          }
+        },
+        {
+          "tool_call_id": "call_f07e1b48aa364405852882e9",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the summary historical financial data table, selected financial data, and any per-share metrics presented in the prospectus summary or summary section in {{spacex_s1_may2026}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_6d989dbe38f1470c848d9962",
+            "content": "Based on the provided text, which appears to be a draft or preliminary prospectus (often referred to as a \"Red Herring\"), the specific financial figures for pricing and dilution have been **left blank (redacted/placeholder)** pending the final pricing of the offering. \n\nHere is the extracted information and context for each of your requested items:\n\n### 1. Dilution Section\n* **Location:** Listed on page 70 in the Table of Contents.\n* **Context:** The section explains that purchasers of Class A common stock will experience \"immediate and substantial dilution in the net tangible book value per share.\" \n* **Dilution Table Structure:** The text provides a table to calculate the exact dilution, though the values are left blank:\n  * *Initial public offering price per share:* `$ [Blank]`\n  * *Pro forma net tangible book value per share as of March 31, 2026:* `$ [Blank]`\n  * *Decrease per share attributable to new investors:* `[Blank]`\n  * *As adjusted pro forma net tangible book value per share after giving further effect to this offering:* `[Blank]`\n  * *Dilution in pro forma net tangible book value per share to new investors:* `$ [Blank]`\n* **Sensitivity Analysis:** The text notes that a $1.00 increase/decrease in the IPO price or a change in the number of shares offered will affect the dilution amount, but the resulting sensitivity values are also left blank.\n\n### 2. Pro Forma Net Tangible Book Value Per Share\n* **Context:** The text defines this metric as tangible net worth divided by the total number of outstanding shares immediately prior to the offering's completion, adjusted for the Class C Reclassification and Preferred Conversion.\n* **Extracted Values:** The specific dollar amounts are left blank in the text.\n  * *Historical:* \"Our net tangible book value as of March 31, 2026 was approximately **$ [Blank]**, or **$ [Blank]** per share...\"\n  * *Pro Forma Adjusted:* \"...our adjusted pro forma net tangible book value as of March 31, 2026 would have been approximately **$ [Blank]**, or **$ [Blank]** per share of Class A common stock.\"\n\n### 3. IPO Price Range\n* **Context:** The exact per-share price range is not explicitly stated in the provided text snippets, as it is referenced as being \"set forth on the cover page of this prospectus\" (which is partially redacted/blank in the provided text).\n* **References to the Range:** \n  * \"...an initial public offering price of **$ [Blank]** per share (the midpoint of the price range set forth on the cover of this prospectus)...\"\n  * *Note on SEC Fee Table:* The text does include an SEC Registration Fee calculation table showing \"proposed maximum aggregate offering prices\" (total valuation, not per-share) escalating from **$5.5 trillion to $7.5 trillion** for 66,666,670 shares. *(Note: These numbers in the fee table are likely placeholder/test figures generated for the filing draft, as they imply an impossible per-share valuation).*\n\n### 4. Initial Public Offering Price Per Share\n* **Context:** The assumed IPO price (which is the midpoint of the price range) is used throughout the document to calculate pro forma adjustments, use of proceeds, and dilution. \n* **Extracted Values:** Because this is a preliminary prospectus, the exact price is left blank wherever it appears:\n  * *Cover Page Pricing Table:* `Initial public offering price ... $ [Blank]` (Per Share) and `$ [Blank]` (Total)\n  * *Use of Proceeds:* \"...based upon the assumed initial public offering price of **$ [Blank]** per share...\"\n  * *Capitalization Table:* \"...at an assumed initial offering price of **$ [Blank]** per share, which is the midpoint of the range...\"\n\n**Summary:** You are looking at a pre-pricing S-1 filing draft. To find the actual numerical values for the IPO price range, initial offering price, and exact dilution per share, you will need to refer to the **final effective prospectus** or the **424(b) pricing filing** submitted to the SEC right before the stock begins trading."
+          },
+          {
+            "source_call_id": "call_f07e1b48aa364405852882e9",
+            "content": "Based on the provided prospectus excerpts, here is the **Summary Historical Consolidated Financial and Operating Data** table, which includes the selected financial data and per-share metrics. \n\n### Summary Historical Consolidated Financial and Operating Data\n*(in millions, except per share data)*\n\n| | Three Months Ended March 31, 2026 *(unaudited)* | Three Months Ended March 31, 2025 | Year Ended December 31, 2025 | Year Ended December 31, 2024 | Year Ended December 31, 2023 |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| **Revenue** | $4,694 | $4,067 | $18,674 | $14,015 | $10,387 |\n| **Total costs and expenses** | 6,637 | 4,040 | 21,263 | 13,549 | 13,892 |\n| **Income (loss) from operations** | (1,943) | 27 | (2,589) | 466 | (3,505) |\n| **Net income (loss)** | $(4,276) | $(528) | $(4,937) | $791 | $(4,628) |\n| | | | | | |\n| **Net income (loss) per share of common stock attributable to common shareholders (1)** | | | | | |\n| Basic | $(1.27) | $(0.18) | $(1.69) | $0.01 | $(1.68) |\n| Diluted | $(1.27) | $(0.18) | $(1.69) | $0.00 | $(1.68) |\n| | | | | | |\n| **Weighted average shares used in computing net income (loss) per share of common stock (1)** | | | | | |\n| Basic | 3,884 | 2,875 | 2,926 | 2,848 | 2,759 |\n| Diluted | 3,884 | 2,875 | 2,926 | 9,956 | 2,759 |\n\n**Footnote:**\n* **(1)** Please refer to Note 14, *Earnings per Share* to the audited consolidated financial statements appearing elsewhere in the prospectus for an explanation of the calculation of basic and diluted net income (loss) per share of common stock attributable to common shareholders.\n\n---\n\n### Consolidated Statements of Comprehensive Income (Loss)\n*(in millions)*\n\n| | Year Ended December 31, 2025 | Year Ended December 31, 2024 | Year Ended December 31, 2023 |\n| :--- | :--- | :--- | :--- |\n| **Net income (loss)** | $(4,937) | $791 | $(4,628) |\n| **Other comprehensive income (loss)** | | | |\n| Change in foreign currency translation adjustments, net of tax | 805 | (391) | 222 |\n| Unrealized gains (losses) on marketable securities, net of tax | 0 | (1) | 1 |\n| **Other comprehensive income (loss)** | 805 | (392) | 223 |\n| **Comprehensive income (loss)** | $(4,132) | $399 | $(4,405) |\n\n---\n\n### Important Context & Notes on the Data:\n* **Retrospective Combination (Common Control):** The historical financial and operating data has been retrospectively recast/combined for all periods presented to include the historical results of **xAI** (acquired by SpaceX effective February 2, 2026) and **X Holdings** (acquired by xAI effective March 28, 2025), as these transactions were between entities under common control.\n* **Pro Forma Per-Share Metrics:** The text introduces a subsequent table for the *\"computation of unaudited pro forma basic and diluted net loss per share of common stock attributable to common shareholders\"*; however, the actual data rows for this specific pro-forma table are cut off/missing in the provided document fragments. \n* **Forward-Looking Disclaimer:** The summary historical data is not indicative of the results to be expected for any future period, and interim results are not necessarily indicative of full fiscal period results. Readers are directed to the *Management\u2019s Discussion and Analysis of Financial Condition and Results of Operations (MD&A)* and the full audited financial statements for complete context."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9699,
+        "completion_tokens": 170,
+        "cached_tokens": 7552,
+        "cost_usd": 0.0165075
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T16:09:19.003748+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the information I need. Let me calculate the split-adjusted price and compile my answer.\n\nThe calculation:\n- Pre-split price: $634 per share\n- Split ratio: 5-for-1\n- Split-adjusted price: $634 / 5 = $126.80 per share\n\nNow let me identify the specific financial statement line items affected by the retroactive adjustment and explain why analysts must apply the adjustment factor.\n\nLet me also verify the calculation.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_9a9ae2becd13424e9b1c230a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "634 / 5"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_9a9ae2becd13424e9b1c230a",
+            "content": "126.8"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11906,
+        "completion_tokens": 142,
+        "cached_tokens": 8704,
+        "cost_usd": 0.020305
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T16:09:50.718676+00:00",
+      "source": "agent",
+      "message": "Now I have all the information needed. Let me compile the complete answer.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the information needed to provide a comprehensive answer. Let me compile everything.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4d37dec7ed574df2800bfa48",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Split-Adjusted Price Calculation\n\n**Pre-split secondary market peak price (Forge Global, April 1, 2026):** ~$634.00 per share\n**Stock split:** 5-for-1, effective May 4, 2026\n**Split-adjusted equivalent price:** $634.00 \u00f7 5 = **$126.80 per share**\n\n---\n\n## Financial Statement Line Items Affected by Retroactive Split Adjustment\n\nThe SpaceX S-1 (filed May 20, 2026) explicitly states that **all share and per-share information** in the prospectus and consolidated financial statements has been **retroactively adjusted** to reflect the 5-for-1 stock split for **all periods presented**. The following specific line items and disclosures are directly affected:\n\n### 1. Earnings Per Share (Income Statement)\n- **Basic and diluted net income (loss) per share of common stock attributable to common shareholders** \u2014 All historical EPS figures are presented on a post-split basis. For example:\n  - FY2025 Basic/Diluted EPS: $(1.69)\n  - FY2024 Basic EPS: $0.01; Diluted EPS: $0.00\n  - FY2023 Basic/Diluted EPS: $(1.68)\n  - Q1 2026 Basic/Diluted EPS: $(1.27)\n  - Q1 2025 Basic/Diluted EPS: $(0.18)\n  \n  These per-share amounts are **5\u00d7 lower** than they would have been on a pre-split basis, because the denominator (shares) is 5\u00d7 larger.\n\n### 2. Weighted Average Shares Outstanding (EPS Denominator)\n- **Basic and diluted weighted average shares** used in computing EPS are all presented on a post-split (5\u00d7 inflated) basis:\n  - FY2025: 2,926 million (basic); 2,926 million (diluted)\n  - FY2024: 2,848 million (basic); 9,956 million (diluted)\n  - FY2023: 2,759 million (basic and diluted)\n  - Q1 2026: 3,884 million (basic and diluted)\n\n### 3. Pro Forma EPS and Pro Forma Weighted Average Shares\n- **Unaudited pro forma basic and diluted net loss per share** (giving effect to the Preferred Conversion and Class C Reclassification):\n  - Q1 2026: $(0.41) on 10,607 million pro forma shares\n  - FY2025: $(0.51) on 9,649 million pro forma shares\n\n### 4. Pro Forma Net Tangible Book Value Per Share (Dilution Section)\n- The dilution table calculates **pro forma net tangible book value per share** as of March 31, 2026, which uses post-split share counts in its denominator. (Specific dollar values are blank in this preliminary S-1, pending pricing.)\n\n### 5. Authorized, Issued, and Outstanding Share Counts (Balance Sheet / Capitalization)\n- **Authorized shares:** 54,657 million total common stock shares (Class A: 36,132M; Class B: 6,125M; Class C: 10,000M; Class D: 2,400M)\n- **Issued and outstanding shares** for all classes of common stock\n- **Redeemable Convertible Preferred Stock conversion rates** \u2014 proportionately adjusted so each preferred share is now convertible into **50 shares** of SpaceX Common Stock (previously 10 shares pre-2026-split)\n\n### 6. Statement of Changes in Stockholders' Equity\n- All share issuance, repurchase, conversion, and retirement activity in the equity statement is restated to reflect post-split share volumes across all historical periods.\n\n### 7. Anti-Dilutive Securities Table\n- The count of potentially dilutive securities excluded from diluted EPS (preferred stock, stock options, RSUs, ESPPs) is presented in post-split share equivalents.\n\n### 8. xAI Merger Exchange Ratios\n- The xAI preferred-to-SpaceX common exchange ratio of **0.1433 shares** per xAI preferred share is stated on a **pre-2026 Stock Split basis**, requiring multiplication by 5 to arrive at the post-split equivalent (~0.7165 SpaceX shares per xAI preferred share).\n\n---\n\n## Why Analysts Must Apply the Adjustment Factor Before Drawing Valuation Conclusions\n\nAn analyst comparing pre-split secondary market transaction prices (e.g., Forge Global's ~$634/share peak on April 1, 2026) to post-filing per-share metrics **must** apply the 5-for-1 adjustment factor for the following critical reasons:\n\n### 1. Apples-to-Apples Comparability\nThe S-1 presents **all** per-share data on a retroactively split-adjusted basis. If an analyst naively compares the unadjusted $634 pre-split secondary price to the S-1's EPS of $(1.69) for FY2025, the implied P/E multiple would appear absurdly distorted. The correct comparison requires dividing the $634 pre-split price by 5 to arrive at **$126.80**, which is then comparable to the S-1's post-split EPS, book value per share, and other per-share metrics.\n\n### 2. Avoiding a 5\u00d7 Valuation Error\nWithout adjustment, an analyst would overstate the price-to-earnings, price-to-book, and price-to-sales-per-share ratios by a factor of exactly 5. For example:\n- **Incorrect:** $634 \u00f7 $0.01 (FY2024 basic EPS) = 63,400\u00d7 P/E\n- **Correct:** $126.80 \u00f7 $0.01 (FY2024 basic EPS) = 12,680\u00d7 P/E\n\nWhile both multiples are high, the unadjusted figure is mathematically meaningless because the numerator (price) and denominator (EPS) are on different share-count bases.\n\n### 3. Consistency with Pro Forma and Dilution Metrics\nThe S-1's pro forma net tangible book value per share, pro forma EPS, and dilution calculations all use post-split share counts. Any valuation framework (DCF per share, comparable-company P/E, price/NTBV) that uses the S-1's per-share figures as the denominator must pair them with a split-adjusted price as the numerator.\n\n### 4. Preferred Stock Conversion Economics\nThe preferred stock conversion rate was proportionately adjusted (from 10 to 50 shares per preferred share). Analysts modeling fully diluted share counts or as-converted valuations using the S-1's post-split conversion terms must ensure their implied share prices are also on a post-split basis to correctly calculate conversion premiums, ownership percentages, and implied enterprise values.\n\n### 5. Historical Trend Analysis\nBecause the S-1 retroactively adjusts all periods (2023, 2024, 2025, Q1 2025, Q1 2026), any time-series analysis of per-share metrics (e.g., EPS growth trends, book value per share trajectory) is internally consistent on a post-split basis. Introducing unadjusted pre-split market prices into such an analysis would create a structural discontinuity that invalidates trend-based conclusions.\n\n---\n\n**Bottom line:** The split-adjusted equivalent of Forge Global's ~$634 pre-split peak is **$126.80 per share**. Every per-share metric in the SpaceX S-1 \u2014 EPS, weighted average shares, pro forma EPS, net tangible book value per share, conversion ratios, and outstanding share counts \u2014 is presented on a post-split basis. Failure to adjust pre-split secondary market prices by dividing by 5 before comparing them to any S-1 per-share figure will produce a 5\u00d7 systematic error in all derived valuation multiples.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://forgeglobal.com/spacex_stock\",\n      \"name\": \"Forge Global - SpaceX Stock Page\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4d37dec7ed574df2800bfa48",
+            "content": "## Split-Adjusted Price Calculation\n\n**Pre-split secondary market peak price (Forge Global, April 1, 2026):** ~$634.00 per share\n**Stock split:** 5-for-1, effective May 4, 2026\n**Split-adjusted equivalent price:** $634.00 \u00f7 5 = **$126.80 per share**\n\n---\n\n## Financial Statement Line Items Affected by Retroactive Split Adjustment\n\nThe SpaceX S-1 (filed May 20, 2026) explicitly states that **all share and per-share information** in the prospectus and consolidated financial statements has been **retroactively adjusted** to reflect the 5-for-1 stock split for **all periods presented**. The following specific line items and disclosures are directly affected:\n\n### 1. Earnings Per Share (Income Statement)\n- **Basic and diluted net income (loss) per share of common stock attributable to common shareholders** \u2014 All historical EPS figures are presented on a post-split basis. For example:\n  - FY2025 Basic/Diluted EPS: $(1.69)\n  - FY2024 Basic EPS: $0.01; Diluted EPS: $0.00\n  - FY2023 Basic/Diluted EPS: $(1.68)\n  - Q1 2026 Basic/Diluted EPS: $(1.27)\n  - Q1 2025 Basic/Diluted EPS: $(0.18)\n  \n  These per-share amounts are **5\u00d7 lower** than they would have been on a pre-split basis, because the denominator (shares) is 5\u00d7 larger.\n\n### 2. Weighted Average Shares Outstanding (EPS Denominator)\n- **Basic and diluted weighted average shares** used in computing EPS are all presented on a post-split (5\u00d7 inflated) basis:\n  - FY2025: 2,926 million (basic); 2,926 million (diluted)\n  - FY2024: 2,848 million (basic); 9,956 million (diluted)\n  - FY2023: 2,759 million (basic and diluted)\n  - Q1 2026: 3,884 million (basic and diluted)\n\n### 3. Pro Forma EPS and Pro Forma Weighted Average Shares\n- **Unaudited pro forma basic and diluted net loss per share** (giving effect to the Preferred Conversion and Class C Reclassification):\n  - Q1 2026: $(0.41) on 10,607 million pro forma shares\n  - FY2025: $(0.51) on 9,649 million pro forma shares\n\n### 4. Pro Forma Net Tangible Book Value Per Share (Dilution Section)\n- The dilution table calculates **pro forma net tangible book value per share** as of March 31, 2026, which uses post-split share counts in its denominator. (Specific dollar values are blank in this preliminary S-1, pending pricing.)\n\n### 5. Authorized, Issued, and Outstanding Share Counts (Balance Sheet / Capitalization)\n- **Authorized shares:** 54,657 million total common stock shares (Class A: 36,132M; Class B: 6,125M; Class C: 10,000M; Class D: 2,400M)\n- **Issued and outstanding shares** for all classes of common stock\n- **Redeemable Convertible Preferred Stock conversion rates** \u2014 proportionately adjusted so each preferred share is now convertible into **50 shares** of SpaceX Common Stock (previously 10 shares pre-2026-split)\n\n### 6. Statement of Changes in Stockholders' Equity\n- All share issuance, repurchase, conversion, and retirement activity in the equity statement is restated to reflect post-split share volumes across all historical periods.\n\n### 7. Anti-Dilutive Securities Table\n- The count of potentially dilutive securities excluded from diluted EPS (preferred stock, stock options, RSUs, ESPPs) is presented in post-split share equivalents.\n\n### 8. xAI Merger Exchange Ratios\n- The xAI preferred-to-SpaceX common exchange ratio of **0.1433 shares** per xAI preferred share is stated on a **pre-2026 Stock Split basis**, requiring multiplication by 5 to arrive at the post-split equivalent (~0.7165 SpaceX shares per xAI preferred share).\n\n---\n\n## Why Analysts Must Apply the Adjustment Factor Before Drawing Valuation Conclusions\n\nAn analyst comparing pre-split secondary market transaction prices (e.g., Forge Global's ~$634/share peak on April 1, 2026) to post-filing per-share metrics **must** apply the 5-for-1 adjustment factor for the following critical reasons:\n\n### 1. Apples-to-Apples Comparability\nThe S-1 presents **all** per-share data on a retroactively split-adjusted basis. If an analyst naively compares the unadjusted $634 pre-split secondary price to the S-1's EPS of $(1.69) for FY2025, the implied P/E multiple would appear absurdly distorted. The correct comparison requires dividing the $634 pre-split price by 5 to arrive at **$126.80**, which is then comparable to the S-1's post-split EPS, book value per share, and other per-share metrics.\n\n### 2. Avoiding a 5\u00d7 Valuation Error\nWithout adjustment, an analyst would overstate the price-to-earnings, price-to-book, and price-to-sales-per-share ratios by a factor of exactly 5. For example:\n- **Incorrect:** $634 \u00f7 $0.01 (FY2024 basic EPS) = 63,400\u00d7 P/E\n- **Correct:** $126.80 \u00f7 $0.01 (FY2024 basic EPS) = 12,680\u00d7 P/E\n\nWhile both multiples are high, the unadjusted figure is mathematically meaningless because the numerator (price) and denominator (EPS) are on different share-count bases.\n\n### 3. Consistency with Pro Forma and Dilution Metrics\nThe S-1's pro forma net tangible book value per share, pro forma EPS, and dilution calculations all use post-split share counts. Any valuation framework (DCF per share, comparable-company P/E, price/NTBV) that uses the S-1's per-share figures as the denominator must pair them with a split-adjusted price as the numerator.\n\n### 4. Preferred Stock Conversion Economics\nThe preferred stock conversion rate was proportionately adjusted (from 10 to 50 shares per preferred share). Analysts modeling fully diluted share counts or as-converted valuations using the S-1's post-split conversion terms must ensure their implied share prices are also on a post-split basis to correctly calculate conversion premiums, ownership percentages, and implied enterprise values.\n\n### 5. Historical Trend Analysis\nBecause the S-1 retroactively adjusts all periods (2023, 2024, 2025, Q1 2025, Q1 2026), any time-series analysis of per-share metrics (e.g., EPS growth trends, book value per share trajectory) is internally consistent on a post-split basis. Introducing unadjusted pre-split market prices into such an analysis would create a structural discontinuity that invalidates trend-based conclusions.\n\n---\n\n**Bottom line:** The split-adjusted equivalent of Forge Global's ~$634 pre-split peak is **$126.80 per share**. Every per-share metric in the SpaceX S-1 \u2014 EPS, weighted average shares, pro forma EPS, net tangible book value per share, conversion ratios, and outstanding share counts \u2014 is presented on a post-split basis. Failure to adjust pre-split secondary market prices by dividing by 5 before comparing them to any S-1 per-share figure will produce a 5\u00d7 systematic error in all derived valuation multiples.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://forgeglobal.com/spacex_stock\",\n      \"name\": \"Forge Global - SpaceX Stock Page\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12067,
+        "completion_tokens": 1996,
+        "cached_tokens": 10880,
+        "cost_usd": 0.0365275
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 51377,
+    "total_completion_tokens": 3052,
+    "total_cached_tokens": 35712,
+    "total_cost_usd": 0.1143225,
+    "total_steps": 8
+  }
+}

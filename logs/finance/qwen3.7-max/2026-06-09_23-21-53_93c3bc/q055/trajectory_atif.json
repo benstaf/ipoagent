@@ -1,0 +1,483 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "529220af-c7c8-4805-8d61-c69ad6c6fe80",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T23:21:58.485153+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T23:21:58.485153+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nSpaceX intends to rely on Nasdaq controlled-company exemptions following the IPO. Identify precisely which board-level and committee-level independence requirements are waived under those exemptions, which requirements remain fully applicable regardless of controlled-company status, and whether any waiver is conditioned on SpaceX maintaining controlled-company status continuously. Where does the filing disclose the specific exemptions being relied upon?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T23:21:58.485153+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "The user is asking about SpaceX's S-1 filing and specifically about the Nasdaq controlled-company exemptions that SpaceX intends to rely on. I need to:\n\n1. Parse the SpaceX S-1 filing\n2. Find the specific disclosures about controlled-company exemptions\n3. Identify which board-level and committee-level independence requirements are waived\n4. Identify which requirements remain fully applicable\n5. Determine if any waiver is conditioned on maintaining controlled-company status continuously\n6. Find where in the filing these exemptions are disclosed\n\nLet me start by parsing the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_774ce3686723463681c00637",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_774ce3686723463681c00637",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3537,
+        "completion_tokens": 202,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0068625000000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T23:23:51.844575+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Good, the filing has been parsed. Now let me retrieve information about the controlled-company exemptions from the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_f6c757e1da2f433c881358ff",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What controlled-company exemptions does SpaceX intend to rely on under Nasdaq rules? Which board and committee independence requirements are waived? {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_71a83572ee704e68a72f4248",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the controlled-company governance disclosure regarding Nasdaq listing standards and independence requirements? {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_f6c757e1da2f433c881358ff",
+            "content": "Based on the provided prospectus excerpts, SpaceX will qualify as a **\"controlled company\"** under Nasdaq and Nasdaq Texas listing rules because Elon Musk will hold more than 50% of the voting power regarding the election of directors (driven by his ownership of Class B common stock, which grants him the right to elect a majority of the board). \n\nBecause of this status, SpaceX intends to rely on specific corporate governance exemptions. Here are the board and committee independence requirements that will be waived, as well as the rules that remain in effect:\n\n### Waived Board and Committee Independence Requirements\nSpaceX will elect not to comply with the following standard Nasdaq corporate governance requirements:\n1. **Board Majority Independence:** The requirement that a majority of the company\u2019s board of directors must consist of independent directors.\n2. **Nominating Committee Independence:** The requirement that director nominees be selected or recommended by a nominating committee composed *entirely* of independent directors, and the requirement to have a written charter addressing the nominations process.\n3. **Compensation Committee Independence:** The requirement that the compensation committee be composed *entirely* of independent directors, and the requirement to have a written charter addressing the committee\u2019s purpose and responsibilities.\n4. **Committee Performance Evaluations:** The requirement to conduct annual performance evaluations of the compensation and nominating committees.\n\n**Practical Application:** SpaceX explicitly states that it does not expect its compensation and nominating committee to be composed entirely of independent directors, nor will its committee charter address all the requirements normally applicable to non-controlled companies. (For example, the initial committee is expected to include Antonio J. Gracias alongside independent directors Ira Ehrenpreis and Luke Nosek).\n\n### Requirements That Are NOT Waived (Remain in Effect)\nThe \"controlled company\" exemption does not apply to all governance rules. The prospectus explicitly notes that SpaceX **will remain subject to the rules requiring its Audit Committee to be composed entirely of independent directors.** \n\n*(Note: The initial audit committee is expected to include Randy Glein and Steve Jurvetson, both of whom qualify as independent, with a third independent member to be identified within the one-year transition period permitted by Nasdaq rules).*"
+          },
+          {
+            "source_call_id": "call_71a83572ee704e68a72f4248",
+            "content": "Based on the provided S-1 prospectus excerpts, here is the detailed disclosure regarding the company's \"controlled company\" status, Nasdaq/Nasdaq Texas listing standards, and corporate governance independence requirements:\n\n### 1. \"Controlled Company\" Status and Rationale\nUpon the completion of the IPO, Space Exploration Technologies Corp. (listing under the symbol **SPCX** on Nasdaq and Nasdaq Texas) will qualify as a **\"controlled company.\"** \n* **Voting Power:** Elon Musk will beneficially own a majority of the voting power of the outstanding common stock through his holdings of Class A and Class B common stock.\n* **Board Election Rights:** Under the company's charter, holders of Class B common stock (voting separately as a class) have the exclusive right to elect **51% of the total number of authorized directors** (rounded up to the nearest whole number), designated as \"Class B Directors.\" Because Mr. Musk holds a majority of the Class B shares, he will unilaterally control the election of these directors and, consequently, the outcome of all matters requiring shareholder approval.\n* **Nasdaq Definition:** Under Nasdaq and Nasdaq Texas rules, a company where more than 50% of the voting power for director elections is held by an individual or group is classified as a \"controlled company.\"\n\n### 2. Nasdaq Corporate Governance Exemptions\nAs a controlled company, SpaceX intends to rely on specific exemptions from Nasdaq and Nasdaq Texas corporate governance listing requirements. The company **will not be required to comply** with the following mandates:\n* **Board Independence:** Having a majority of the board of directors composed of independent directors.\n* **Nominating Committee:** Requiring director nominees to be selected or recommended by a nominating committee composed *entirely* of independent directors with a formal written charter.\n* **Compensation Committee:** Requiring the compensation committee to be composed *entirely* of independent directors with a formal written charter addressing its purpose and responsibilities.\n* **Performance Evaluations:** Conducting annual performance evaluations of the compensation and nominating committees.\n\n**Impact on Shareholders:** The prospectus explicitly warns that Class A shareholders will not have the same governance protections afforded to shareholders of companies subject to all standard Nasdaq corporate governance requirements. If the company ever ceases to be a \"controlled company,\" it will be required to comply with all standard governance requirements within applicable transition periods.\n\n### 3. Retained Governance and Compliance Requirements\nDespite the controlled company exemptions, the company remains subject to several strict regulatory and listing requirements:\n* **Audit Committee Independence:** The audit committee must still be composed *entirely* of independent directors. \n* **Code of Ethics & Governance Guidelines:** The board will adopt a Code of Business Conduct and Ethics and Corporate Governance Guidelines compliant with SEC and Nasdaq rules. Waivers or amendments for executive officers/directors will be disclosed on the company's website (`www.spacex.com`).\n* **Clawback Policy:** The company will adopt a compensation recoupment (clawback) policy compliant with Nasdaq listing standards implementing SEC Rule 10D-1.\n* **Share Issuance Rules:** While the Texas Business Organizations Code (TBOC) does not require shareholder approval for issuing authorized shares, Nasdaq rules still mandate shareholder approval for issuances equal to or exceeding 20% of the outstanding voting power or common stock.\n\n### 4. Board Composition and Independence Determinations\nPost-IPO, the board will consist of **eight directors**, subject to annual elections.\n* **Class B Directors (Elected by Class B Stock):** Elon Musk, Gwynne Shotwell, Antonio J. Gracias, Donald Harrison, and Luke Nosek.\n* **Common Stock Directors (Elected by Class A & B Stock jointly):** Ira Ehrenpreis, Randy Glein, and Steve Jurvetson.\n* **Independence Determinations:** The board has determined that five directors meet the Nasdaq/Nasdaq Texas independence standards: **Ira Ehrenpreis, Randy Glein, Donald Harrison, Steve Jurvetson, and Luke Nosek**.\n\n### 5. Committee Structures\n* **Audit Committee:** Expected members are **Randy Glein** (Chair) and **Steve Jurvetson**. Both qualify as independent under Rule 10A-3 and Nasdaq standards. Glein qualifies as an \"audit committee financial expert.\" A third independent member will be identified within the one-year transition period allowed by Nasdaq.\n* **Compensation and Nominating Committee:** Expected members are **Ira Ehrenpreis** (Chair), **Antonio J. Gracias**, and **Luke Nosek**. \n  * *Exemption Reliance:* Because of the controlled company exemption, this committee is *not* required to be entirely independent. While Ehrenpreis and Nosek meet heightened independence standards (and qualify as \"non-employee directors\" under Rule 16b-3), the inclusion of Gracias means the committee does not consist solely of independent directors.\n  * *Historical Context:* Historically, the full board (and primarily Mr. Musk) made compensation decisions. \n\n### 6. Additional Governance Disclosures\n* **Renunciation of Corporate Opportunities:** The charter includes a provision renouncing any company interest or expectancy in business opportunities presented to board members, board observers, attendees, or their affiliates. These individuals have no duty to present such opportunities to SpaceX and may pursue them personally.\n* **Director Liability (TBOC):** Because the company will have voting common stock listed on a national exchange, Section 21.418 of the Texas Business Organizations Code (TBOC) will apply. This limits the liability of directors and officers for breach of duty regarding interested-party transactions, provided they comply with the safe harbors of Section 21.419.\n* **Risk Oversight:** The full board and its committees hold oversight responsibility for enterprise risk management, while executive management retains direct responsibility for day-to-day risk assessment and mitigation."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3765,
+        "completion_tokens": 160,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0070125
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T23:25:10.310108+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "I have good information from the retrieval. Let me now search for more specific details about:\n1. Whether the waivers are conditioned on maintaining controlled-company status continuously\n2. The exact location in the filing where these exemptions are disclosed\n3. Any additional details about the transition periods if controlled-company status is lost\n\nLet me retrieve more specific information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d556a07a2dc94a47a53e8ac8",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What happens if SpaceX ceases to be a controlled company? What transition periods apply? Is the exemption conditioned on continuously maintaining controlled-company status? {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_f454e32db12b4c2a84241deb",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Where in the prospectus is the controlled company exemption disclosed? What section heading or risk factor discusses controlled company governance? {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d556a07a2dc94a47a53e8ac8",
+            "content": "Based on the provided document excerpts, here are the answers to your questions regarding SpaceX's \"controlled company\" status:\n\n**1. What happens if SpaceX ceases to be a controlled company?**\nIf SpaceX ceases to be a \"controlled company\" and its shares continue to be listed on Nasdaq and Nasdaq Texas, it will lose its current governance exemptions. The company will then be required to fully comply with all applicable corporate governance requirements of Nasdaq and Nasdaq Texas. This includes mandates such as having a compensation and nominating committee composed entirely of independent directors, and maintaining a committee charter that addresses all requirements applicable to non-controlled companies. Consequently, Class A shareholders would gain the standard protections afforded to shareholders of non-controlled public companies.\n\n**2. What transition periods apply?**\nThe text states that in the event SpaceX ceases to be a controlled company, it will be required to comply with all applicable governance requirements **\"within the applicable transition periods.\"** While the specific timeframes (e.g., 6 months, 12 months) are not explicitly detailed in these excerpts, the document references standard exchange transition periods and directs the reader to the **\"Management\"** section for further details. \n\n**3. Is the exemption conditioned on continuously maintaining controlled-company status?**\nYes. The document explicitly states that the company may elect to take advantage of these exemptions **\"for as long as we remain a 'controlled company.'\"** Therefore, the ability to rely on these reduced governance protections is strictly conditioned on the continuous maintenance of this status."
+          },
+          {
+            "source_call_id": "call_f454e32db12b4c2a84241deb",
+            "content": "Based on the provided chunks from the prospectus, the **controlled company exemption** and its governance implications are disclosed in the following sections and headings:\n\n### 1. Primary Section Heading\nThe specific section dedicated to this topic is explicitly referenced throughout the document as:\n*   **\u201cManagement \u2014 Controlled Company Exemption\u201d** \n\n### 2. Risk Factors\nThe **\u201cRisk Factors\u201d** section (beginning on page 26) contains a detailed discussion and warning regarding controlled company governance. It outlines the following risks and exemptions:\n*   **Musk's Majority Control:** It discloses that because Elon Musk will beneficially own a majority of the voting power (via Class A and Class B common stock), the company will qualify as a \u201ccontrolled company\u201d under Nasdaq and Nasdaq Texas listing rules.\n*   **Exemptions Utilized:** It lists the specific corporate governance requirements the company will elect *not* to comply with, including:\n    *   The requirement that a majority of the board of directors consist of independent directors.\n    *   The requirement that director nominees be selected by a nominating committee composed entirely of independent directors.\n    *   The requirement that the compensation committee be composed entirely of independent directors with a formal written charter.\n    *   The requirement to conduct annual performance evaluations of the compensation and nominating committees.\n*   **Shareholder Warning:** It explicitly warns that Class A shareholders will not have the same corporate governance protections afforded to shareholders of companies that are subject to all standard Nasdaq/Nasdaq Texas requirements. \n\n### 3. Prospectus Summary Table\nIn the preliminary summary table (likely located in the **Prospectus Summary** section), there is a dedicated row titled:\n*   **\"Controlled company\"**: This row provides a high-level overview of Mr. Musk's voting power, the company's intent to rely on Nasdaq corporate governance exemptions, and cross-references the **\u201cManagement\u2014Controlled Company Exemption\u201d** and **\u201cCertain Relationships and Related Person Transactions\u201d** sections for further reading.\n\n### 4. Board Committees (Management Section)\nWithin the **Management** section's discussion of board committees, the text explicitly details how the exemption is applied in practice:\n*   **Compensation and Nominating Committee:** The prospectus notes that the expected members of this committee (Ira Ehrenpreis, Antonio J. Gracias, and Luke Nosek) will not all be independent. It states: *\"As a 'controlled company,' we will rely upon the exemption from Nasdaq\u2019s and Nasdaq Texas\u2019 requirement that we have a compensation and nominating committee that is composed entirely of independent directors...\"*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5642,
+        "completion_tokens": 219,
+        "cached_tokens": 3200,
+        "cost_usd": 0.012295
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T23:26:06.252043+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "I now have comprehensive information. Let me also check for any additional details about the audit committee requirements that remain applicable, and any other specific Nasdaq rules that are not waived.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_fef06486586a4c64b8bd9e62",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What audit committee requirements remain applicable despite controlled company status? What about Rule 10A-3, executive sessions of independent directors, or other Nasdaq requirements that are not waived? {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_fef06486586a4c64b8bd9e62",
+            "content": "Based on the provided prospectus excerpts, here is a detailed breakdown of the audit committee requirements, Rule 10A-3, and other Nasdaq corporate governance rules that remain applicable despite the company's \"controlled company\" status.\n\n### 1. Audit Committee Requirements That Remain Applicable\nThe \"controlled company\" exemption allows the company to bypass certain governance rules (such as having a majority-independent board or independent compensation/nominating committees), but **it does not exempt the company from strict audit committee requirements.** The following remain fully applicable:\n*   **100% Independence:** The company explicitly states: *\"As a controlled company, we will remain subject to rules that require us to have an audit committee composed entirely of independent directors.\"*\n*   **Audit Committee Financial Expert:** The committee must include at least one member who qualifies as an \"audit committee financial expert\" under SEC rules implementing Section 407 of the Sarbanes-Oxley Act (Randy Glein is expected to serve in this role).\n*   **Written Charter:** The audit committee must be governed by a written charter, which will be made available on the company's website.\n*   **Oversight of Related Person Transactions:** The audit committee must adopt and enforce a written policy to review, approve, or disapprove \"related person transactions\" exceeding $120,000 involving directors, executive officers, or >5% shareholders.\n*   **Core Audit Duties:** The committee retains standard responsibilities, including overseeing financial statement integrity, legal/regulatory compliance, the independent accountant\u2019s qualifications, and approving audit/non-audit services.\n\n### 2. Rule 10A-3\n**Rule 10A-3 remains fully applicable and is not waived.** \nThe text explicitly confirms that audit committee members must meet these stringent SEC standards, noting that members like Randy Glein and Steve Jurvetson *\"qualify as an independent director for purposes of Rule 10A-3 of the Exchange Act and the listing standards of Nasdaq and Nasdaq Texas.\"* \n\n### 3. Executive Sessions of Independent Directors\n**The provided text does not explicitly mention \"executive sessions of independent directors.\"** \n*(Contextual Note: While the text is silent on this specific phrase, under standard Nasdaq listing rules, the \"controlled company\" exemption only waives the requirements for board majority independence, independent nominating committees, and independent compensation committees. It does **not** waive the requirement for independent directors to hold regular executive sessions. Therefore, the independent directors on the board would still be required to hold these sessions, even if the board as a whole is not majority-independent.)*\n\n### 4. Other Nasdaq & SEC Requirements That Are NOT Waived\nWhile the company intends to rely on exemptions to avoid forming an independent compensation committee and an independent nominating committee, it must still comply with several other baseline governance requirements:\n*   **Code of Business Conduct and Ethics:** The company must adopt a code applicable to employees, directors, and officers. Furthermore, it must comply with SEC and Nasdaq rules requiring the disclosure of any amendments to the code or waivers granted to directors and executive officers on its website.\n*   **Corporate Governance Guidelines:** The company must adopt corporate governance guidelines outlining director qualification standards, committee structures, and other governance policies, and post them on its website.\n*   **Director Independence Evaluations:** The board must still actively evaluate and determine which specific directors meet the Nasdaq/Nasdaq Texas independence standards (e.g., the board formally determined that Ira Ehrenpreis, Randy Glein, Donald Harrison, Steve Jurvetson, and Luke Nosek are independent).\n*   **Heightened Independence for Compensation Decisions:** Even though the *entire* compensation and nominating committee does not need to be independent due to the controlled company exemption, the specific members who *do* serve and make compensation decisions (like Ira Ehrenpreis and Luke Nosek) must still meet the heightened independence standards for compensation committee members and qualify as \"non-employee directors\" under Rule 16b-3 of the Exchange Act."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6731,
+        "completion_tokens": 123,
+        "cached_tokens": 5376,
+        "cost_usd": 0.0113375
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T23:26:49.218552+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "I now have comprehensive information to answer the question. Let me also check if there's any mention of the specific Nasdaq rule numbers being referenced (e.g., Rule 5615(c) or similar).\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7444db4bd50049fe821ee61a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What specific Nasdaq rule numbers are cited for the controlled company exemption? Is Rule 5615 or any specific listing rule number mentioned? {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7444db4bd50049fe821ee61a",
+            "content": "Based on the provided text excerpts from the prospectus, **no specific Nasdaq rule numbers (including Rule 5615) are cited** for the controlled company exemption or any other Nasdaq listing requirements. \n\nThe document relies entirely on general, descriptive references to the exchange's standards rather than citing specific numerical Nasdaq rules. \n\n### How the Text References Nasdaq Rules:\nInstead of specific rule numbers, the text uses broad phrasing such as:\n* *\"the corporate governance rules of Nasdaq\"*\n* *\"Nasdaq and Nasdaq Texas listing rules\"*\n* *\"Nasdaq and Nasdaq Texas corporate governance standards\"*\n* *\"listing standards of Nasdaq and Nasdaq Texas\"*\n\n### Specific Rule Numbers That *Are* Mentioned (SEC / Exchange Act Rules):\nWhile the text does not cite Nasdaq's specific rule numbers (like the 5600 series), it does cite several specific rules belonging to the **SEC** and the **Securities Exchange Act of 1934**. It is important not to confuse these with Nasdaq listing rules:\n* **Rule 10A-3 of the Exchange Act:** Cited regarding the independence requirements for audit committee members.\n* **Rule 16b-3 of the Exchange Act:** Cited regarding the definition of a \"non-employee director\" for compensation committee members.\n* **Rule 10D-1 of the Exchange Act:** Cited regarding the adoption of the compensation recoupment (clawback) policy.\n* **Rule 144 (Securities Act):** Cited extensively regarding the safe harbor provisions for reselling restricted securities and affiliate volume limitations.\n* **Regulation S (Securities Act):** Cited regarding offshore sales of securities.\n\n### Conclusion\nIf you are looking for the explicit citation of **Nasdaq Rule 5615(c)** (the actual Nasdaq rule that grants the controlled company exemption from independent board majority, nominating committee, and compensation committee requirements), **it is absent from this specific text**. The prospectus draft provided only outlines the *mechanics* and *definitions* of the exemption (e.g., holding >50% of voting power for director elections) without referencing the underlying Nasdaq rule number."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7715,
+        "completion_tokens": 123,
+        "cached_tokens": 6528,
+        "cost_usd": 0.0123575
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T23:27:08.687636+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the information I need to provide a comprehensive answer. Let me compile the findings.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1c49c47f916146f19100818d",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## SpaceX S-1: Nasdaq Controlled-Company Exemptions \u2014 Detailed Analysis\n\n### Where the Exemptions Are Disclosed\n\nThe controlled-company exemptions are disclosed in three locations within the S-1:\n\n1. **\"Management \u2014 Controlled Company Exemption\"** \u2014 the primary, dedicated section providing the full enumeration of exemptions relied upon.\n2. **\"Risk Factors\"** (beginning on page 26) \u2014 a risk-factor disclosure warning Class A shareholders that they will not receive the same governance protections as shareholders of companies subject to all standard Nasdaq/Nasdaq Texas corporate governance requirements.\n3. **Prospectus Summary** \u2014 a summary table row titled \"Controlled company\" that cross-references the \"Management \u2014 Controlled Company Exemption\" and \"Certain Relationships and Related Person Transactions\" sections.\n\nNotably, the filing does **not** cite specific Nasdaq rule numbers (e.g., Rule 5615(c)); it refers generally to \"the corporate governance rules of Nasdaq\" and \"Nasdaq and Nasdaq Texas listing rules.\"\n\n---\n\n### Board-Level and Committee-Level Independence Requirements WAIVED\n\nSpaceX qualifies as a \"controlled company\" because Elon Musk will hold more than 50% of the voting power for the election of directors (through Class A and Class B common stock, with Class B holders having the exclusive right to elect 51% of authorized directors). SpaceX intends to rely on exemptions from the following four requirements:\n\n| # | Requirement Waived | Description |\n|---|---|---|\n| 1 | **Majority Board Independence** | The requirement that a majority of the board of directors consist of independent directors. |\n| 2 | **Independent Nominating Committee** | The requirement that director nominees be selected or recommended by a nominating committee composed *entirely* of independent directors, with a formal written charter addressing the nominations process. |\n| 3 | **Independent Compensation Committee** | The requirement that the compensation committee be composed *entirely* of independent directors, with a formal written charter addressing the committee's purpose and responsibilities. |\n| 4 | **Committee Performance Evaluations** | The requirement to conduct annual performance evaluations of the compensation and nominating committees. |\n\n**Practical application:** SpaceX's combined Compensation and Nominating Committee is expected to include Ira Ehrenpreis (Chair, independent), Luke Nosek (independent), and Antonio J. Gracias (not independent). The filing explicitly states the committee charter will not address all requirements normally applicable to non-controlled companies.\n\n---\n\n### Requirements That REMAIN FULLY APPLICABLE (Not Waived)\n\nThe controlled-company exemption does **not** relieve SpaceX of the following obligations:\n\n| # | Requirement Retained | Details |\n|---|---|---|\n| 1 | **Audit Committee \u2014 100% Independence** | The audit committee must still be composed *entirely* of independent directors. The filing explicitly states: \"As a controlled company, we will remain subject to rules that require us to have an audit committee composed entirely of independent directors.\" |\n| 2 | **Rule 10A-3 Compliance** | Audit committee members must meet the heightened independence standards of Rule 10A-3 under the Exchange Act. |\n| 3 | **Audit Committee Financial Expert** | At least one member must qualify as an \"audit committee financial expert\" under SEC rules implementing SOX Section 407 (Randy Glein is expected to serve in this role). |\n| 4 | **Audit Committee Written Charter** | A written charter must be maintained and posted on the company's website. |\n| 5 | **Related Person Transaction Policy** | The audit committee must adopt and enforce a written policy to review, approve, or disapprove related person transactions exceeding $120,000. |\n| 6 | **Code of Business Conduct and Ethics** | Must be adopted for employees, directors, and officers, with SEC/Nasdaq-compliant disclosure of waivers or amendments for executive officers/directors. |\n| 7 | **Corporate Governance Guidelines** | Must be adopted and posted on the company's website. |\n| 8 | **Clawback Policy** | A compensation recoupment policy compliant with Nasdaq listing standards implementing SEC Rule 10D-1 must be adopted. |\n| 9 | **Nasdaq Shareholder Approval Rules** | Nasdaq rules requiring shareholder approval for issuances equal to or exceeding 20% of outstanding voting power or common stock remain applicable. |\n| 10 | **Director Independence Determinations** | The board must still evaluate and determine which directors meet Nasdaq/Nasdaq Texas independence standards. |\n\n---\n\n### Conditioning on Continuous Controlled-Company Status\n\n**Yes \u2014 every waiver is expressly conditioned on SpaceX maintaining controlled-company status continuously.** The filing states that SpaceX may elect to take advantage of these exemptions **\"for as long as we remain a 'controlled company.'\"**\n\nIf SpaceX ceases to be a controlled company (e.g., if Elon Musk's voting power falls below 50%), the filing states:\n\n- SpaceX will be required to comply with **all** standard Nasdaq/Nasdaq Texas corporate governance requirements, including majority board independence, fully independent compensation and nominating committees, and full committee charters.\n- Compliance must be achieved **\"within the applicable transition periods\"** provided by Nasdaq rules (the filing does not specify the exact duration of these transition periods but references standard exchange transition rules).\n- At that point, Class A shareholders would gain the same governance protections afforded to shareholders of non-controlled public companies.\n\n---\n\n### Summary\n\nThe filing is explicit and comprehensive in its disclosure: four specific governance requirements are waived (majority board independence, independent nominating committee, independent compensation committee, and committee performance evaluations), while audit committee independence and all other SEC/Nasdaq baseline requirements remain fully in force. All waivers are contingent on continuous controlled-company status, and loss of that status triggers mandatory full compliance within applicable Nasdaq transition periods.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1c49c47f916146f19100818d",
+            "content": "## SpaceX S-1: Nasdaq Controlled-Company Exemptions \u2014 Detailed Analysis\n\n### Where the Exemptions Are Disclosed\n\nThe controlled-company exemptions are disclosed in three locations within the S-1:\n\n1. **\"Management \u2014 Controlled Company Exemption\"** \u2014 the primary, dedicated section providing the full enumeration of exemptions relied upon.\n2. **\"Risk Factors\"** (beginning on page 26) \u2014 a risk-factor disclosure warning Class A shareholders that they will not receive the same governance protections as shareholders of companies subject to all standard Nasdaq/Nasdaq Texas corporate governance requirements.\n3. **Prospectus Summary** \u2014 a summary table row titled \"Controlled company\" that cross-references the \"Management \u2014 Controlled Company Exemption\" and \"Certain Relationships and Related Person Transactions\" sections.\n\nNotably, the filing does **not** cite specific Nasdaq rule numbers (e.g., Rule 5615(c)); it refers generally to \"the corporate governance rules of Nasdaq\" and \"Nasdaq and Nasdaq Texas listing rules.\"\n\n---\n\n### Board-Level and Committee-Level Independence Requirements WAIVED\n\nSpaceX qualifies as a \"controlled company\" because Elon Musk will hold more than 50% of the voting power for the election of directors (through Class A and Class B common stock, with Class B holders having the exclusive right to elect 51% of authorized directors). SpaceX intends to rely on exemptions from the following four requirements:\n\n| # | Requirement Waived | Description |\n|---|---|---|\n| 1 | **Majority Board Independence** | The requirement that a majority of the board of directors consist of independent directors. |\n| 2 | **Independent Nominating Committee** | The requirement that director nominees be selected or recommended by a nominating committee composed *entirely* of independent directors, with a formal written charter addressing the nominations process. |\n| 3 | **Independent Compensation Committee** | The requirement that the compensation committee be composed *entirely* of independent directors, with a formal written charter addressing the committee's purpose and responsibilities. |\n| 4 | **Committee Performance Evaluations** | The requirement to conduct annual performance evaluations of the compensation and nominating committees. |\n\n**Practical application:** SpaceX's combined Compensation and Nominating Committee is expected to include Ira Ehrenpreis (Chair, independent), Luke Nosek (independent), and Antonio J. Gracias (not independent). The filing explicitly states the committee charter will not address all requirements normally applicable to non-controlled companies.\n\n---\n\n### Requirements That REMAIN FULLY APPLICABLE (Not Waived)\n\nThe controlled-company exemption does **not** relieve SpaceX of the following obligations:\n\n| # | Requirement Retained | Details |\n|---|---|---|\n| 1 | **Audit Committee \u2014 100% Independence** | The audit committee must still be composed *entirely* of independent directors. The filing explicitly states: \"As a controlled company, we will remain subject to rules that require us to have an audit committee composed entirely of independent directors.\" |\n| 2 | **Rule 10A-3 Compliance** | Audit committee members must meet the heightened independence standards of Rule 10A-3 under the Exchange Act. |\n| 3 | **Audit Committee Financial Expert** | At least one member must qualify as an \"audit committee financial expert\" under SEC rules implementing SOX Section 407 (Randy Glein is expected to serve in this role). |\n| 4 | **Audit Committee Written Charter** | A written charter must be maintained and posted on the company's website. |\n| 5 | **Related Person Transaction Policy** | The audit committee must adopt and enforce a written policy to review, approve, or disapprove related person transactions exceeding $120,000. |\n| 6 | **Code of Business Conduct and Ethics** | Must be adopted for employees, directors, and officers, with SEC/Nasdaq-compliant disclosure of waivers or amendments for executive officers/directors. |\n| 7 | **Corporate Governance Guidelines** | Must be adopted and posted on the company's website. |\n| 8 | **Clawback Policy** | A compensation recoupment policy compliant with Nasdaq listing standards implementing SEC Rule 10D-1 must be adopted. |\n| 9 | **Nasdaq Shareholder Approval Rules** | Nasdaq rules requiring shareholder approval for issuances equal to or exceeding 20% of outstanding voting power or common stock remain applicable. |\n| 10 | **Director Independence Determinations** | The board must still evaluate and determine which directors meet Nasdaq/Nasdaq Texas independence standards. |\n\n---\n\n### Conditioning on Continuous Controlled-Company Status\n\n**Yes \u2014 every waiver is expressly conditioned on SpaceX maintaining controlled-company status continuously.** The filing states that SpaceX may elect to take advantage of these exemptions **\"for as long as we remain a 'controlled company.'\"**\n\nIf SpaceX ceases to be a controlled company (e.g., if Elon Musk's voting power falls below 50%), the filing states:\n\n- SpaceX will be required to comply with **all** standard Nasdaq/Nasdaq Texas corporate governance requirements, including majority board independence, fully independent compensation and nominating committees, and full committee charters.\n- Compliance must be achieved **\"within the applicable transition periods\"** provided by Nasdaq rules (the filing does not specify the exact duration of these transition periods but references standard exchange transition rules).\n- At that point, Class A shareholders would gain the same governance protections afforded to shareholders of non-controlled public companies.\n\n---\n\n### Summary\n\nThe filing is explicit and comprehensive in its disclosure: four specific governance requirements are waived (majority board independence, independent nominating committee, independent compensation committee, and committee performance evaluations), while audit committee independence and all other SEC/Nasdaq baseline requirements remain fully in force. All waivers are contingent on continuous controlled-company status, and loss of that status triggers mandatory full compliance within applicable Nasdaq transition periods.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8322,
+        "completion_tokens": 1413,
+        "cached_tokens": 7552,
+        "cost_usd": 0.025495
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 35712,
+    "total_completion_tokens": 2240,
+    "total_cached_tokens": 29056,
+    "total_cost_usd": 0.07536,
+    "total_steps": 8
+  }
+}

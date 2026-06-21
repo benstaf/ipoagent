@@ -1,0 +1,533 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "b793857e-9d5a-42eb-a60b-34db5a6e417b",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "deepseek-v4-pro",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-10T00:36:00.342521+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-10T00:36:00.342521+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nSegment Adjusted EBITDA is the filing\u2019s primary non-GAAP measure. Relative to segment operating income, identify each add-back and explain why understanding construction of the metric matters before comparing segment economics.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-10T00:36:00.342521+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me start by parsing the SpaceX S-1 filing to understand the document, then retrieve information about Segment Adjusted EBITDA and how it relates to segment operating income.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1be9bd1a921c49a59ef4b9b8",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1be9bd1a921c49a59ef4b9b8",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3313,
+        "completion_tokens": 127,
+        "cached_tokens": 0,
+        "cost_usd": 0.0095525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-10T00:36:47.746441+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me now retrieve information about Segment Adjusted EBITDA, its reconciliation to segment operating income, and the specific add-backs.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_787c40baa74e452684af9cdd",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Segment Adjusted EBITDA reconciliation and what are the specific add-backs/adjustments made to segment operating income to arrive at Segment Adjusted EBITDA in {{spacex_s1}}? Show the full reconciliation table and all line items."
+          }
+        },
+        {
+          "tool_call_id": "call_f095f6ed324c401d8017795e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the definition and explanation of Segment Adjusted EBITDA as a non-GAAP measure in {{spacex_s1}}? Include management's explanation for why this metric is used and how it is constructed."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_787c40baa74e452684af9cdd",
+            "content": "The Segment Adjusted EBITDA reconciliation starts with **GAAP segment income (loss) from operations** and then adds back the following non\u2011cash and non\u2011recurring items to arrive at Segment Adjusted EBITDA:\n\n1. **Depreciation and amortization** \u2013 non\u2011cash charge for capital assets and intangibles.  \n2. **Share\u2011based compensation** \u2013 non\u2011cash expense for equity awards.  \n3. **Restructuring charges** \u2013 costs related to workforce reductions, facility closures, etc.  \n4. **Impairment** \u2013 write\u2011downs of assets (e.g., intangible, long\u2011lived assets).  \n\nThese four add\u2011backs are applied in the segment\u2011level reconciliation.  \n\nBelow is the full reconciliation table for the **three months ended March 31, 2025**, as requested, showing all line items for the Space, Connectivity, AI segments and the total reportable segments:\n\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n|---------------|-------|--------------|----|---------------------------|\n| **Income (loss) from operations** | $(70) | $1,033 | $(936) | $27 |\n| *Add:* | | | | |\n| Depreciation and amortization | 162 | 510 | 771 | 1,443 |\n| Share-based compensation | 108 | 75 | 49 | 232 |\n| Restructuring charges | \u2014 | \u2014 | 4 | 4 |\n| Impairment | 24 | \u2014 | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$224** | **$1,618** | **$(112)** | **$1,730** |\n\nThis table directly reconciles each segment\u2019s operating income/loss to its Segment Adjusted EBITDA using the four specific add\u2011backs."
+          },
+          {
+            "source_call_id": "call_f095f6ed324c401d8017795e",
+            "content": "Based on the provided document chunks, here is the definition, construction, and management's explanation for the use of Segment Adjusted EBITDA.\n\n### Definition and Construction\n\n**Segment Adjusted EBITDA** is a non-GAAP financial measure constructed by taking a segment's income or loss from operations\u2014the most directly comparable GAAP measure\u2014and making specific adjustments.\n\nThe precise formula, as defined in the text, is:\n> Segment Adjusted EBITDA is defined as segment income (loss) from operations excluding (i) depreciation and amortization, (ii) share-based compensation, (iii) restructuring charges, and (iv) impairment.\n\nThis construction can be seen in the provided reconciliation tables. For example, for the Space segment for Q1 2026:\n*   **GAAP Measure:** Income (loss) from operations: $(662) million\n*   **Add:** Depreciation and amortization: $166 million\n*   **Add:** Share-based compensation: $145 million\n*   **Add:** Restructuring charges: $\u2014 million\n*   **Result: Non-GAAP Measure:** Segment Adjusted EBITDA: $(351) million\n\n### Management's Explanation for Use\n\nManagement explains that Segment Adjusted EBITDA is used because it provides a meaningful view of the company's operating performance by removing the impact of items that are not seen as directly reflective of ongoing operations.\n\nThe text provides several key reasons for its use:\n\n1.  **Assessment of Core Operating Performance:** Management believes this measure provides a \"meaningful view of our financial condition and results of operations across periods by removing the impact of items that management believes do not directly reflect our ongoing operating performance.\" It is used by management to \"assess our financial performance.\"\n\n2.  **Internal Planning and Forecasting:** The measure is characterized as a \"key performance measure that our management uses... for internal planning and forecasting purposes.\"\n\n3.  **Investor Tool for Comparability:** The company considers Segment Adjusted EBITDA a \"meaningful performance measure for investors\" because it allows them to \"evaluate our operating performance and to compare the financial results\" across different periods by stripping out non-cash and non-recurring items like depreciation, share-based compensation, and impairments.\n\n4.  **Acknowledged Limitations:** The text also includes standard cautionary language, stating that because other companies may calculate it differently, it should not be considered in isolation or as a substitute for GAAP measures like net income or income from operations. It should be used \"together with our GAAP financial measures and the reconciliations.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3465,
+        "completion_tokens": 188,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0065425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-10T00:37:54.020832+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Great, I have good information about the reconciliation, but let me also retrieve the data for additional periods to make the analysis more robust. Let me also get more details on why understanding the construction matters for comparing segment economics.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0a676b41b1f54d989466f274",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Show all segment Adjusted EBITDA reconciliation tables for all periods presented in {{spacex_s1}}, including the years ended December 31, 2025, 2024, 2023 and any quarterly periods. Include all segments: Space, Connectivity, AI, and Total Reportable Segments."
+          }
+        },
+        {
+          "tool_call_id": "call_681c692a918a4c41b23cc96a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the depreciation and amortization policies, share-based compensation details, restructuring charges, and impairment charges described in {{spacex_s1}}? Include segment-level details where available."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0a676b41b1f54d989466f274",
+            "content": "The following tables reconcile segment income (loss) from operations (the most directly comparable GAAP measure) to Segment Adjusted EBITDA for each period presented. All amounts are in millions.\n\n### Three Months Ended March 31, 2026\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n|---------------|-------|--------------|----|---------------------------|\n| Income (loss) from operations | $(662) | $1,188 | $(2,469) | $(1,943) |\n| Add: | | | | |\n| Depreciation and amortization | 166 | 783 | 1,493 | 2,442 |\n| Share-based compensation | 145 | 116 | 378 | 639 |\n| Restructuring charges | \u2014 | \u2014 | (11) | (11) |\n| **Segment Adjusted EBITDA** | **$(351)** | **$2,087** | **$(609)** | **$1,127** |\n\n### Three Months Ended March 31, 2025\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n|---------------|-------|--------------|----|---------------------------|\n| Income (loss) from operations | $(70) | $1,033 | $(936) | $27 |\n| Add: | | | | |\n| Depreciation and amortization | 162 | 510 | 771 | 1,443 |\n| Share-based compensation | 108 | 75 | 49 | 232 |\n| Restructuring charges | \u2014 | \u2014 | 4 | 4 |\n| Impairment | 24 | \u2014 | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$224** | **$1,618** | **$(112)** | **$1,730** |\n\n### Year Ended December 31, 2025\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n|---------------|-------|--------------|----|---------------------------|\n| Income (loss) from operations | $(657) | $4,423 | $(6,355) | $(2,589) |\n| Add: | | | | |\n| Depreciation and amortization | 757 | 2,376 | 3,568 | 6,701 |\n| Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |\n\n### Year Ended December 31, 2024\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n|---------------|-------|--------------|----|---------------------------|\n| Income (loss) from operations | $21 | $2,006 | $(1,561) | $466 |\n| Add: | | | | |\n| Depreciation and amortization | 637 | 1,508 | 1,679 | 3,824 |\n| Share-based compensation | 472 | 296 | 16 | 784 |\n| Restructuring charges | \u2014 | \u2014 | 213 | 213 |\n| Impairment | 24 | 39 | \u2014 | 63 |\n| **Segment Adjusted EBITDA** | **$1,154** | **$3,849** | **$347** | **$5,350** |\n\n### Year Ended December 31, 2023\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n|---------------|-------|--------------|----|---------------------------|\n| Income (loss) from operations | $(1) | $469 | $(3,973) | $(3,505) |\n| Add: | | | | |\n| Depreciation and amortization | 571 | 884 | 1,180 | 2,635 |\n| Share-based compensation | 427 | 249 | 3 | 679 |\n| Restructuring charges | \u2014 | \u2014 | 237 | 237 |\n| Impairment | \u2014 | \u2014 | 3,775 | 3,775 |\n| **Segment Adjusted EBITDA** | **$997** | **$1,602** | **$1,222** | **$3,821** |\n\n*Note: Segment Adjusted EBITDA is a non-GAAP measure that excludes depreciation and amortization, share\u2011based compensation, restructuring charges, and impairment from segment income (loss) from operations.*"
+          },
+          {
+            "source_call_id": "call_681c692a918a4c41b23cc96a",
+            "content": "Based on the provided chunks, here are the details regarding the specific policies and charges:\n\n**Depreciation and Amortization Policies**\nThe provided text does not describe the specific depreciation methods (e.g., straight-line) or the useful lives of the company's assets. The document only presents the amounts of depreciation and amortization as line items in financial reconciliations and notes that changes in expense, such as a decrease in amortization for intangible assets and a significant increase in \"GPU depreciation expense,\" drove period-over-period variances.\n\n**Share-Based Compensation Details**\nThe document does not disclose the types of awards, vesting schedules, or valuation methods used. Share-based compensation is presented as a quantitative line item in both consolidated and segment-level financial tables and is described as a component of \"employee compensation expenses\" in the Management's Discussion and Analysis (MD&A) narrative explaining cost variances.\n\n**Restructuring Charges**\nThe restructuring charges are related to workforce reductions initiated in 2022 by X, an indirect subsidiary.\n*   **Description:** The charges are for a \"global employee workforce reductions\" program, with effects continuing into 2026. The charges and credits include \"cash severance expense and other termination benefits.\"\n*   **Consolidated Charges:**\n    *   Q1 2026: $(11) million (a credit)\n    *   Q1 2025: $4 million\n    *   FY 2025: $487 million\n    *   FY 2024: $213 million\n    *   FY 2023: $237 million\n*   **Segment-Level Charges:** All restructuring charges for Q1 2025, FY 2025, FY 2024, and FY 2023 were incurred within the AI segment.\n*   **Variance Commentary:** The increase in FY 2025 compared to FY 2024 was \"primarily due to additional expense recorded to settle with former Twitter employees.\"\n\n**Impairment Charges**\nNo detailed policy for when or how assets are tested for impairment is provided. The document details the amounts recorded.\n*   **Consolidated Charges:**\n    *   Q1 2026: $\u2014 million\n    *   Q1 2025: $24 million\n    *   FY 2025: $38 million\n    *   FY 2024: $63 million\n    *   FY 2023: $3,775 million\n*   **Segment-Level Charges:**\n    *   **Space Segment:** Recorded impairments of $24 million (Q1 2025), $38 million (FY 2025), and $24 million (FY 2024).\n    *   **Connectivity Segment:** Recorded an impairment of $39 million in FY 2024.\n    *   **AI Segment:** Recorded a significant impairment of $3,775 million in FY 2023."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4555,
+        "completion_tokens": 216,
+        "cached_tokens": 3456,
+        "cost_usd": 0.0092275
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-10T00:40:08.589878+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now let me also retrieve more information about the segment capital intensity and other details to fully analyze why understanding the construction matters.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_31d0e23583424205b48b2326",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the capital expenditure and total assets by segment in {{spacex_s1}}? Also show the segment-level balance sheet data including PP&E and intangible assets by segment."
+          }
+        },
+        {
+          "tool_call_id": "call_74b7b14a697e4e68be8b2ea3",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the MD&A say about segment performance and trends? Include any discussion of how segment economics differ among Space, Connectivity, and AI segments in {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_31d0e23583424205b48b2326",
+            "content": "The section labeled \u201cContinuing in the Preamble, this section concludes the capital expenditure details and provides the condensed balance sheet\u2026\u201d contains the **capital expenditures by segment** for several periods, followed by a **consolidated** (not segment\u2011level) balance sheet. No segment\u2011level total assets, PP&E, or intangible assets are presented in any of the provided material.\n\n### Capital Expenditures by Segment\n(in millions, unaudited)\n\n| Segment       | Q1 2026 | Q1 2025 | FY2025 | FY2024 | FY2023 |\n|---------------|---------|---------|--------|--------|--------|\n| Space         | $1,052  | $759    | $3,832 | $2,032 | $1,497 |\n| Connectivity  | 1,332   | 814     | 4,178  | 3,498  | 2,455  |\n| AI            | 7,723   | 2,567   | 12,727 | 5,633  | 463    |\n| **Total**     | **$10,107** | **$4,140** | **$20,737** | **$11,163** | **$4,415** |\n\n### Total Assets (Consolidated Only)\nThe condensed balance sheet in that section shows total assets for the **entire company**, not by segment:\n\n|             | March 31, 2026 | December 31, 2025 | December 31, 2024 |\n|-------------|----------------|-------------------|-------------------|\n| Total assets | $102,094       | $92,079           | $57,062           |\n\n**Segment\u2011level balance sheet data (PP&E, intangible assets, etc.) is not disclosed in any of the provided documents.** The segment information tables only include income\u2011statement and supplemental items (revenue, expenses, operating income, depreciation, share\u2011based compensation, impairment, and capital expenditures), never segment\u2011specific asset balances."
+          },
+          {
+            "source_call_id": "call_74b7b14a697e4e68be8b2ea3",
+            "content": "Based on the provided document, here is what the MD&A says about segment performance, trends, and differing economics:\n\n**Connectivity Segment**\n*   **Performance & Trends:** The segment is the primary profit driver. Revenue growth is fueled by an expanding Starlink subscriber base and increased enterprise and government sales. The document notes a 49.8% revenue growth rate in 2025.\n*   **Economics:** The segment generates significant income from operations and is achieving strong operating leverage. Key costs include depreciation from the growing number of satellites in orbit and investments in marketing and international expansion. For the quarter ended March 31, 2026, it generated $1,188 million in income from operations.\n\n**AI Segment**\n*   **Performance & Trends:** This segment is in an earlier, high-growth investment stage. The company prioritizes investment to capture long-term opportunities in AI applications and compute infrastructure. Revenue is increasing from subscriptions (X and Grok).\n*   **Economics:** The segment is operating at a significant loss, reflecting heavy investment. The cost structure is defined by massive depreciation of GPU hardware, cloud computing, data center infrastructure expenses, and rapidly growing employee-related costs. For the quarter ended March 31, 2026, it had a loss from operations of $(2,469) million.\n\n**Space Segment**\n*   **Performance & Trends:** The segment\u2019s revenue is driven by external customer launches and government contracts, but overall revenue growth is expected to be lower than the total company because most of the launch capacity growth is being absorbed by the internal Connectivity and AI segments. Revenue can vary based on the mix and timing of launches.\n*   **Economics:** The segment's profitability is impacted by significant R&D costs, primarily from accelerated investment in the Starship vehicle program, which is designed to be a long-term growth enabler. However, its cost of revenue benefits from the reusability and efficiency of Falcon launch vehicles. For the quarter ended March 31, 2026, it had a loss from operations of $(662) million.\n\n**Differing Segment Economics**\nThe segments have fundamentally different economic profiles. **Connectivity** is the mature profit center, generating substantial income and cash flow. The **AI** segment is a massive investment consumer, incurring huge research and infrastructure costs that result in significant operating losses. The **Space** segment operates as the internal enabler; its growing launch capacity is increasingly allocated to support the other two segments rather than generating external revenue, while it simultaneously incurs heavy R&D expenses for the next-generation Starship."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6337,
+        "completion_tokens": 172,
+        "cached_tokens": 0,
+        "cost_usd": 0.017562499999999998
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-10T00:40:56.945827+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve any additional detail on the specific nature of the restructuring charges and how management characterizes the persistence of these items.\n\n",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a comprehensive picture. Let me organize my answer. Let me also check if there's anything about how the construction of Adjusted EBITDA matters for comparison.\n\nLet me now synthesize all the information and compose a thorough answer.\n\nKey findings:\n\n1. Segment Adjusted EBITDA is defined as segment income (loss) from operations excluding:\n   (i) Depreciation and amortization\n   (ii) Share-based compensation\n   (iii) Restructuring charges\n   (iv) Impairment\n\n2. The four add-backs are applied at the segment level.\n\nNow, let me think about why understanding the construction matters:\n\n- **D&A**: The three segments have vastly different capital intensity. AI has the highest D&A (e.g., Q1 2026: $1,493M for AI vs. $166M for Space vs. $783M for Connectivity). Excluding D&A obscures the massive capital investment needed to run the AI business, especially GPU depreciation. Connectivity's D&A reflects satellite constellation depreciation.\n\n- **Share-based compensation**: This is a real cost of doing business, especially in tech. Space has the highest SBC relative to its size (e.g., Q1 2026: $145M for Space, $116M for Connectivity, $378M for AI). Excluding SBC can significantly overstate the economic profitability of segments that rely heavily on equity compensation.\n\n- **Restructuring charges**: These are almost entirely in the AI segment (from X/Twitter workforce reductions). While management treats them as non-recurring, they've persisted from 2022 through 2026, suggesting they may be more recurring than portrayed.\n\n- **Impairment**: The AI segment had a massive $3,775M impairment in FY2023. While impairments are truly non-cash and (typically) non-recurring, the size and segment concentration matters.\n\nSo the key insight is that comparing segment economics using Adjusted EBITDA across the three segments can be misleading because:\n\n1. Each segment has different capital intensity (AI massive GPU capex, Connectivity satellite capex, Space R&D/Starship), and D&A is the primary proxy for this capital consumption. Stripping it out levels the playing field in a way that obscures fundamental differences.\n\n2. SBC varies by segment and is arguably a real economic cost.\n\n3. Restructuring in AI has been recurring enough to question its \"non-recurring\" classification.\n\n4. The adjustments are not symmetric across segments - some segments benefit more from the add-backs than others.\n\nLet me calculate the magnitude of each add-back relative to segment operating income for say Q1 2026:\n\nSpace: Operating loss $(662) \u2192 Adj EBITDA $(351). Add-backs total $311M (166+145).\nConnectivity: Operating income $1,188 \u2192 Adj EBITDA $2,087. Add-backs total $899M (783+116).\nAI: Operating loss $(2,469) \u2192 Adj EBITDA $(609). Add-backs total $1,860M (1,493+378-11).\n\nThe gap between GAAP and non-GAAP measures is enormous, especially for AI (a swing of $1,860M) and Connectivity (a swing of $899M). For Space, the add-backs are materially smaller ($311M).\n\nThis means that when comparing segment economics:\n- Connectivity looks great on both GAAP and non-GAAP\n- Space looks worse on GAAP but OK on non-GAAP\n- AI looks terrible on GAAP but merely bad on non-GAAP\n\nThe construction matters because anyone comparing the segments purely on Adjusted EBITDA might dramatically underestimate the capital consumption of AI and Connectivity, and might not appreciate that Space's relatively smaller adjustment means its GAAP and non-GAAP pictures are more aligned.\n\nLet me now write up the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_68f29430bced4c3ca59173d0",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the specific details about restructuring charges in {{spacex_s1}}? Include management's discussion of whether they are expected to recur, and any details about the X/Twitter workforce reductions, including the timeline and amounts recorded."
+          }
+        },
+        {
+          "tool_call_id": "call_58fd4400ab384dbcae3b3fb0",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "How does management describe the limitations of Segment Adjusted EBITDA in {{spacex_s1}}? What cautionary language is included about the non-GAAP measure?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_68f29430bced4c3ca59173d0",
+            "content": "Based on the provided text, here are the specific details regarding restructuring charges:\n\n### Nature of Charges\nThe restructuring charges originate from a global employee workforce reduction program initiated in 2022 by X, an indirect subsidiary of the Company, following its merger. The effects of this program continued through 2025 and into 2026.\n\nThe charges consist of two main categories:\n*   **Workforce Reduction:** Cash severance expense and other termination benefits.\n*   **Facilities Consolidation:** Impairment of operating lease right-of-use (ROU) assets for excess office space, related leasehold improvements and office equipment, and lease termination penalties for office space vacated before the lease term's end.\n\n### Management's Discussion on Recurrence\nThe provided text does not contain a statement from management explicitly discussing whether these specific restructuring charges are expected to recur. The explanations for the changes in charges are historical, attributing a decrease in Q1 2026 to a \"change in estimated settlement amounts for former Twitter employees\" and an increase in fiscal year 2025 to \"additional expense recorded to settle with former Twitter employees,\" both of which relate to adjustments within the ongoing program rather than a new program.\n\n### X/Twitter Workforce Reductions: Timeline and Amounts\n\n*   **Program Initiation:** 2022.\n*   **Charges Recorded:**\n    *   **Fiscal Year 2025:** Total charges of **$487 million** were recorded. This increase over the prior year was \"primarily due to additional expense recorded to settle with former Twitter employees.\"\n    *   **Fiscal Year 2024:** Total charges of **$147 million** were recorded for workforce reduction. Additionally, **$36 million** was recorded for leasehold improvements and office equipment, and **$30 million** for operating lease ROU assets, all as part of facilities consolidation.\n    *   **Fiscal Year 2023:** Total charges of **$77 million** were recorded for workforce reduction. Additionally, **$54 million** was recorded for leasehold improvements and office equipment, and **$106 million** for operating lease ROU assets.\n    *   **Q1 2026:** Total net credits of **$(11) million** were recorded for workforce reduction. This decrease was \"primarily due to a change in estimated settlement amounts for former Twitter employees.\"\n\n*   **Restructuring Liabilities Rollforward:**\n    The following table summarizes the changes in the restructuring liability, which is for severance and other personnel costs:\n    *   **Balance, December 31, 2023:** $8 million\n    *   Fiscal 2024 Charges: $147 million\n    *   Fiscal 2024 Cash Payments: $(11) million\n    *   Other Fiscal 2024 Adjustments: $8 million\n    *   **Balance, December 31, 2024:** $152 million\n    *   Fiscal 2025 Charges: $487 million\n    *   Fiscal 2025 Cash Payments: $(212) million\n    *   Other Fiscal 2025 Adjustments: $16 million\n    *   **Balance, December 31, 2025:** $443 million\n    *   Q1 2026 Charges (Credits): $(11) million\n    *   Q1 2026 Cash Payments: $(123) million\n    *   Other Q1 2026 Adjustments: $3 million\n    *   **Balance, March 31, 2026:** $312 million\n\nThe liabilities are included within \"Accrued expenses and other current liabilities\" and \"Other liabilities\" on the consolidated balance sheets."
+          },
+          {
+            "source_call_id": "call_58fd4400ab384dbcae3b3fb0",
+            "content": "Based on the provided text, management describes the limitations of Segment Adjusted EBITDA and includes the following cautionary language:\n\n**Management's Description of Limitations and Cautionary Language:**\n\nManagement explicitly states that in evaluating performance using Adjusted EBITDA and Segment Adjusted EBITDA, it \"recognizes and considers the limitations of these measures.\"\n\nThe specific limitations and cautionary language detailed are:\n\n*   **Lack of Comparability:** \"Other companies in our industry may calculate Adjusted EBITDA and Segment Adjusted EBITDA differently than we do or may not calculate them at all, limiting their usefulness as comparative measures.\"\n*   **Not a Substitute for GAAP:** \"Because of these limitations, Adjusted EBITDA and Segment Adjusted EBITDA should not be considered in isolation or as a substitute for net income (loss), income (loss) from operations, or any other measure calculated in accordance with GAAP.\"\n*   **Must Be Used With GAAP Measures:** The measures \"should be considered together with our GAAP financial measures and the reconciliations to the corresponding most directly comparable GAAP financial measures.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7467,
+        "completion_tokens": 962,
+        "cached_tokens": 6272,
+        "cost_usd": 0.0204475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-10T00:41:22.976913+00:00",
+      "source": "agent",
+      "message": "Now let me pull one more data point \u2014 the FY2023 impairment in the AI segment \u2014 to fully illustrate the scale of the adjustments over time.\n\n",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have all the information I need. Let me compose a comprehensive answer.\n\nLet me organize:\n\n1. Identify each add-back\n2. Explain each one quantitatively and qualitatively\n3. Explain why understanding the construction matters before comparing segment economics\n\nLet me also compute some useful metrics like the percentage impact of each add-back by segment.\n\nFor Q1 2026:\n- Space: Op loss $(662), add-backs: D&A 166 + SBC 145 + Restructuring 0 = $311 \u2192 Adj EBITDA $(351). The add-backs narrow the loss by 47%.\n- Connectivity: Op income $1,188, add-backs: D&A 783 + SBC 116 + Restructuring 0 = $899 \u2192 Adj EBITDA $2,087. The add-backs magnify profit by 76%.\n- AI: Op loss $(2,469), add-backs: D&A 1,493 + SBC 378 + Restructuring (11) = $1,860 \u2192 Adj EBITDA $(609). The add-backs narrow the loss by 75%.\n\nThis is striking: the add-backs reduce AI's reported loss by $1,860M compared to GAAP - that's 75% of the GAAP loss erased. Meanwhile, for Space, the add-backs are much smaller ($311M).\n\nFor FY2025:\n- Space: Op loss $(657) \u2192 Adj EBITDA $653. Add-backs: D&A 757 + SBC 515 + Impairment 38 = $1,310 (200% of operating loss magnitude)\n- Connectivity: Op income $4,423 \u2192 Adj EBITDA $7,168. Add-backs: D&A 2,376 + SBC 369 + Impairment 0 = $2,745 (62% uplift)\n- AI: Op loss $(6,355) \u2192 Adj EBITDA $(1,237). Add-backs: D&A 3,568 + SBC 1,063 + Restructuring 487 + Impairment 0 = $5,118 (81% of GAAP loss erased)\n\nThis is very important context for the answer.\n\nNow let me write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_59cb17372b7c4941a0366bdf",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What was the nature of the $3,775 million impairment in the AI segment in FY2023 in {{spacex_s1}}? What assets were impaired and what was the cause?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_59cb17372b7c4941a0366bdf",
+            "content": "The $3,775 million impairment recorded in the AI segment in fiscal year 2023 arose from the **impairment of the Twitter brand intangible asset** following the company\u2019s decision to rebrand the platform to \u201cX.\u201d\n\nKey details from the financial statement notes:\n- **Nature of the asset impaired:** A previously **indefinite-lived brand intangible**.\n- **Cause of the impairment:** The rebranding triggered an impairment assessment. The fair value of the brand was determined to be lower, leading to a $3,775 million write-down.\n- **Subsequent classification:** After the impairment, the brand intangible was no longer considered to have an indefinite life. It was **reclassified as a finite-lived intangible asset** with a **five-year useful life**.\n- **Valuation method:** Fair value was measured using the **relief-from-royalty method**.\n\nThe charge is presented within the intangible assets note and is added back when computing non-GAAP metrics such as Segment Adjusted EBITDA for the AI segment, as shown in the segment reconciliation tables. (No details on the September 2025 Spectrum License Purchase Agreement appear in the provided text.)"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9405,
+        "completion_tokens": 564,
+        "cached_tokens": 8064,
+        "cost_usd": 0.0190725
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-10T00:41:53.027572+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a comprehensive picture. Let me write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_26b0e9c7114a440a9c8f9a01",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "# Segment Adjusted EBITDA: Add-Backs and Why Construction Matters for Cross-Segment Comparison\n\n## The Four Add-Backs\n\nAs defined in the S-1, **Segment Adjusted EBITDA** reconciles from **segment income (loss) from operations** (the most directly comparable GAAP measure) by adding back four categories:\n\n| Add-Back | Nature | Principal Segment Affected |\n|----------|--------|---------------------------|\n| **(i) Depreciation & Amortization** | Non-cash charge for PP&E (satellites, GPU clusters, launch infrastructure) and intangible amortization | All segments, but magnitudes differ radically |\n| **(ii) Share-Based Compensation** | Non-cash equity award expense | All segments |\n| **(iii) Restructuring Charges** | Severance, lease impairment, and settlement costs from X/Twitter workforce reductions initiated in 2022 | AI segment exclusively |\n| **(iv) Impairment** | Write-downs of long-lived and intangible assets (e.g., the $3,775M Twitter\u2192X brand impairment in FY2023) | Concentrated in AI (FY2023) with smaller Space and Connectivity charges |\n\n---\n\n## Quantitative Illustration: How the Add-Backs Transform Segment Economics\n\n### Q1 2026 (most recent quarter, unaudited)\n\n| ($M) | Space | Connectivity | AI |\n|------|-------|-------------|-----|\n| GAAP Op. Income (Loss) | $(662) | $1,188 | $(2,469) |\n| + D&A | 166 | 783 | 1,493 |\n| + SBC | 145 | 116 | 378 |\n| + Restructuring | \u2014 | \u2014 | (11) |\n| **= Adj. EBITDA** | **$(351)** | **$2,087** | **$(609)** |\n| *Add-backs as % of GAAP loss magnitude* | *47%* | *76% of profit* | *75%* |\n\n### FY2025 (full year)\n\n| ($M) | Space | Connectivity | AI |\n|------|-------|-------------|-----|\n| GAAP Op. Income (Loss) | $(657) | $4,423 | $(6,355) |\n| + D&A | 757 | 2,376 | 3,568 |\n| + SBC | 515 | 369 | 1,063 |\n| + Restructuring | \u2014 | \u2014 | 487 |\n| + Impairment | 38 | \u2014 | \u2014 |\n| **= Adj. EBITDA** | **$653** | **$7,168** | **$(1,237)** |\n| *Add-backs as % of GAAP loss magnitude* | *199%* | *62% of profit* | *81%* |\n\n### FY2023 (including the Twitter brand impairment)\n\n| ($M) | Space | Connectivity | AI |\n|------|-------|-------------|-----|\n| GAAP Op. Income (Loss) | $(1) | $469 | $(3,973) |\n| + D&A | 571 | 884 | 1,180 |\n| + SBC | 427 | 249 | 3 |\n| + Restructuring | \u2014 | \u2014 | 237 |\n| + Impairment | \u2014 | \u2014 | **3,775** |\n| **= Adj. EBITDA** | **$997** | **$1,602** | **$1,222** |\n\nThe AI segment swings from a $(3,973)M GAAP operating loss to $1,222M of positive Adjusted EBITDA \u2014 a **$5,195M swing**, almost entirely driven by the $3,775M brand impairment add-back.\n\n---\n\n## Why Understanding Construction Matters Before Comparing Segment Economics\n\n### 1. D&A Is the Primary Proxy for Capital Intensity \u2014 and Capital Intensity Varies Enormously\n\nThe three segments have fundamentally different business models and asset bases:\n\n- **AI**: Massive GPU and data-center investment. Q1 2026 capex was $7,723M (76% of total company capex). D&A of $1,493M in a single quarter reflects the rapid consumption of short-lived GPU assets. Stripping D&A from the AI segment's results removes the single largest economic cost of running that business \u2014 essentially treating GPU depreciation as irrelevant to economic performance.\n\n- **Connectivity**: Satellite constellation build-out. Q1 2026 capex of $1,332M. D&A of $783M reflects the orbital decay and replacement cycle of the Starlink constellation. Excluding D&A understates the ongoing capital requirement to maintain the network.\n\n- **Space**: R&D-heavy with Starship investment. Q1 2026 capex of $1,052M. D&A of $166M is the smallest add-back, reflecting lower capital intensity in the launch business relative to the asset-heavy Connectivity and AI segments.\n\n**The adjustment is not proportional.** In Q1 2026, D&A add-backs represent 25% of Space's GAAP loss magnitude, 66% of Connectivity's GAAP profit, and 60% of AI's GAAP loss magnitude. Comparing segments on Adjusted EBITDA effectively equalizes their treatment of capital consumption even though their capital intensity differs by an order of magnitude.\n\n### 2. Share-Based Compensation Is a Genuine Economic Cost, Not Merely \"Non-Cash\"\n\nSBC is a real cost of talent \u2014 particularly acute in technology businesses competing for AI and engineering talent. In Q1 2026:\n\n- Space SBC ($145M) exceeded its D&A ($166M), suggesting equity is a primary form of compensation in the launch/spacecraft business.\n- AI SBC ($378M) is a material cost of its rapidly scaling workforce.\n- For Space, SBC alone represents 22% of the GAAP operating loss magnitude. Excluding it meaningfully alters the segment's apparent cost structure.\n\nWhile management's rationale \u2014 that SBC is non-cash and does not reflect ongoing operating performance \u2014 is standard, excluding it from a metric used to compare segment economics implicitly treats equity-funded labor as cost-free. This matters more for segments where equity is a larger share of total compensation.\n\n### 3. Restructuring Charges Are Segment-Concentrated and Have Persisted for Years\n\nAll restructuring charges flow through the AI segment and originate from X's 2022 workforce reductions. Despite being characterized as non-recurring for Adjusted EBITDA purposes, the program has generated charges in every period presented (FY2023: $237M, FY2024: $213M, FY2025: $487M, Q1 2026: $(11)M credit). The restructuring liability balance was still $312M at March 31, 2026.\n\nThe FY2025 spike to $487M was \"primarily due to additional expense recorded to settle with former Twitter employees\" \u2014 nearly three years after the acquisition closed. Treating these as non-recurring exclusions when they have persisted across four fiscal years and remain unresolved raises a substantive question: at what point does an ongoing multi-year restructuring program become part of the cost of operating the AI segment?\n\n### 4. Impairment Add-Backs Can Reverse Segment Losses Entirely\n\nThe FY2023 AI segment illustrates the most extreme effect. A $3,775M brand impairment (Twitter\u2192X rebranding) was added back, turning a $(3,973)M GAAP operating loss into $1,222M of positive Adjusted EBITDA. While an impairment of this magnitude is genuinely non-recurring, a user comparing FY2023 segment-level Adjusted EBITDA across Space ($997M), Connectivity ($1,602M), and AI ($1,222M) would see three segments with broadly comparable Adjusted EBITDA \u2014 but fundamentally incomparable underlying economics. The AI segment burned $6,355M of GAAP operating losses in FY2025 alone.\n\n### 5. The Adjustments Create Different \"Distance\" Between GAAP and Non-GAAP Across Segments\n\nThe gap between GAAP operating income and Adjusted EBITDA is not uniform:\n\n| Segment | Q1 2026 Gap | FY2025 Gap |\n|---------|------------|------------|\n| Space | $311M | $1,310M |\n| Connectivity | $899M | $2,745M |\n| AI | $1,860M | $5,118M |\n\nAI's non-GAAP adjustments are 6\u00d7 larger than Space's. A cross-segment comparison using Adjusted EBITDA alone would implicitly weight AI's adjustments far more heavily than Space's \u2014 effectively applying different degrees of \"normalization\" to different segments.\n\n---\n\n## The Filing's Own Cautionary Language\n\nThe S-1 acknowledges these limitations directly: \"Other companies in our industry may calculate Adjusted EBITDA and Segment Adjusted EBITDA differently than we do or may not calculate them at all, limiting their usefulness as comparative measures.\" The filing also warns that the measure \"should not be considered in isolation or as a substitute for net income (loss), income (loss) from operations, or any other measure calculated in accordance with GAAP.\"\n\nFor cross-segment comparison specifically, the critical risk is that **Segment Adjusted EBITDA systematically obscures the most economically salient differences among the three segments**: the AI segment's extraordinary capital consumption (D&A), the Connectivity segment's satellite-replacement economics (D&A), the Space segment's equity-heavy compensation model (SBC), and the AI segment's multi-year restructuring drag. An analyst comparing these segments must work backward through the reconciliation rather than starting from Adjusted EBITDA.\n\n---\n\n## Sources\n\n```json\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}\n```"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_26b0e9c7114a440a9c8f9a01",
+            "content": "# Segment Adjusted EBITDA: Add-Backs and Why Construction Matters for Cross-Segment Comparison\n\n## The Four Add-Backs\n\nAs defined in the S-1, **Segment Adjusted EBITDA** reconciles from **segment income (loss) from operations** (the most directly comparable GAAP measure) by adding back four categories:\n\n| Add-Back | Nature | Principal Segment Affected |\n|----------|--------|---------------------------|\n| **(i) Depreciation & Amortization** | Non-cash charge for PP&E (satellites, GPU clusters, launch infrastructure) and intangible amortization | All segments, but magnitudes differ radically |\n| **(ii) Share-Based Compensation** | Non-cash equity award expense | All segments |\n| **(iii) Restructuring Charges** | Severance, lease impairment, and settlement costs from X/Twitter workforce reductions initiated in 2022 | AI segment exclusively |\n| **(iv) Impairment** | Write-downs of long-lived and intangible assets (e.g., the $3,775M Twitter\u2192X brand impairment in FY2023) | Concentrated in AI (FY2023) with smaller Space and Connectivity charges |\n\n---\n\n## Quantitative Illustration: How the Add-Backs Transform Segment Economics\n\n### Q1 2026 (most recent quarter, unaudited)\n\n| ($M) | Space | Connectivity | AI |\n|------|-------|-------------|-----|\n| GAAP Op. Income (Loss) | $(662) | $1,188 | $(2,469) |\n| + D&A | 166 | 783 | 1,493 |\n| + SBC | 145 | 116 | 378 |\n| + Restructuring | \u2014 | \u2014 | (11) |\n| **= Adj. EBITDA** | **$(351)** | **$2,087** | **$(609)** |\n| *Add-backs as % of GAAP loss magnitude* | *47%* | *76% of profit* | *75%* |\n\n### FY2025 (full year)\n\n| ($M) | Space | Connectivity | AI |\n|------|-------|-------------|-----|\n| GAAP Op. Income (Loss) | $(657) | $4,423 | $(6,355) |\n| + D&A | 757 | 2,376 | 3,568 |\n| + SBC | 515 | 369 | 1,063 |\n| + Restructuring | \u2014 | \u2014 | 487 |\n| + Impairment | 38 | \u2014 | \u2014 |\n| **= Adj. EBITDA** | **$653** | **$7,168** | **$(1,237)** |\n| *Add-backs as % of GAAP loss magnitude* | *199%* | *62% of profit* | *81%* |\n\n### FY2023 (including the Twitter brand impairment)\n\n| ($M) | Space | Connectivity | AI |\n|------|-------|-------------|-----|\n| GAAP Op. Income (Loss) | $(1) | $469 | $(3,973) |\n| + D&A | 571 | 884 | 1,180 |\n| + SBC | 427 | 249 | 3 |\n| + Restructuring | \u2014 | \u2014 | 237 |\n| + Impairment | \u2014 | \u2014 | **3,775** |\n| **= Adj. EBITDA** | **$997** | **$1,602** | **$1,222** |\n\nThe AI segment swings from a $(3,973)M GAAP operating loss to $1,222M of positive Adjusted EBITDA \u2014 a **$5,195M swing**, almost entirely driven by the $3,775M brand impairment add-back.\n\n---\n\n## Why Understanding Construction Matters Before Comparing Segment Economics\n\n### 1. D&A Is the Primary Proxy for Capital Intensity \u2014 and Capital Intensity Varies Enormously\n\nThe three segments have fundamentally different business models and asset bases:\n\n- **AI**: Massive GPU and data-center investment. Q1 2026 capex was $7,723M (76% of total company capex). D&A of $1,493M in a single quarter reflects the rapid consumption of short-lived GPU assets. Stripping D&A from the AI segment's results removes the single largest economic cost of running that business \u2014 essentially treating GPU depreciation as irrelevant to economic performance.\n\n- **Connectivity**: Satellite constellation build-out. Q1 2026 capex of $1,332M. D&A of $783M reflects the orbital decay and replacement cycle of the Starlink constellation. Excluding D&A understates the ongoing capital requirement to maintain the network.\n\n- **Space**: R&D-heavy with Starship investment. Q1 2026 capex of $1,052M. D&A of $166M is the smallest add-back, reflecting lower capital intensity in the launch business relative to the asset-heavy Connectivity and AI segments.\n\n**The adjustment is not proportional.** In Q1 2026, D&A add-backs represent 25% of Space's GAAP loss magnitude, 66% of Connectivity's GAAP profit, and 60% of AI's GAAP loss magnitude. Comparing segments on Adjusted EBITDA effectively equalizes their treatment of capital consumption even though their capital intensity differs by an order of magnitude.\n\n### 2. Share-Based Compensation Is a Genuine Economic Cost, Not Merely \"Non-Cash\"\n\nSBC is a real cost of talent \u2014 particularly acute in technology businesses competing for AI and engineering talent. In Q1 2026:\n\n- Space SBC ($145M) exceeded its D&A ($166M), suggesting equity is a primary form of compensation in the launch/spacecraft business.\n- AI SBC ($378M) is a material cost of its rapidly scaling workforce.\n- For Space, SBC alone represents 22% of the GAAP operating loss magnitude. Excluding it meaningfully alters the segment's apparent cost structure.\n\nWhile management's rationale \u2014 that SBC is non-cash and does not reflect ongoing operating performance \u2014 is standard, excluding it from a metric used to compare segment economics implicitly treats equity-funded labor as cost-free. This matters more for segments where equity is a larger share of total compensation.\n\n### 3. Restructuring Charges Are Segment-Concentrated and Have Persisted for Years\n\nAll restructuring charges flow through the AI segment and originate from X's 2022 workforce reductions. Despite being characterized as non-recurring for Adjusted EBITDA purposes, the program has generated charges in every period presented (FY2023: $237M, FY2024: $213M, FY2025: $487M, Q1 2026: $(11)M credit). The restructuring liability balance was still $312M at March 31, 2026.\n\nThe FY2025 spike to $487M was \"primarily due to additional expense recorded to settle with former Twitter employees\" \u2014 nearly three years after the acquisition closed. Treating these as non-recurring exclusions when they have persisted across four fiscal years and remain unresolved raises a substantive question: at what point does an ongoing multi-year restructuring program become part of the cost of operating the AI segment?\n\n### 4. Impairment Add-Backs Can Reverse Segment Losses Entirely\n\nThe FY2023 AI segment illustrates the most extreme effect. A $3,775M brand impairment (Twitter\u2192X rebranding) was added back, turning a $(3,973)M GAAP operating loss into $1,222M of positive Adjusted EBITDA. While an impairment of this magnitude is genuinely non-recurring, a user comparing FY2023 segment-level Adjusted EBITDA across Space ($997M), Connectivity ($1,602M), and AI ($1,222M) would see three segments with broadly comparable Adjusted EBITDA \u2014 but fundamentally incomparable underlying economics. The AI segment burned $6,355M of GAAP operating losses in FY2025 alone.\n\n### 5. The Adjustments Create Different \"Distance\" Between GAAP and Non-GAAP Across Segments\n\nThe gap between GAAP operating income and Adjusted EBITDA is not uniform:\n\n| Segment | Q1 2026 Gap | FY2025 Gap |\n|---------|------------|------------|\n| Space | $311M | $1,310M |\n| Connectivity | $899M | $2,745M |\n| AI | $1,860M | $5,118M |\n\nAI's non-GAAP adjustments are 6\u00d7 larger than Space's. A cross-segment comparison using Adjusted EBITDA alone would implicitly weight AI's adjustments far more heavily than Space's \u2014 effectively applying different degrees of \"normalization\" to different segments.\n\n---\n\n## The Filing's Own Cautionary Language\n\nThe S-1 acknowledges these limitations directly: \"Other companies in our industry may calculate Adjusted EBITDA and Segment Adjusted EBITDA differently than we do or may not calculate them at all, limiting their usefulness as comparative measures.\" The filing also warns that the measure \"should not be considered in isolation or as a substitute for net income (loss), income (loss) from operations, or any other measure calculated in accordance with GAAP.\"\n\nFor cross-segment comparison specifically, the critical risk is that **Segment Adjusted EBITDA systematically obscures the most economically salient differences among the three segments**: the AI segment's extraordinary capital consumption (D&A), the Connectivity segment's satellite-replacement economics (D&A), the Space segment's equity-heavy compensation model (SBC), and the AI segment's multi-year restructuring drag. An analyst comparing these segments must work backward through the reconciliation rather than starting from Adjusted EBITDA.\n\n---\n\n## Sources\n\n```json\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}\n```"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10214,
+        "completion_tokens": 2116,
+        "cached_tokens": 9600,
+        "cost_usd": 0.034695000000000004
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 44756,
+    "total_completion_tokens": 4345,
+    "total_cached_tokens": 30592,
+    "total_cost_usd": 0.11709999999999998,
+    "total_steps": 9
+  }
+}

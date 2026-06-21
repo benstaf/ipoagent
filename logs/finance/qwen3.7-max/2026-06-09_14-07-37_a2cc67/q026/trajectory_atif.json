@@ -1,0 +1,420 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "ade1d82f-048f-4d77-a6c8-d5a20f25ff51",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T14:07:41.766938+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T14:07:41.766938+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe glossary defines Starshield as a secure government satellite network. Which reporting segment includes Starshield revenue and what revenue contribution disclosure, if any, is provided?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T14:07:41.766938+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "The user is asking about the SpaceX S-1 filing, specifically:\n1. What the glossary defines as \"Starshield\"\n2. Which reporting segment includes Starshield revenue\n3. What revenue contribution disclosure is provided for Starshield\n\nLet me first parse the HTML page for the SpaceX S-1 filing, then retrieve the relevant information.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_07f0567f10cd4d9f9b33eacd",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_07f0567f10cd4d9f9b33eacd",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3501,
+        "completion_tokens": 162,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0063725
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T14:08:53.553009+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Good, the document has been parsed. Now let me retrieve information about the glossary definition of Starshield, the reporting segment that includes Starshield revenue, and any revenue contribution disclosure.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c926431977124f05a57ea8ae",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the glossary definition of Starshield in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_d1fc1350a5db410b88affd83",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Which reporting segment includes Starshield revenue in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_861533a85f564ccfa0ed01d3",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What revenue contribution or revenue breakdown is disclosed for Starshield in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c926431977124f05a57ea8ae",
+            "content": "Based on the provided text, the glossary defines **Starshield** as:\n\n> \"...a secure satellite network designed specifically for government customers and national [security applications].\"\n\n*(Note: The specific glossary bullet point cuts off at the word \"national\" in the provided text fragments. However, subsequent sections in the document complete the phrase, repeatedly defining it as \"a secure satellite network designed specifically for government customers and national security applications.\")* \n\nAdditionally, the text elaborates that Starshield is a dedicated network built on Starlink's infrastructure, focused on three core mission areas (Earth observation, global secure communications, and hosted payloads), and features high-assurance cryptographic capabilities tailored to military and government requirements."
+          },
+          {
+            "source_call_id": "call_d1fc1350a5db410b88affd83",
+            "content": "Based on the provided text, Starshield revenue is included in the **Connectivity** segment (specifically categorized under **Enterprise & Government** revenue within that segment). \n\nThis is evidenced by several excerpts in the text, including:\n* *\"This chunk... details the **Connectivity segment's** revenue recognition policies for broadband, mobile, **Starshield**, and Starlink Kits...\"*\n* *\"**Connectivity** contract revenue for **Starshield** customers is mostly derived from fixed-price contracts...\"*\n* *\"We generate revenue in our **Connectivity segment**... We generate government revenue via long term contracts for **Starshield**...\"*"
+          },
+          {
+            "source_call_id": "call_861533a85f564ccfa0ed01d3",
+            "content": "Based on the provided text, **there is no specific, isolated revenue figure or percentage breakdown disclosed exclusively for Starshield.** \n\nInstead, Starshield's financial contributions are aggregated into broader categories and discussed in terms of revenue recognition policies and growth trends:\n\n**1. Segment and Reporting Category**\n* Starshield is part of the **Connectivity segment**.\n* Its revenue is grouped under the **Enterprise & Government** line item (a footnote clarifies this category also includes Starlink Mobile service offerings). \n\n**2. Government Connectivity Growth (MD&A Narrative)**\nWhile Starshield is not broken out as a standalone line item, it is a primary driver of the company's government contracts. The text highlights the growth of the broader **\"government connectivity business\"** (which encompasses Starshield):\n* **2025:** Government connectivity business revenue grew by **$193 million**.\n* **2024:** Government connectivity business revenue grew by **$1,250 million**.\n\n**3. Revenue Recognition Profile**\nRather than specific dollar amounts, the text details *how* Starshield revenue is recognized:\n* **Contract Type:** Revenue is mostly derived from **long-term, fixed-price contracts** designed specifically for U.S. Government and national security applications.\n* **Recognition Method:** Because these contracts are complex and multi-year, revenue is recognized over time using the **cost-to-cost input method** (recording revenue based on costs incurred to date, such as materials and labor, relative to the total estimated cost at completion)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3689,
+        "completion_tokens": 173,
+        "cached_tokens": 0,
+        "cost_usd": 0.0109525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T14:09:43.261913+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me also retrieve more specific information about the segment revenue breakdown and the Enterprise & Government line item to provide a more complete answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_89e7d429528341899e155473",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Enterprise & Government revenue line item amount in the Connectivity segment revenue breakdown table in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_bcb740cac8904b7e9fe868f4",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the reporting segments disclosed in the segment reporting section of {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_89e7d429528341899e155473",
+            "content": "Based on the referenced revenue breakdown table for the fiscal years ended December 31, the **Enterprise & Government** revenue line item amounts (which fall under the Connectivity segment) are as follows:\n\n* **2025:** $4,179 million\n* **2024:** $2,769 million\n* **2023:** $1,052 million \n\n*(Note: As indicated in the footnote, this line item includes revenue from Starlink Mobile service offerings).*"
+          },
+          {
+            "source_call_id": "call_bcb740cac8904b7e9fe868f4",
+            "content": "Based on the provided text, the reporting segments disclosed in the segment reporting section are:\n\n1. **Space**\n2. **Connectivity**\n3. **AI**"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4474,
+        "completion_tokens": 128,
+        "cached_tokens": 3200,
+        "cost_usd": 0.008465
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T14:09:56.853500+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive picture. Let me compile the answer:\n\n1. **Glossary definition**: Starshield is defined as \"a secure satellite network designed specifically for government customers and national security applications.\"\n\n2. **Reporting segment**: Starshield revenue is included in the **Connectivity** segment, specifically under the **Enterprise & Government** revenue line item.\n\n3. **Revenue contribution disclosure**: There is no standalone revenue figure disclosed exclusively for Starshield. Its revenue is aggregated into the broader \"Enterprise & Government\" line item within the Connectivity segment (which also includes Starlink Mobile service offerings). The Enterprise & Government line item was $4,179 million (2025), $2,769 million (2024), and $1,052 million (2023). The filing also notes that the \"government connectivity business\" (which encompasses Starshield) grew by $193 million in 2025 and $1,250 million in 2024.\n\nLet me submit the final result.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3ac0f5ad011c4a69aa9606a5",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Starshield: Segment Classification and Revenue Disclosure\n\n### Glossary Definition\nThe S-1 glossary defines **Starshield** as \"a secure satellite network designed specifically for government customers and national security applications.\" It is described as a dedicated network built on Starlink's infrastructure, focused on three core mission areas: Earth observation, global secure communications, and hosted payloads, with high-assurance cryptographic capabilities tailored to military and government requirements.\n\n### Reporting Segment\nStarshield revenue is included in the **Connectivity** segment \u2014 one of SpaceX's three reporting segments (Space, Connectivity, and AI). Within the Connectivity segment, Starshield revenue is categorized under the **Enterprise & Government** revenue line item.\n\n### Revenue Contribution Disclosure\n**No standalone revenue figure is disclosed exclusively for Starshield.** Its revenue is aggregated into the broader \"Enterprise & Government\" line item, which a footnote clarifies also includes Starlink Mobile service offerings. The Enterprise & Government line item amounts are:\n\n| Year | Enterprise & Government Revenue |\n|------|-------------------------------|\n| 2025 | $4,179 million |\n| 2024 | $2,769 million |\n| 2023 | $1,052 million |\n\nWhile Starshield is not broken out as a separate line item, the MD&A narrative provides incremental growth figures for the broader \"government connectivity business\" (which encompasses Starshield):\n- **2025:** Government connectivity revenue grew by **$193 million**\n- **2024:** Government connectivity revenue grew by **$1,250 million**\n\n### Revenue Recognition\nThe filing discloses that Starshield revenue is primarily derived from **long-term, fixed-price contracts** with U.S. Government and national security customers, recognized over time using the **cost-to-cost input method**.\n\n### Key Takeaway\nThe filing does not provide sufficient information to isolate Starshield's specific revenue contribution. Investors cannot distinguish Starshield revenue from Starlink Mobile or other enterprise/government connectivity revenue within the aggregated Enterprise & Government line item. This absence of granular disclosure is analytically material given Starshield's strategic significance to the government business.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3ac0f5ad011c4a69aa9606a5",
+            "content": "## Starshield: Segment Classification and Revenue Disclosure\n\n### Glossary Definition\nThe S-1 glossary defines **Starshield** as \"a secure satellite network designed specifically for government customers and national security applications.\" It is described as a dedicated network built on Starlink's infrastructure, focused on three core mission areas: Earth observation, global secure communications, and hosted payloads, with high-assurance cryptographic capabilities tailored to military and government requirements.\n\n### Reporting Segment\nStarshield revenue is included in the **Connectivity** segment \u2014 one of SpaceX's three reporting segments (Space, Connectivity, and AI). Within the Connectivity segment, Starshield revenue is categorized under the **Enterprise & Government** revenue line item.\n\n### Revenue Contribution Disclosure\n**No standalone revenue figure is disclosed exclusively for Starshield.** Its revenue is aggregated into the broader \"Enterprise & Government\" line item, which a footnote clarifies also includes Starlink Mobile service offerings. The Enterprise & Government line item amounts are:\n\n| Year | Enterprise & Government Revenue |\n|------|-------------------------------|\n| 2025 | $4,179 million |\n| 2024 | $2,769 million |\n| 2023 | $1,052 million |\n\nWhile Starshield is not broken out as a separate line item, the MD&A narrative provides incremental growth figures for the broader \"government connectivity business\" (which encompasses Starshield):\n- **2025:** Government connectivity revenue grew by **$193 million**\n- **2024:** Government connectivity revenue grew by **$1,250 million**\n\n### Revenue Recognition\nThe filing discloses that Starshield revenue is primarily derived from **long-term, fixed-price contracts** with U.S. Government and national security customers, recognized over time using the **cost-to-cost input method**.\n\n### Key Takeaway\nThe filing does not provide sufficient information to isolate Starshield's specific revenue contribution. Investors cannot distinguish Starshield revenue from Starlink Mobile or other enterprise/government connectivity revenue within the aggregated Enterprise & Government line item. This absence of granular disclosure is analytically material given Starshield's strategic significance to the government business.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4763,
+        "completion_tokens": 808,
+        "cached_tokens": 4352,
+        "cost_usd": 0.0145475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 16427,
+    "total_completion_tokens": 1271,
+    "total_cached_tokens": 10752,
+    "total_cost_usd": 0.0403375,
+    "total_steps": 6
+  }
+}

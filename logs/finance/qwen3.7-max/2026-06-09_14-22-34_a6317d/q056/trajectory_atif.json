@@ -1,0 +1,499 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "dc124604-99c7-4175-a28f-b61b4ec61033",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T14:22:39.505523+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T14:22:39.505523+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe filing discloses two distinct voting mechanisms: (i) Class B shareholders voting as a class to elect a majority of directors, and (ii) combined Class A and Class B voting power determining the remaining board seats and general shareholder matters. Explain precisely how this dual-mechanism structure differs economically and practically from a conventional 10-vote/1-vote dual-class structure in which all directors are elected by the combined class vote. What is the specific implication for a Class A shareholder's ability to influence board composition even if Class A shareholders collectively hold a majority of economic interest?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T14:22:39.505523+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me analyze this question about SpaceX's dual-class voting structure. I need to:\n\n1. First, parse the SpaceX S-1 filing to understand the specific voting mechanisms\n2. Understand the dual-mechanism structure described\n3. Compare it to a conventional 10-vote/1-vote dual-class structure\n4. Explain the economic and practical differences\n5. Analyze the specific implication for Class A shareholders' ability to influence board composition\n\nLet me start by parsing the filing and then retrieving the relevant governance sections.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e00110bf10df435aa7f9edf8",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e00110bf10df435aa7f9edf8",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3586,
+        "completion_tokens": 200,
+        "cached_tokens": 3200,
+        "cost_usd": 0.006965
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T14:24:24.849063+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve the relevant governance sections about the voting structure, board composition, and dual-class share structure.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_78496f448b4b4f4399c10b87",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the voting rights of Class A and Class B shares, including how directors are elected, board composition, and the dual voting mechanism in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_ef400f029db04f639211b0fa",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the description of capital stock, voting rights per share for Class A and Class B, and how many votes each class gets in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_78496f448b4b4f4399c10b87",
+            "content": "Based on the provided prospectus excerpts, here is a detailed breakdown of the voting rights, board composition, dual voting mechanisms, and conversion mechanics for the Class A and Class B shares:\n\n### 1. Voting Rights Overview\n*   **Class A Common Stock:** Entitled to **1 vote per share**.\n*   **Class B Common Stock:** Entitled to **10 votes per share**.\n*   **Class C Common Stock:** Has **no voting rights** (except as required by law).\n*   **General Voting:** On most general matters submitted to shareholders, Class A and Class B shareholders will vote together as a **single class**. However, the dual-class structure grants Class B shareholders exclusive rights to vote separately as a class on specific, highly critical corporate matters.\n\n### 2. Board Composition and Director Elections\nUpon completion of the IPO, the board of directors will consist of **eight members**, divided into two distinct groups based on the dual-class voting structure:\n*   **Class B Directors (Majority Control):** Holders of Class B common stock, voting separately as a class, have the exclusive right to elect **51% of the total authorized directors** (rounded up to the nearest whole number). \n    *   *Initial Class B Directors:* Elon Musk, Gwynne Shotwell, Antonio J. Gracias, Donald Harrison, and Luke Nosek.\n*   **Common Stock Directors:** Holders of all voting common stock (Class A and Class B), voting together as a single class, elect the remaining directors.\n    *   *Initial Common Stock Directors:* Ira Ehrenpreis, Randy Glein, and Steve Jurvetson.\n*   **Terms:** The board is subject to **annual elections**, with directors holding office until the next annual meeting or until a successor is qualified.\n\n### 3. Dual Voting Mechanism & Special Protective Provisions\nThe dual-class structure is specifically designed to concentrate voting power and protect Elon Musk's leadership and the rights of Class B shareholders:\n*   **Protection of Elon Musk's Roles:** Musk will serve as CEO, CTO, and Chairman of the Board. He can **only be removed** from the board and his executive leadership positions with the approval of a majority of the voting power of the outstanding Class B common stock, voting separately as a class.\n*   **Mandatory Separate Class B Votes:** In addition to standard shareholder votes, Class B approval (voting separately as a class) is strictly required to:\n    1.  Approve any charter amendment that alters the rights, powers, preferences, or privileges of Class B common stock (including provisions regarding Class B Directors).\n    2.  Approve certain business combinations, mergers, or sales.\n*   **Director Removal and Vacancies:**\n    *   *Class B Directors:* Can only be removed (with or without cause) and have their vacancies filled by a majority vote of Class B shareholders (voting separately) or by the remaining Class B Directors.\n    *   *Common Stock Directors:* Can be removed and have vacancies filled by a majority vote of all voting common stock (voting as a single class) or by the remaining directors.\n\n### 4. Share Conversion Mechanics\nTo prevent the dilution of concentrated voting power and restrict the open-market trading of super-voting shares, Class B shares are subject to strict conversion rules:\n*   **Voluntary Conversion:** A holder may convert their Class B shares into Class A shares (1-to-1 ratio) at any time at their own option.\n*   **Automatic Conversion upon Transfer:** Class B shares will **automatically convert** into Class A shares upon any \"Transfer\" (whether or not for value). Once converted, the shares lose their 10-vote supermajority power and become standard 1-vote Class A shares.\n*   **Permitted Transfers (Exceptions):** Automatic conversion does not apply to \"Permitted Transfers,\" which include certain inter-family transfers and transfers to specific qualifying entities (e.g., trusts or estate planning vehicles).\n*   *Long-term Effect:* Over time, as Class B shares are transferred to the public or non-permitted entities and convert to Class A, the relative voting power of those who retain their Class B shares (primarily Elon Musk) will continually increase.\n\n### 5. Impact on Corporate Governance & Anti-Takeover Defenses\n*   **\"Controlled Company\" Exemption:** Because Elon Musk will hold a majority of the Class B shares and over 50% of the combined voting power, the company will be classified as a \"controlled company\" under Nasdaq rules. This allows the company to **opt-out of strict corporate governance requirements**, such as maintaining a majority-independent board or having independent nominating and compensation committees.\n*   **Anti-Takeover Provisions:** \n    *   The charter **prohibits cumulative voting** in director elections.\n    *   Calling special shareholder meetings is restricted to the board, the CEO, the founder, or shareholders holding at least **50% of the voting power**.\n    *   The company is subject to Texas anti-takeover statutes (TBOC Section 21.606), which generally prohibit business combinations with an \"affiliated shareholder\" for three years unless specific board or supermajority approvals are obtained prior to the acquisition."
+          },
+          {
+            "source_call_id": "call_ef400f029db04f639211b0fa",
+            "content": "Based on the provided prospectus chunks for Space Exploration Technologies Corp. (SpaceX), here is the detailed breakdown of the capital stock description, voting rights per share, and the specific voting powers allocated to each class.\n\n### 1. Description of Capital Stock\nUpon completion of the IPO, the authorized capital stock consists of the following classes (all with a par value of $0.001 per share):\n*   **Class A Common Stock:** 36,132,150,000 authorized shares. (Offered to the public).\n*   **Class B Common Stock:** 6,125,000,000 authorized shares. (Held primarily by Elon Musk, his family, and permitted entities; future issuances are strictly limited to these groups).\n*   **Class C Common Stock:** 10,000,000,000 authorized shares (No shares issued/outstanding; carries no voting rights).\n*   **Preferred Stock:** 2,400,000,000 authorized shares (No shares issued/outstanding post-IPO, as existing Redeemable Convertible Preferred Stock automatically converts upon a Qualified IPO).\n\n**Economic Rights:** Class A, Class B, and Class C shares share equally (*pro rata, pari passu*) in dividends and liquidation proceeds. No dividends were declared from inception through March 2026.\n**Conversion Mechanics:** \n*   **Class B to Class A:** Each Class B share is convertible at any time at the holder's option into one share of Class A. Furthermore, Class B shares **automatically convert** into Class A shares upon any \"Transfer\" (sale, assignment, pledge, etc.), with exceptions only for \"Permitted Transfers\" (e.g., transfers to family members, estate planning trusts, or certain permitted corporate entities). \n*   **Class A & C:** Have no conversion rights.\n\n---\n\n### 2. Voting Rights Per Share\nThe company utilizes a dual-class voting structure designed to concentrate voting power:\n*   **Class A Common Stock:** Entitled to **1 vote per share**.\n*   **Class B Common Stock:** Entitled to **10 votes per share**.\n*   **Class C Common Stock:** **0 votes** (No voting rights, except as required by law).\n*   *(Note: Certain legacy Preferred Stock series also carry 10 votes per share, while others carry 1 vote per share, matching their respective conversion classes).*\n\n---\n\n### 3. How Many Votes Each Class Gets (Voting Power & Special Provisions)\nWhile Class A and Class B shareholders generally vote together as a single class on standard corporate matters, the **Class B shares hold superior, separate class voting rights** that guarantee board control and protect the company's leadership:\n\n*   **Board of Directors Election:** Holders of Class B common stock, voting separately as a class, are exclusively entitled to elect **51% of the total number of authorized directors** (rounded up to the nearest whole number). \n*   **Elon Musk Protective Provision:** The removal of Elon Musk from his board and leadership roles (CEO and Chairman) requires the approval of a majority of the voting power of the outstanding Class B shares, voting separately as a class.\n*   **Charter Amendments & Mergers:** Class B approval (voting separately as a class) is strictly required to approve any amendment to the charter that alters the rights, powers, or privileges of Class B stock, as well as for certain corporate combinations.\n*   **Overall Voting Control:** Because of the 10-to-1 voting multiplier and his massive ownership of Class B shares, Elon Musk holds the vast majority of the combined voting power (e.g., ~85.1% pre-offering). This allows him to control the outcome of all general shareholder matters and elect the remainder of the board, rendering SpaceX a **\"controlled company\"** under Nasdaq rules and exempting it from certain standard corporate governance requirements."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3812,
+        "completion_tokens": 149,
+        "cached_tokens": 3200,
+        "cost_usd": 0.00702
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T14:25:52.401028+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a good understanding of the SpaceX dual-class structure. Let me retrieve more specific details about the exact number of directors, the precise language around the Class B director election mechanism, and any additional governance details.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b68b94641ea942de845fc8f6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the exact number of board directors, how many are Class B Directors versus Common Stock Directors, and what is the precise mechanism for electing and removing each type of director in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_3248867e173b4f3e9bc3ab96",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the risk factors related to dual-class stock, voting power concentration, Class A shareholder limitations, and controlled company status in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b68b94641ea942de845fc8f6",
+            "content": "Based on the provided text, here are the details regarding the board of directors:\n\n### 1. Exact Number of Board Directors\nUpon the consummation of the offering, the board will consist of exactly **8 directors**. \n\n### 2. Class B Directors vs. Common Stock Directors\n*   **Class B Directors (5 Directors):** The charter grants Class B shareholders the right to elect 51% of the total number of authorized directors, rounded up to the nearest whole number (51% of 8 = 4.08, rounded up to 5). \n*   **Common Stock Directors (3 Directors):** The remaining members of the board are elected as Common Stock Directors.\n\n*(Note: The text confirms this math by listing 5 initial Class B Directors\u2014Musk, Shotwell, Gracias, Harrison, and Nosek\u2014and 3 initial Common Stock Directors\u2014Ehrenpreis, Glein, and Jurvetson).*\n\n### 3. Precise Mechanisms for Election, Removal, and Vacancies\n\n**Class B Directors**\n*   **Election:** Elected by the holders of Class B common stock, voting separately as a class.\n*   **Removal:** May be removed with or without cause by the affirmative vote of the holders of at least a majority of the voting power of the outstanding shares of Class B common stock, voting separately as a class.\n*   **Vacancies:** May be filled at any time by the affirmative vote of the holders of at least a majority of the voting power of the outstanding shares of Class B common stock (voting separately as a class), **or** by the remaining Class B Directors (and not any other persons).\n\n**Common Stock Directors**\n*   **Election:** Elected by the holders of all classes of voting common stock (Class A and Class B), voting together as a single class.\n*   **Removal:** May be removed with or without cause by the affirmative vote of the holders of at least a majority of the voting power of the outstanding shares of voting common stock, voting together as a single class.\n*   **Vacancies:** May be filled at any time by the affirmative vote of the holders of at least a majority of the voting power of the outstanding shares of voting common stock (voting together as a single class), **or** by the remaining directors.\n\n**Special Protective Provision for Elon Musk**\n*   Notwithstanding the standard removal mechanisms, Elon Musk is explicitly protected by the charter. He can **only** be removed from the board and from his Chief Executive Officer and Chairman leadership positions with the approval of the holders of at least a majority of the voting power of the outstanding shares of Class B common stock, voting separately as a class."
+          },
+          {
+            "source_call_id": "call_3248867e173b4f3e9bc3ab96",
+            "content": "Based on the provided prospectus excerpts, the risk factors related to the company's corporate governance, stock structure, and shareholder rights can be categorized into the following key areas:\n\n### 1. Dual-Class Stock & Voting Power Concentration\n*   **Disproportionate Voting Rights:** The company utilizes a dual-class structure where Class B common stock carries **10 votes per share**, while Class A common stock (offered to the public) carries only **1 vote per share**.\n*   **Elon Musk\u2019s Absolute Control:** Post-IPO, Elon Musk will beneficially own a majority of the Class B shares and a majority of the total voting power. This grants him unilateral control over the outcome of all matters requiring shareholder approval, including the election of all board members.\n*   **Class B Monopoly on Board Majority:** Holders of Class B stock, voting separately as a class, have the exclusive right to elect, remove, and fill vacancies for **51% of the total authorized board of directors** (rounded up). \n*   **Entrenchment via Conversion Mechanics:** Class B shares automatically convert to 1-vote Class A shares if they are sold or transferred (with limited exceptions for permitted transferees). Over time, this mechanism will increase the relative voting power of Class B holders (like Musk) who retain their shares, further entrenching their control.\n*   **Risk of Sudden Control Shifts:** If Musk were to sell or transfer enough Class B shares to lose his majority, another individual or group could gain control of the board and the company. This could result in sudden changes to the company's strategic direction, management, or policies that may not align with the interests of Class A shareholders.\n\n### 2. Class A Shareholder Limitations\n*   **Inability to Influence Corporate Matters:** Because of the concentrated voting power, public Class A shareholders are effectively precluded from influencing corporate governance, strategic decisions, or the election of directors.\n*   **Waiver of Statutory Class Voting Rights:** The company's charter includes an \"opt-out\" provision regarding the Texas Business Organizations Code (TBOC). This denies Class A shareholders separate class votes that would normally be required under Texas law for actions such as increasing/decreasing authorized shares, reclassifications, or exchanges of shares.\n*   **No Dividend Payments:** The company does not anticipate paying cash dividends in the foreseeable future. Investors will only realize a return if the Class A stock price appreciates, and they risk losing all or part of their investment if the market price does not reflect actual operating performance.\n*   **Risk of Price Depression from Insider Sales:** Existing shareholders, including Musk, have registration rights and will be eligible to sell shares under Rule 144 after lock-up periods expire. The actual sale, or even the market perception of impending sales by insiders, could cause the Class A stock price to decline significantly, regardless of the company's actual business performance.\n\n### 3. Controlled Company Status & Governance Exemptions\n*   **\"Controlled Company\" Classification:** Because Musk holds greater than 50% of the voting power regarding director elections, the company qualifies as a \"controlled company\" under Nasdaq and Nasdaq Texas listing rules.\n*   **Reliance on Governance Exemptions:** The company intends to utilize controlled company exemptions, meaning it is **not required** to comply with standard corporate governance protections, including:\n    *   Having a majority of independent directors on the board.\n    *   Maintaining a nominating committee composed entirely of independent directors.\n    *   Maintaining a compensation committee composed entirely of independent directors (or adhering to standard written charters for these committees).\n    *   Conducting annual performance evaluations of the compensation and nominating committees.\n*   **Reduced Shareholder Protections:** As a direct result of these exemptions, Class A shareholders will not have the same oversight, independence, and governance protections afforded to shareholders of standard public companies. *(Note: The company will still be required to maintain an audit committee composed entirely of independent directors).*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5936,
+        "completion_tokens": 176,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0126
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T14:27:27.796340+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive understanding of the SpaceX dual-class structure. Let me also retrieve information about the specific percentage of voting power and economic interest to make the analysis more precise.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3a56acaed3d342a5bd5ba015",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Elon Musk's ownership percentage of Class B shares, total voting power percentage post-IPO, and the total number of shares outstanding for Class A and Class B after the offering in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_a18d48f51b79441296600d32",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the specific anti-takeover provisions, cumulative voting prohibition, and special shareholder meeting requirements in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3a56acaed3d342a5bd5ba015",
+            "content": "Based on the provided text, the specific **post-IPO (after the offering)** figures you are asking for are **not available** because the document appears to be a draft S-1 registration statement where the post-offering calculations have been left as blank placeholders. \n\nHowever, the text does provide the **pre-IPO (before the offering)** figures. Here is the breakdown of what is and isn't in the text:\n\n### 1. Post-IPO Data (Left Blank in the Text)\n*   **Elon Musk's Class B Ownership % Post-IPO:** Blank (represented as `| | % |` in the table and `approximately          %` in the text).\n*   **Elon Musk's Total Voting Power % Post-IPO:** Blank (represented as `| % |` in the table and `approximately          %` in the text).\n*   **Total Shares Outstanding Post-IPO:** Blank. The cover page and capitalization tables simply state `\"shares\"` or `\"               shares\"` without numerical values for both Class A and Class B common stock after the offering.\n\n### 2. Pre-IPO Data (Available in the Text)\nFor context, the document provides the following **pre-offering** figures (as of May 1, 2026):\n*   **Elon Musk's Class B Ownership % (Pre-IPO):** **93.6%** (5,569,053,075 shares)\n*   **Elon Musk's Combined Voting Power (Pre-IPO):** **85.1%**\n*   **Total Class A Shares Outstanding (Pre-IPO):** **6,932,508,000 shares**\n*   **Total Class B Shares Outstanding (Pre-IPO):** **5,602,790,410 shares**\n\n*Note: The post-IPO numbers cannot be calculated from the text because the exact number of Class A shares being offered in the IPO and the underwriters' option to purchase additional shares are also left as blank placeholders (e.g., \"Class A common stock offered by us ... shares\").*"
+          },
+          {
+            "source_call_id": "call_a18d48f51b79441296600d32",
+            "content": "Based on the provided text chunks from the corporate governance and capital stock descriptions, here are the specific details regarding the anti-takeover provisions, the prohibition of cumulative voting, and the requirements for calling special shareholder meetings.\n\n### 1. Specific Anti-Takeover Provisions\nThe company has implemented a robust, multi-layered defense system rooted in its dual-class share structure, bylaws, and the Texas Business Organizations Code (TBOC) to deter hostile takeovers, coercive bids, and unsolicited changes in control. \n\n**Dual-Class Structure & Concentrated Voting Control**\n*   **Super-Voting Shares:** Class B common stock carries **10 votes per share**, while Class A carries 1 vote per share (Class C has no voting rights). \n*   **Board Control:** Holders of Class B stock, voting separately as a class, are entitled to elect **51% of the total authorized directors** (rounded up). \n*   **Elon Musk's Dominance:** Post-IPO, Elon Musk will hold a majority of the Class B shares and combined voting power. This allows him to unilaterally control the election of the board, corporate affairs, and the outcome of any matter requiring shareholder approval, effectively blocking hostile takeovers.\n*   **Protective Vetoes:** A separate majority vote of Class B shareholders is required to remove Elon Musk from his CEO and Chairman roles, amend the charter regarding Class B rights, or approve certain mergers, combinations, or sales.\n\n**Texas Law (TBOC) Statutory Defenses**\n*   **Business Combination Moratorium (Section 21.606):** The company is prohibited from engaging in a business combination with an \"affiliated shareholder\" for **three years** after they acquire their stake, unless:\n    *   The board pre-approved the transaction/acquisition; OR\n    *   The board approves it, and it is authorized at an annual or special meeting (not by written consent) by an affirmative vote of at least **two-thirds of the outstanding voting shares *not* owned by the affiliated shareholder**, at a meeting called at least six months after the acquisition date.\n*   **Stringent Shareholder Proposal Hurdles (Section 21.373):** To submit a shareholder proposal (excluding director nominations), a shareholder or group must:\n    1. Hold at least **$1,000,000 in market value or 3%** of the voting shares.\n    2. Hold those shares continuously for at least **six months** prior to and throughout the meeting.\n    3. Successfully **solicit holders representing at least 67%** of the voting power entitled to vote on the proposal.\n*   **Derivative Suit Thresholds & Business Judgment Rule:** Shareholders must own a minimum of **3% of outstanding shares** to institute a derivative proceeding. Furthermore, directors are statutorily presumed to act in good faith and in the company's best interest. Plaintiffs must prove fraud, intentional misconduct, or a knowing violation of law to overcome this presumption.\n\n**Charter & Bylaw Mechanisms**\n*   **Blank Check Preferred Stock:** The board can issue authorized but unissued preferred stock without shareholder approval. This can be used to dilute an acquirer's voting power or decrease the market price of Class A stock.\n*   **Advance Notice Procedures:** Strict advance notice bylaws dictate how shareholders (other than Musk and his permitted transferees) can \"properly bring\" proposals or director nominations before a meeting.\n*   **Exclusive Forum Selection:** \"Internal Disputes\" must be litigated exclusively in the Texas Business Court, preventing shareholders from forum-shopping in federal or other state courts.\n\n---\n\n### 2. Cumulative Voting Prohibition\n*   **The Provision:** The text explicitly states: *\"Our charter will not permit cumulative voting in the election of directors.\"*\n*   **The Effect:** Cumulative voting allows minority shareholders to pool all their votes and cast them for a single director candidate, increasing their chances of gaining board representation. By prohibiting this, the company ensures that the majority voter (Elon Musk, via Class B shares) can use his standard voting majority to win **every single open board seat**, completely shutting out minority shareholders from securing a dissenting voice on the board.\n\n---\n\n### 3. Special Shareholder Meeting Requirements\nThe charter severely restricts who has the authority to call a special meeting of the shareholders, effectively stripping minority shareholders of this right. \n\n*   **Authorized Callers:** Special meetings may **only** be called by:\n    1.  The Chairman of the Board\n    2.  The Chief Executive Officer\n    3.  The President (to the extent required by the TBOC)\n    4.  The Board of Directors\n    5.  The Founder (Elon Musk)\n    6.  **Shareholders holding not less than 50%** (or the highest percentage permitted under the TBOC) of the company's outstanding voting capital stock.\n*   **The Effect:** Because Elon Musk will hold a majority of the voting power, and the threshold for other shareholders to call a meeting is set at an insurmountable **50%**, public Class A shareholders will have no mechanism to force a special meeting to address urgent corporate matters, challenge management, or attempt a proxy contest outside of the annual meeting cycle."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7539,
+        "completion_tokens": 164,
+        "cached_tokens": 5376,
+        "cost_usd": 0.0137675
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T14:27:50.931391+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive understanding of the SpaceX dual-class structure. Let me now construct a thorough analysis comparing the SpaceX dual-mechanism structure to a conventional 10-vote/1-vote dual-class structure.\n\nKey differences to analyze:\n\n**Conventional 10-vote/1-vote dual-class structure:**\n- All directors elected by combined class vote (Class A + Class B voting together)\n- Class B has 10 votes per share, Class A has 1 vote per share\n- The Class B holder's advantage comes purely from the vote multiplier\n- If Class A shareholders collectively hold enough economic interest AND enough combined votes, they could theoretically influence all board seats\n- The key variable is the ratio of Class A to Class B shares outstanding and the resulting vote math\n\n**SpaceX's dual-mechanism structure:**\n- Mechanism (i): Class B shareholders vote AS A SEPARATE CLASS to elect 51% of directors (rounded up) = 5 of 8 directors\n- Mechanism (ii): Class A and Class B vote together as a single class to elect the remaining 3 directors\n- This creates a structural firewall that is qualitatively different from a simple vote multiplier\n\n**The critical economic and practical difference:**\n\nIn a conventional structure, if Class A shares were issued in sufficient quantity that Class A shareholders held, say, 91%+ of the combined voting power (which would require Class A shares to outnumber Class B shares by more than 10:1), Class A shareholders could theoretically outvote Class B on ALL board seats. The protection is purely mathematical and can be overcome by sufficient dilution of Class B's relative share count.\n\nIn SpaceX's structure, the separate class vote for 51% of directors creates an absolute structural barrier. No matter how many Class A shares are issued or how much economic interest Class A shareholders collectively hold, they have ZERO votes in the election of 5 of 8 directors. The Class B separate class vote is completely independent of Class A share count. Even if Class A shareholders held 99.99% of the economic interest and 99% of the combined voting power, they would still have no say in electing the majority of the board.\n\n**Specific implication for Class A shareholders:**\n\nEven if Class A shareholders collectively hold a majority of economic interest (which they likely do given 6.9B Class A shares vs 5.6B Class B shares pre-IPO, and more Class A being issued in the IPO), they:\n1. Cannot vote on 5 of 8 directors (the majority)\n2. Can only influence 3 of 8 directors through the combined vote\n3. Even for those 3 directors, Class B's 10-vote multiplier means Class B still dominates the combined vote\n4. Cannot remove Class B directors\n5. Cannot call special meetings (50% threshold is insurmountable)\n6. Cannot use cumulative voting to concentrate votes on a single candidate\n\nLet me calculate the pre-IPO economic interest vs voting power:\n- Class A: 6,932,508,000 shares \u00d7 1 vote = 6,932,508,000 votes\n- Class B: 5,602,790,410 shares \u00d7 10 votes = 56,027,904,100 votes\n- Total votes: 62,960,412,100\n- Class A voting power: 6,932,508,000 / 62,960,412,100 = ~11.0%\n- Class B voting power: 56,027,904,100 / 62,960,412,100 = ~89.0%\n\nEconomic interest (shares outstanding):\n- Total shares: 6,932,508,000 + 5,602,790,410 = 12,535,298,410\n- Class A economic interest: 6,932,508,000 / 12,535,298,410 = ~55.3%\n- Class B economic interest: 5,602,790,410 / 12,535,298,410 = ~44.7%\n\nSo Class A already holds a majority of economic interest (~55.3%) pre-IPO, but only ~11% of voting power. This perfectly illustrates the point.\n\nNow let me think about the conventional structure comparison more carefully:\n\nIn a conventional 10/1 dual-class where ALL directors are elected by combined vote:\n- Class B's control depends on maintaining >50% of combined voting power\n- If the company issues more Class A shares (e.g., for acquisitions, compensation, secondary offerings), Class B's voting percentage declines\n- At some point, if enough Class A shares are issued, Class A could theoretically outvote Class B on all board seats\n- The protection is dilutable\n\nIn SpaceX's structure:\n- The separate class vote for 51% of directors is NOT dilutable by issuing more Class A shares\n- Even if the company issues billions more Class A shares, Class B still exclusively elects 5 of 8 directors\n- The only way to change this would be to amend the charter, which itself requires Class B separate class approval\n- This creates a permanent, self-reinforcing control mechanism\n\nThis is a crucial distinction. Let me now write the comprehensive answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ad978f91edc34ae3b9917fe3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "6932508000 / (6932508000 + 5602790410)"
+          }
+        },
+        {
+          "tool_call_id": "call_a2dfa11345eb4a4ba090244e",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(5602790410 * 10) / (6932508000 + 5602790410 * 10)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ad978f91edc34ae3b9917fe3",
+            "content": "0.5530389284127142"
+          },
+          {
+            "source_call_id": "call_a2dfa11345eb4a4ba090244e",
+            "content": "0.8898910002528398"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9304,
+        "completion_tokens": 1364,
+        "cached_tokens": 6528,
+        "cost_usd": 0.02874
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T14:28:29.515335+00:00",
+      "source": "agent",
+      "message": "Now I have all the information needed to provide a comprehensive analysis. Let me compile the final answer.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Good. So pre-IPO:\n- Class A economic interest: 55.30%\n- Class B voting power: 88.99%\n\nNow let me also calculate what would happen in a conventional structure if Class A economic interest grew even larger. Let me think about the threshold at which Class A could outvote Class B in a conventional structure.\n\nIn a conventional structure, Class A outvotes Class B when:\nClass A shares > Class B shares \u00d7 10\n\nSo if Class A shares > 56,027,904,100 (i.e., 56 billion shares), Class A would have more combined votes. That's a lot of shares, but the point is it's theoretically possible.\n\nIn SpaceX's structure, no amount of Class A share issuance changes the separate class vote for 5 of 8 directors.\n\nLet me also think about the 3 Common Stock Directors. Even for those, Class B has overwhelming voting power in the combined vote. So effectively, Class B controls all 8 directors in practice.\n\nLet me now write the comprehensive answer.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_df2cf2ab52584a768a3687c4",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## SpaceX's Dual-Mechanism Voting Structure vs. Conventional Dual-Class: A Structural Analysis\n\n### I. The Two Voting Mechanisms Disclosed in the S-1\n\nThe SpaceX S-1 establishes two distinct channels for electing the 8-member board:\n\n**Mechanism (i) \u2014 Class B Separate-Class Vote (Majority of the Board):**\nHolders of Class B common stock, voting *separately as a class*, exclusively elect **51% of the total authorized directors, rounded up to the nearest whole number**. With an 8-member board, this yields **5 Class B Directors**. The initial Class B Directors are Elon Musk, Gwynne Shotwell, Antonio J. Gracias, Donald Harrison, and Luke Nosek.\n\n**Mechanism (ii) \u2014 Combined Single-Class Vote (Minority of the Board):**\nHolders of all voting common stock (Class A and Class B), voting *together as a single class*, elect the remaining **3 Common Stock Directors**. The initial Common Stock Directors are Ira Ehrenpreis, Randy Glein, and Steve Jurvetson.\n\nEach mechanism also governs removal and vacancy-filling for its respective director group: Class B Directors can only be removed or replaced by Class B shareholders voting separately (or by the remaining Class B Directors), while Common Stock Directors can be removed or replaced by the combined class vote (or by the remaining directors).\n\n---\n\n### II. How This Differs from a Conventional 10-Vote/1-Vote Dual-Class Structure\n\nIn a **conventional dual-class structure** (e.g., Meta, Alphabet), all directors are elected by a single combined vote of Class A and Class B shareholders. The Class B holder's control is purely a function of arithmetic:\n\n> **Class B combined voting power = (Class B shares \u00d7 10) / [(Class A shares \u00d7 1) + (Class B shares \u00d7 10)]**\n\nControl is maintained so long as this ratio exceeds 50%. The protection is **quantitative and dilutable**\u2014if the company issues enough Class A shares over time (for acquisitions, equity compensation, secondary offerings, etc.), the Class B holder's combined voting percentage mechanically declines. At a sufficiently high Class A-to-Class B share ratio (specifically, when Class A shares exceed 10\u00d7 the number of Class B shares), Class A shareholders could theoretically outvote Class B on *every* board seat.\n\n**SpaceX's dual-mechanism structure introduces a qualitative, structural firewall** that is fundamentally different:\n\n| Feature | Conventional 10/1 Dual-Class | SpaceX Dual-Mechanism |\n|---|---|---|\n| **Board election method** | All seats via combined vote | 5 of 8 seats via Class B separate-class vote; 3 of 8 via combined vote |\n| **Nature of control** | Arithmetic (vote-count dependent) | Structural (class-segregation dependent) |\n| **Dilutable by issuing Class A shares?** | Yes \u2014 control erodes as Class A share count grows | **No** \u2014 the separate-class vote is immune to Class A share issuance |\n| **Class A influence on majority of board** | Theoretically possible if Class A votes exceed Class B votes | **Structurally impossible** \u2014 Class A has zero votes in the Class B separate-class election |\n| **Charter amendment to change structure** | Typically requires supermajority or combined vote | Requires **separate Class B class approval**, creating a self-reinforcing lock |\n\nThe critical distinction: in a conventional structure, Class B control is a **race against dilution**; in SpaceX's structure, Class B control of the board majority is a **permanent structural entitlement** that cannot be eroded by any amount of Class A share issuance.\n\n---\n\n### III. The Specific Implication for Class A Shareholders\n\nThis is where the analysis becomes most consequential. Using the pre-IPO figures disclosed in the S-1:\n\n- **Class A shares outstanding:** 6,932,508,000\n- **Class B shares outstanding:** 5,602,790,410\n- **Total shares outstanding:** 12,535,298,410\n\n**Class A economic interest:** 6,932,508,000 / 12,535,298,410 = **55.30%**\n**Class B economic interest:** 5,602,790,410 / 12,535,298,410 = **44.70%**\n\nYet the voting power is dramatically inverted:\n- **Class A combined voting power:** 6,932,508,000 / (6,932,508,000 + 56,027,904,100) = **~11.0%**\n- **Class B combined voting power:** 56,027,904,100 / 62,960,412,100 = **~89.0%**\n\n**Class A shareholders already hold a majority of economic interest (55.3%) pre-IPO, and this majority will only increase as new Class A shares are issued in the IPO and thereafter.** Yet the specific implications are:\n\n1. **Zero influence over 5 of 8 directors (the board majority):** No matter how large the Class A economic stake grows\u2014even if Class A shareholders held 99% of the economic interest and 99% of the combined voting power\u2014they would have literally **no vote** in the election, removal, or replacement of the 5 Class B Directors. This is not a matter of being outvoted; it is a matter of being **disenfranchised** from the process entirely.\n\n2. **Minimal influence over the remaining 3 directors:** For the 3 Common Stock Director seats, Class A's ~11% combined voting power (pre-IPO) is overwhelmingly outvoted by Class B's ~89%. Even if Class A economic interest grew to 90%+ of total equity, the 10:1 vote multiplier ensures Class B retains decisive control of the combined vote for these seats as well, unless Class A share count exceeded 10\u00d7 Class B share count (requiring over 56 billion Class A shares at current Class B levels).\n\n3. **No pathway to change the structure:** Amending the charter to alter Class B rights\u2014including the separate-class director election mechanism\u2014requires a separate Class B class vote. The structure is therefore **self-entrenching**: the very mechanism that protects Class B control can only be changed with Class B consent.\n\n4. **Compounding entrenchment over time:** Class B shares automatically convert to 1-vote Class A shares upon transfer (with narrow exceptions for permitted transferees). This means that as non-Musk Class B holders sell, their shares convert to Class A, *increasing* Musk's relative share of the remaining Class B pool and further concentrating the separate-class vote. The separate-class mechanism ensures this consolidation only strengthens Musk's grip on the board majority.\n\n5. **No cumulative voting, no special meeting rights:** The charter prohibits cumulative voting (preventing Class A from concentrating votes on a single candidate) and requires 50% of voting power to call a special meeting\u2014a threshold Class A cannot approach. These provisions eliminate the few remaining procedural avenues through which Class A might exert influence.\n\n---\n\n### IV. Summary of the Economic and Practical Distinction\n\nIn a conventional 10/1 dual-class structure, Class A shareholders' inability to control the board is a **contingent outcome** dependent on the current share-count ratio\u2014it is theoretically reversible through sufficient dilution of Class B's relative position. The governance risk is one of **degree**.\n\nIn SpaceX's dual-mechanism structure, Class A shareholders' inability to influence the board majority is a **structural certainty** baked into the charter's separate-class voting architecture\u2014it is irreversible without Class B consent. The governance risk is one of **kind**. Class A shareholders are not merely outvoted on the board majority; they are constitutionally excluded from the process, regardless of their economic stake. This makes the SpaceX structure materially more restrictive of public shareholder rights than a conventional dual-class arrangement, even one with identical 10:1 vote differentials.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_df2cf2ab52584a768a3687c4",
+            "content": "## SpaceX's Dual-Mechanism Voting Structure vs. Conventional Dual-Class: A Structural Analysis\n\n### I. The Two Voting Mechanisms Disclosed in the S-1\n\nThe SpaceX S-1 establishes two distinct channels for electing the 8-member board:\n\n**Mechanism (i) \u2014 Class B Separate-Class Vote (Majority of the Board):**\nHolders of Class B common stock, voting *separately as a class*, exclusively elect **51% of the total authorized directors, rounded up to the nearest whole number**. With an 8-member board, this yields **5 Class B Directors**. The initial Class B Directors are Elon Musk, Gwynne Shotwell, Antonio J. Gracias, Donald Harrison, and Luke Nosek.\n\n**Mechanism (ii) \u2014 Combined Single-Class Vote (Minority of the Board):**\nHolders of all voting common stock (Class A and Class B), voting *together as a single class*, elect the remaining **3 Common Stock Directors**. The initial Common Stock Directors are Ira Ehrenpreis, Randy Glein, and Steve Jurvetson.\n\nEach mechanism also governs removal and vacancy-filling for its respective director group: Class B Directors can only be removed or replaced by Class B shareholders voting separately (or by the remaining Class B Directors), while Common Stock Directors can be removed or replaced by the combined class vote (or by the remaining directors).\n\n---\n\n### II. How This Differs from a Conventional 10-Vote/1-Vote Dual-Class Structure\n\nIn a **conventional dual-class structure** (e.g., Meta, Alphabet), all directors are elected by a single combined vote of Class A and Class B shareholders. The Class B holder's control is purely a function of arithmetic:\n\n> **Class B combined voting power = (Class B shares \u00d7 10) / [(Class A shares \u00d7 1) + (Class B shares \u00d7 10)]**\n\nControl is maintained so long as this ratio exceeds 50%. The protection is **quantitative and dilutable**\u2014if the company issues enough Class A shares over time (for acquisitions, equity compensation, secondary offerings, etc.), the Class B holder's combined voting percentage mechanically declines. At a sufficiently high Class A-to-Class B share ratio (specifically, when Class A shares exceed 10\u00d7 the number of Class B shares), Class A shareholders could theoretically outvote Class B on *every* board seat.\n\n**SpaceX's dual-mechanism structure introduces a qualitative, structural firewall** that is fundamentally different:\n\n| Feature | Conventional 10/1 Dual-Class | SpaceX Dual-Mechanism |\n|---|---|---|\n| **Board election method** | All seats via combined vote | 5 of 8 seats via Class B separate-class vote; 3 of 8 via combined vote |\n| **Nature of control** | Arithmetic (vote-count dependent) | Structural (class-segregation dependent) |\n| **Dilutable by issuing Class A shares?** | Yes \u2014 control erodes as Class A share count grows | **No** \u2014 the separate-class vote is immune to Class A share issuance |\n| **Class A influence on majority of board** | Theoretically possible if Class A votes exceed Class B votes | **Structurally impossible** \u2014 Class A has zero votes in the Class B separate-class election |\n| **Charter amendment to change structure** | Typically requires supermajority or combined vote | Requires **separate Class B class approval**, creating a self-reinforcing lock |\n\nThe critical distinction: in a conventional structure, Class B control is a **race against dilution**; in SpaceX's structure, Class B control of the board majority is a **permanent structural entitlement** that cannot be eroded by any amount of Class A share issuance.\n\n---\n\n### III. The Specific Implication for Class A Shareholders\n\nThis is where the analysis becomes most consequential. Using the pre-IPO figures disclosed in the S-1:\n\n- **Class A shares outstanding:** 6,932,508,000\n- **Class B shares outstanding:** 5,602,790,410\n- **Total shares outstanding:** 12,535,298,410\n\n**Class A economic interest:** 6,932,508,000 / 12,535,298,410 = **55.30%**\n**Class B economic interest:** 5,602,790,410 / 12,535,298,410 = **44.70%**\n\nYet the voting power is dramatically inverted:\n- **Class A combined voting power:** 6,932,508,000 / (6,932,508,000 + 56,027,904,100) = **~11.0%**\n- **Class B combined voting power:** 56,027,904,100 / 62,960,412,100 = **~89.0%**\n\n**Class A shareholders already hold a majority of economic interest (55.3%) pre-IPO, and this majority will only increase as new Class A shares are issued in the IPO and thereafter.** Yet the specific implications are:\n\n1. **Zero influence over 5 of 8 directors (the board majority):** No matter how large the Class A economic stake grows\u2014even if Class A shareholders held 99% of the economic interest and 99% of the combined voting power\u2014they would have literally **no vote** in the election, removal, or replacement of the 5 Class B Directors. This is not a matter of being outvoted; it is a matter of being **disenfranchised** from the process entirely.\n\n2. **Minimal influence over the remaining 3 directors:** For the 3 Common Stock Director seats, Class A's ~11% combined voting power (pre-IPO) is overwhelmingly outvoted by Class B's ~89%. Even if Class A economic interest grew to 90%+ of total equity, the 10:1 vote multiplier ensures Class B retains decisive control of the combined vote for these seats as well, unless Class A share count exceeded 10\u00d7 Class B share count (requiring over 56 billion Class A shares at current Class B levels).\n\n3. **No pathway to change the structure:** Amending the charter to alter Class B rights\u2014including the separate-class director election mechanism\u2014requires a separate Class B class vote. The structure is therefore **self-entrenching**: the very mechanism that protects Class B control can only be changed with Class B consent.\n\n4. **Compounding entrenchment over time:** Class B shares automatically convert to 1-vote Class A shares upon transfer (with narrow exceptions for permitted transferees). This means that as non-Musk Class B holders sell, their shares convert to Class A, *increasing* Musk's relative share of the remaining Class B pool and further concentrating the separate-class vote. The separate-class mechanism ensures this consolidation only strengthens Musk's grip on the board majority.\n\n5. **No cumulative voting, no special meeting rights:** The charter prohibits cumulative voting (preventing Class A from concentrating votes on a single candidate) and requires 50% of voting power to call a special meeting\u2014a threshold Class A cannot approach. These provisions eliminate the few remaining procedural avenues through which Class A might exert influence.\n\n---\n\n### IV. Summary of the Economic and Practical Distinction\n\nIn a conventional 10/1 dual-class structure, Class A shareholders' inability to control the board is a **contingent outcome** dependent on the current share-count ratio\u2014it is theoretically reversible through sufficient dilution of Class B's relative position. The governance risk is one of **degree**.\n\nIn SpaceX's dual-mechanism structure, Class A shareholders' inability to influence the board majority is a **structural certainty** baked into the charter's separate-class voting architecture\u2014it is irreversible without Class B consent. The governance risk is one of **kind**. Class A shareholders are not merely outvoted on the board majority; they are constitutionally excluded from the process, regardless of their economic stake. This makes the SpaceX structure materially more restrictive of public shareholder rights than a conventional dual-class arrangement, even one with identical 10:1 vote differentials.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10723,
+        "completion_tokens": 2182,
+        "cached_tokens": 8704,
+        "cost_usd": 0.0377475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 40900,
+    "total_completion_tokens": 4235,
+    "total_cached_tokens": 30208,
+    "total_cost_usd": 0.10684,
+    "total_steps": 8
+  }
+}

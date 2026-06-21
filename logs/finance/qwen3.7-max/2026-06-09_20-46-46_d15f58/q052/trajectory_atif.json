@@ -1,0 +1,757 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "946b8072-5def-4c65-9ac2-3b130fbfb80a",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T20:46:50.745727+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T20:46:50.745727+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe filing presents Segment Adjusted EBITDA, capex, subscriber and usage metrics, and common-control recast financials. Which disclosed metric or presentation convention is most likely to create comparability challenges versus traditional IPO issuers, and how should an analyst adjust their framework when evaluating performance?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T20:46:50.745727+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "The user is asking about the SpaceX S-1 filing and wants to know which disclosed metric or presentation convention is most likely to create comparability challenges versus traditional IPO issuers, and how an analyst should adjust their framework.\n\nLet me first parse the filing to understand the key metrics and presentation conventions, particularly around:\n1. Segment Adjusted EBITDA\n2. Capex\n3. Subscriber and usage metrics\n4. Common-control recast financials\n\nLet me start by parsing the filing.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5607c2f2526f463d9e8ba45f",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_5607c2f2526f463d9e8ba45f",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3527,
+        "completion_tokens": 193,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0067475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T20:49:53.636617+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me retrieve information about the common-control recast, segment adjusted EBITDA, and other key metrics from the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8e87b89884da4507a8dbdd88",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the common-control recast accounting treatment and how does it affect historical financial statements in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_0a7ce9801d784e88af477041",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Segment Adjusted EBITDA definition and reconciliation in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_1de1ecc36e2a44638d62e3a8",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the subscriber metrics, usage metrics, and key operating metrics disclosed in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8e87b89884da4507a8dbdd88",
+            "content": "Based on the provided financial statement notes, the **common-control recast accounting treatment** is applied when entities that share the same controlling financial interest (in this case, Mr. Elon Musk, who held majority voting interests in SpaceX, xAI, and X) are merged. Instead of treating the merger as a standard market acquisition, it is accounted for as a **reorganization of entities under common control**. \n\nHere is how this accounting treatment affects the historical financial statements:\n\n### 1. Retrospective Combination at Historical Carrying Amounts\n* **Net Assets:** The consolidated financial statements are retrospectively recast to combine the net assets of SpaceX, xAI, and X for **all periods presented**, using their **historical carrying amounts** (book values) rather than fair market values.\n* **No Goodwill:** Because this is a reorganization under common control rather than an external acquisition, **no new goodwill or other intangible assets are recorded**.\n\n### 2. Elimination of Intercompany Transactions\n* All historical related-party transactions and intercompany balances between SpaceX, xAI, and X are **eliminated in consolidation** across all historical periods presented, as if they had always been a single entity.\n\n### 3. Equity and Capital Stock Adjustments\n* **Exchange Ratios:** The capital stock and shareholders\u2019 equity for all historical periods reflect a continuation of SpaceX\u2019s historical equity, combined with the historical equity of X and xAI. These are retroactively adjusted using the **exchange ratios** established to effect the mergers (e.g., converting X Common Stock to xAI Common Stock, and ultimately to SpaceX Common Stock).\n* **Change in Reporting Entity:** This retrospective presentation constitutes a formal **change in reporting entity**. Consequently, **separate historical financial statements for xAI and X are not provided**, as the consolidated statements already reflect the combined entity for all periods.\n\n### 4. Exception for xAI\u2019s Redeemable Convertible Preferred Stock\n* **No Retrospective Recast:** Unlike the common stock, xAI\u2019s historical Redeemable Convertible Preferred Stock is **not retrospectively recast** on an as-converted basis for periods prior to the merger. \n* **Preservation of Legal Form:** Because the preferred stock represented a separate equity class of a legally distinct predecessor entity, the historical balance sheets continue to reflect it as outstanding preferred stock consistent with its legal form and rights at the time. The conversion into SpaceX Common Stock is only recognized prospectively in the period the merger actually closed (Q1 2026).\n\n### 5. Retroactive Adjustment for Stock Splits\n* **2026 Stock Split:** The company effected a five-for-one forward stock split on May 4, 2026. Under this recast treatment, **all historical share and per-share information** (as well as preferred stock conversion rates) is **retroactively adjusted** to reflect the stock split for all periods presented. \n\nIn summary, the common-control recast treatment essentially rewrites the financial history of the company as if SpaceX, xAI, and X had always been a single consolidated entity, strictly utilizing historical book values, eliminating internal transactions, and retroactively applying stock splits and common-stock exchange ratios."
+          },
+          {
+            "source_call_id": "call_0a7ce9801d784e88af477041",
+            "content": "Based on the provided text, here is the definition and the detailed reconciliation for Segment Adjusted EBITDA.\n\n### **Definition**\n**Segment Adjusted EBITDA** is defined as segment income (loss) from operations excluding:\n1. Depreciation and amortization\n2. Share-based compensation\n3. Restructuring charges\n4. Impairment\n\nIt is used as a key non-GAAP performance measure by management and investors to evaluate operating performance, compare financial results, and for internal planning and forecasting purposes.\n\n---\n\n### **Reconciliation**\nThe most directly comparable GAAP measure is **Income (loss) from operations**. The reconciliation adds back the non-GAAP adjustments mentioned in the definition. Below are the segment-level reconciliations provided in the text across multiple periods:\n\n#### **Three Months Ended March 31, 2026**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(662)** | **$1,188** | **$(2,469)** | **$(1,943)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 166 | 783 | 1,493 | 2,442 |\n| Share-based compensation | 145 | 116 | 378 | 639 |\n| Restructuring charges | \u2014 | \u2014 | (11) | (11) |\n| **Segment Adjusted EBITDA** | **$(351)** | **$2,087** | **$(609)** | **$1,127** |\n\n#### **Three Months Ended March 31, 2025**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(70)** | **$1,033** | **$(936)** | **$27** |\n| *Add:* | | | | |\n| Depreciation and amortization | 162 | 510 | 771 | 1,443 |\n| Share-based compensation | 108 | 75 | 49 | 232 |\n| Restructuring charges | \u2014 | \u2014 | 4 | 4 |\n| Impairment | 24 | \u2014 | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$224** | **$1,618** | **$(112)** | **$1,730** |\n\n#### **Year Ended December 31, 2025**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(657)** | **$4,423** | **$(6,355)** | **$(2,589)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 757 | 2,376 | 3,568 | 6,701 |\n| Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |\n\n#### **Year Ended December 31, 2024**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$21** | **$2,006** | **$(1,561)** | **$466** |\n| *Add:* | | | | |\n| Depreciation and amortization | 637 | 1,508 | 1,679 | 3,824 |\n| Share-based compensation | 472 | 296 | 16 | 784 |\n| Restructuring charges | \u2014 | \u2014 | 213 | 213 |\n| Impairment | 24 | 39 | \u2014 | 63 |\n| **Segment Adjusted EBITDA** | **$1,154** | **$3,849** | **$347** | **$5,350** |\n\n#### **Year Ended December 31, 2023**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(1)** | **$469** | **$(3,973)** | **$(3,505)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 571 | 884 | 1,180 | 2,635 |\n| Share-based compensation | 427 | 249 | 3 | 679 |\n| Restructuring charges | \u2014 | \u2014 | 237 | 237 |\n| Impairment | \u2014 | \u2014 | 3,775 | 3,775 |\n| **Segment Adjusted EBITDA** | **$997** | **$1,602** | **$1,222** | **$3,821** |\n\n*(Note: The text explicitly warns that Segment Adjusted EBITDA has limitations as a comparative measure, should not be considered in isolation or as a substitute for GAAP measures like net income or income from operations, and must be considered alongside GAAP financial measures.)*"
+          },
+          {
+            "source_call_id": "call_1de1ecc36e2a44638d62e3a8",
+            "content": "Based on the provided S-1 prospectus excerpts, here are the subscriber, usage, and key operating metrics disclosed by the company, along with the strategic context for each:\n\n### 1. Subscriber Metrics\n**Starlink Subscribers**\n*   **Definition:** Defined as a unique \"Service Line\" (an individual instance of service provisioned under a subscription plan). It includes Personal (Residential, Roam) and Business plans but *excludes* managed enterprise and government customers with direct negotiated contracts. \n*   **Q1 2026:** ~10.3 million (up 105% YoY).\n*   **Q1 2025:** ~5.0 million (up 91% YoY).\n*   **Historical (Year-End):** 8.9M (2025), 4.4M (2024), 2.3M (2023).\n*   **Market Reach:** Across 164 countries/territories, representing a small fraction of the ~3.3 billion potential end-users in served markets.\n\n**Starlink Subscriber ARPU (Average Revenue Per User)**\n*   **Definition:** Service revenue divided by the average number of subscribers and the number of months in the period.\n*   **Q1 2026:** $66 / month.\n*   **Q1 2025:** $86 / month.\n*   **Historical (Year-End):** $81 (2025), $91 (2024), $99 (2023).\n*   **Strategy:** The company prioritizes scale, operational efficiencies, and global market access over ARPU growth. ARPU is expected to continue declining due to international expansion and the introduction of lower-priced service plans.\n\n**X and Grok Paid Subscribers**\n*   **Q1 2026:** ~6.3 million active paid subscribers.\n*   **Breakdown:** ~4.4 million X Premium/Premium+ subscribers and ~1.9 million SuperGrok/SuperGrok Heavy/SuperGrok Lite subscribers.\n\n**Satellite-to-Mobile Devices**\n*   **Q1 2026:** ~7.4 million monthly unique devices utilizing satellite-to-mobile texting and over-the-top voice services across ~30 countries.\n\n---\n\n### 2. Usage Metrics\n**Monthly Active Users (MAU) for X and Grok**\n*   **Definition:** Unique registered users who interacted with Grok or X via web or mobile at least once in a 30-day period. The company deduplicates users who access both platforms based on sign-in traffic.\n*   **Q1 2026:** ~550 million MAUs (with >1.3 billion supported accounts active in the trailing 12 months).\n*   **Q4 2025:** ~520 million MAUs (with >1.1 billion supported accounts).\n*   **Grok AI Usage:** ~117 million MAUs specifically utilized Grok\u2019s AI features as of March 31, 2026.\n*   **Strategy:** While MAU measures scale and engagement, management explicitly states they are focused on revenue and operating margins, *not* on prioritizing the growth or maintenance of MAU levels.\n\n---\n\n### 3. Key Operating Metrics\n**Space Segment (Launch & Orbit Capacity)**\n*   **Mass to Orbit:** 556 metric tons (Q1 2026) vs. 450 metric tons (Q1 2025). Full-year 2025 totaled 2,213 metric tons.\n*   **Launches:** 40 launches (Q1 2026) vs. 38 launches (Q1 2025). Full-year 2025 totaled 170 launches. *(Note: Starship launches are currently classified as internal, not customer launches).*\n*   **Satellite Constellation Scale:** ~9,600 Starlink broadband and mobile satellites in Low-Earth Orbit (LEO) as of March 31, 2026, accounting for ~75% of all active maneuverable satellites in orbit. \n\n**AI Segment (Compute Infrastructure)**\n*   **Nameplate Compute Draw:** 1 Gigawatt (GW) (Q1 2026) vs. 0.3 GW (Q1 2025). Full-year 2025 was 0.8 GW. This reflects the massive scale of their AI data center expansions and GPU hardware deployments.\n\n**Network Performance (Starlink Broadband)**\n*   **Latency:** Median of ~25 milliseconds (with round-trip latencies as low as 21 ms).\n*   **Download Speeds:** Median of 225 Mbps during peak hours for residential users (with capabilities exceeding 400 Mbps). \n*   **Future Capacity:** The company plans to deploy next-generation \"V3\" satellites via Starship in H2 2026, offering 1 Tbps of downlink capacity per satellite (a 20-fold increase per launch compared to Falcon 9)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3746,
+        "completion_tokens": 176,
+        "cached_tokens": 3200,
+        "cost_usd": 0.007125
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T20:52:21.084827+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me retrieve more information about the capital expenditure disclosures and the segment structure to understand the full picture of comparability challenges.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_515ba208b8844184aa2beb2a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the capital expenditure (capex) disclosures and segment capex breakdown in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_a42d39f48d884a3498e96a63",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the reportable segments and how are they defined in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_a5e3d45e44c64a92886e2095",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the intercompany eliminations, related party transactions, and revenue recognition policies in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_515ba208b8844184aa2beb2a",
+            "content": "Based on the provided financial disclosures (which appear to be from a prospectus or S-1 filing for SpaceX/xAI), capital expenditure (capex) disclosures are prominently featured in the **Management\u2019s Discussion and Analysis (MD&A)**, the **Notes to the Consolidated Financial Statements (Segment Reporting)**, and the **Risk Factors**. \n\nThe disclosures highlight a massive, accelerated investment cycle primarily driven by the newly formed **AI segment**, alongside continued heavy investments in the **Space** and **Connectivity** segments.\n\nHere is the detailed breakdown of the capital expenditure disclosures and segment drivers:\n\n### 1. Capital Expenditures by Segment (Financial Data)\nThe company provides a comprehensive breakdown of capex across its three reportable segments (Space, Connectivity, and AI) for the trailing three years and the most recent first quarters:\n\n| (in millions) | Q1 2026 (3 Mos Ended Mar 31) | Q1 2025 (3 Mos Ended Mar 31) | FY 2025 | FY 2024 | FY 2023 |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| **Space** | $1,052 | $759 | $3,832 | $2,032 | $1,497 |\n| **Connectivity** | $1,332 | $814 | $4,178 | $3,498 | $2,455 |\n| **AI** | $7,723 | $2,567 | $12,727 | $5,633 | $463 |\n| **Total Capex** | **$10,107** | **$4,140** | **$20,737** | **$11,163** | **$4,415** |\n\n*(Note: These figures are also reconciled in the Supplemental Segment Information tables within the Notes to the Financial Statements for 2023, 2024, 2025, and Q1 2025/2026).*\n\n---\n\n### 2. MD&A: Year-Over-Year Capex Drivers by Segment\nThe MD&A section provides specific operational context for the rapid year-over-year (YoY) increases in capital expenditures across all three segments:\n\n*   **Space Segment (Starship Infrastructure):**\n    *   **Q1 2026 vs. Q1 2025:** Increased by $293 million to $1,052 million.\n    *   **FY 2025 vs. FY 2024:** Increased by $1,800 million to $3,832 million.\n    *   **FY 2024 vs. FY 2023:** Increased by $535 million to $2,032 million.\n    *   **Primary Driver:** The consistent YoY increases are primarily driven by increased investments in **launch site infrastructure for Starship**, enabling the company's long-term growth strategy and step-function changes in reusability, payload capacity, and launch cadence.\n*   **Connectivity Segment (Satellite Network Expansion):**\n    *   **Q1 2026 vs. Q1 2025:** Increased by $518 million to $1,332 million.\n    *   **FY 2025 vs. FY 2024:** Increased by $680 million to $4,178 million.\n    *   **FY 2024 vs. FY 2023:** Increased by $1,043 million to $3,498 million.\n    *   **Primary Driver:** Driven by higher **satellite and ground equipment costs** as the company continues to manufacture, launch, and grow its Low-Earth Orbit (LEO) Starlink satellite network to support increasing subscriber and enterprise adoption.\n*   **AI Segment (Data Center Infrastructure):**\n    *   **Q1 2026 vs. Q1 2025:** Increased massively by $5,156 million to $7,723 million.\n    *   **FY 2025:** Reached $12,727 million (up from $5,633 million in 2024 and just $463 million in 2023).\n    *   **Primary Driver:** Driven by investments in the **rapid expansion of terrestrial data centers**. This includes the development, construction, and equipping of new facilities and supporting infrastructure to train frontier LLMs (like Grok) and support AI compute applications.\n\n---\n\n### 3. Additional Accounting & Balance Sheet Disclosures\nThe Notes to the Financial Statements provide further context on how these massive capital expenditures are treated on the balance sheet:\n\n*   **Construction in Progress (CIP):** CIP is primarily comprised of ongoing construction and expansion of facilities/equipment, as well as **AI infrastructure that has not yet been placed in service**.\n*   **Capitalized Interest:** The company capitalizes interest during the construction period for significant long-term projects, specifically naming **AI infrastructure data centers and launch facilities**. For Q1 2026, the company capitalized $7 million of interest (included in CIP), compared to $0 in Q1 2025.\n*   **Impairments:** While the Space segment recorded a $24 million impairment in Q1 2025 related to the write-off of damaged flight vehicles, there were no Property, Plant, and Equipment (PP&E) impairment charges recorded in Q1 2026.\n\n---\n\n### 4. Risk Factor Disclosures Related to Capex\nThe filing explicitly warns investors about the financial vulnerabilities tied to this aggressive capex strategy:\n*   **Cash Flow & Financing Risks:** The company notes that *\"The development and maintenance of the technologies and infrastructure necessary to support our current and future operations will require significant capital expenditures.\"* \n*   **Material Adverse Effects:** If the company is unable to generate sufficient cash flow from operations (especially given the AI segment's early-stage operating losses, e.g., a $6.3 billion operating loss in FY2025) or obtain additional financing on acceptable terms, its business, financial condition, and future prospects could be materially and adversely affected."
+          },
+          {
+            "source_call_id": "call_a42d39f48d884a3498e96a63",
+            "content": "Based on the provided S-1 preamble and notes to the financial statements, the company has **three reportable segments** within its vertically integrated innovation engine. They are defined as follows:\n\n*   **Space:** This segment designs, manufactures, and launches reusable rockets to provide high-cadence, reliable, and affordable access to space at an unprecedented scale. (This includes launch vehicles like Falcon and the developing Starship transportation system).\n*   **Connectivity:** This segment operates a worldwide high-speed, low-latency broadband data and communications network. Powered by over 9,600 Starlink broadband and mobile satellites in Low-Earth Orbit, it delivers internet and communications connectivity to millions of consumer, enterprise, and government customers across 164 countries, territories, and other markets.\n*   **AI:** This segment operates a highly vertically integrated artificial intelligence platform. It spans the company's truth-seeking frontier large language model (Grok), AI solutions for consumer and enterprise customers, AI computational infrastructure, and **X** (the company's real-time information, entertainment, and free speech platform)."
+          },
+          {
+            "source_call_id": "call_a5e3d45e44c64a92886e2095",
+            "content": "Based on the provided financial statement excerpts, here is a detailed breakdown of the company's intercompany eliminations, related party transactions, and revenue recognition policies across its segments.\n\n### 1. Intercompany Eliminations\n*   **Consolidation Principle:** All intercompany balances and transactions are eliminated in the preparation of the consolidated financial statements.\n*   **Common Control Mergers:** Following the 2025/2026 mergers of xAI and X into SpaceX (accounted for as reorganizations of entities under common control), all historical related party transactions between these entities were eliminated in consolidation for all periods presented.\n*   **Inter-Segment Starlink Launches:** The Space segment does **not** recognize any inter-segment revenue for launches dedicated to deploying the company's own Starlink satellites. Instead, the associated launch costs are capitalized within the Connectivity segment (in *Property, plant, and equipment, net*) and depreciated over time. Space segment revenue strictly reflects external customer launches and activities.\n\n### 2. Related Party Transactions\n*   **Audit Committee Policy:** The company has a written policy requiring the audit committee to review and approve/disapprove \"related person transactions.\" A related person transaction is defined as any transaction involving the company where the amount exceeds **$120,000** and a related person has a direct or indirect material interest. \n*   **Definition of Related Persons:** Includes executive officers, directors, beneficial owners of >5% of voting securities, and their immediate family members or household sharers.\n*   **Elon Musk & Affiliated Entities:** Disclosures explicitly track transactions involving CEO Elon Musk, noting his external affiliations (e.g., serving as CEO and ~20% shareholder of Tesla, and founder of other ventures).\n*   **xAI Merger Inclusion:** Ongoing agreements and transactions originally entered into by xAI or X Holdings prior to the merger are included in the related party transaction disclosures.\n*   **Financial Statement References:** The consolidated balance sheet includes a footnote referencing **Note 18, Related Party Transactions**, and the independent auditor's report identifies \"Significant Transactions with Related Parties\" as a key area of the audit.\n\n### 3. Revenue Recognition Policies\nThe company recognizes revenue when control of goods or services is transferred to the customer, either **\"over time\"** or at a **\"point in time,\"** depending on the segment and contract specifics.\n\n#### A. Space Segment\nRevenue is derived from fixed-price contracts for Launch Services (1\u20135 years) and Launch & Development (1\u201314 years).\n*   **Launch Services (Point in Time):** Revenue and costs are deferred and recognized at a **point in time** upon the launch or deployment of the customer\u2019s payload to its intended orbit. This is due to the interchangeability of flight hardware and minimal unique engineering costs.\n*   **Launch and Development (Over Time):** Revenue is recognized **over time** because the work creates an asset with no alternative use, and the company has an enforceable right to payment for performance to date.\n*   **Cost-to-Cost Input Method:** For over-time contracts, progress is measured using the **cost-to-cost method** (costs incurred to date relative to total estimated costs at completion). This requires significant management judgment regarding launch timing, labor hours, shared costs for reusable rockets, and technological changes. Estimate changes are recognized on a cumulative basis.\n\n#### B. Connectivity Segment\nRevenue is generated from Starlink broadband, Starlink Mobile, Starshield, and hardware sales.\n*   **Broadband & Mobile Services (Over Time):** Recognized **over time** as the customer simultaneously receives and consumes the benefits. Revenue is recognized ratably over the subscription term or based on actual data usage. Advanced payments are recorded as deferred revenue. Contracts are generally month-to-month.\n*   **Starlink Kits / Hardware (Point in Time):** Recognized at a **point in time** when control transfers (typically upon delivery or installation for enterprise customers). Revenue is reported net of returns and chargebacks. Shipping and handling are treated as fulfillment activities, not separate performance obligations.\n*   **Starshield Contracts (Over Time):** Long-term, multi-year government/national security contracts are recognized **over time** using the **cost-to-cost input method**, similar to the Space segment's development contracts.\n*   **Multiple Performance Obligations:** Contracts containing both services and hardware are bifurcated. The transaction price is allocated based on the standalone selling price of each distinct obligation.\n\n#### C. AI Segment (X / xAI)\nRevenue is generated from digital platform services, including advertising, subscriptions, and data licensing.\n*   **Advertising Services (Point in Time):** Recognized when the ad is delivered and user engagement criteria are met. \n    *   *Gross Basis:* When the company acts as the principal (direct sales).\n    *   *Net Basis:* When the company acts as an agent (sales through Supply Side Platform partners who control inventory and pricing).\n*   **Premium Subscriptions (Over Time):** Revenue for X and Grok subscriptions is recognized **ratably** over the subscription term (ranging from month-to-month to one year).\n*   **Data Licensing:** Grants access to historical or real-time IP. \n    *   *Historical IP:* Recognized at a **point in time**.\n    *   *Future IP:* Recognized on a **straight-line basis** over the period the data is provided. If multiple obligations exist, revenue is allocated based on standalone selling prices.\n\n#### D. Critical Audit Matter (CAM)\nThe independent auditor identified **\"Revenue Recognition \u2013 Estimate of Total Cost at Completion for Certain Contracts Recognized Over Time\"** as a Critical Audit Matter. This is due to the high degree of subjective management judgment and complex assumptions required to estimate total costs for the cost-to-cost input method used in both the Space (reusable vehicles, launch timing) and Connectivity (satellite production, shared costs) segments."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7181,
+        "completion_tokens": 175,
+        "cached_tokens": 0,
+        "cost_usd": 0.0197025
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T20:55:01.189872+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve more information about the specific challenges with the common-control recast and how it affects comparability, as well as any specific disclosures about limitations of the financial presentation.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_6e6c201e2e184c5184a25d80",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the limitations of Segment Adjusted EBITDA and non-GAAP measures disclosed in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_b759938cc18d42c4882cc0fc",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the consolidated net income or loss and how does it compare to segment results in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_b2bba984c91f47fa90573bc4",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the share-based compensation details, stock class structure, and valuation disclosures in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_6e6c201e2e184c5184a25d80",
+            "content": "Based on the provided text, the limitations of Adjusted EBITDA, Segment Adjusted EBITDA, and other non-GAAP measures include:\n\n*   **Limited Comparability:** Other companies in the industry may calculate these measures differently or may not calculate them at all, which limits their usefulness when comparing the company's performance to its peers.\n*   **Not a Substitute for GAAP Measures:** Because of these limitations, these non-GAAP measures should not be considered in isolation or used as a substitute for standard GAAP metrics such as net income (loss), income (loss) from operations, or any other measure calculated in accordance with GAAP.\n*   **Must Be Used in Context:** They should always be considered together with the company's GAAP financial measures and the provided reconciliations to the most directly comparable GAAP financial measures."
+          },
+          {
+            "source_call_id": "call_b759938cc18d42c4882cc0fc",
+            "content": "Based on the provided financial statements and management discussion, here is the breakdown of the consolidated net income (loss) and how it compares to the company's segment results.\n\n### 1. Consolidated Net Income (Loss)\nThe company has experienced significant volatility in its bottom-line GAAP net income (loss) across the reported periods, heavily impacted by massive research and development (R&D) spending, interest expenses, and other non-operating charges:\n*   **Q1 2026 (Three Months Ended March 31, 2026):** Net loss of **$(4,276) million**\n*   **FY 2025:** Net loss of **$(4,937) million**\n*   **FY 2024:** Net income of **$791 million**\n*   **FY 2023:** Net loss of **$(4,628) million**\n\n### 2. Segment Results (Operating Performance)\nThe company evaluates its segments (Space, Connectivity, and AI) based on **Income (Loss) from Operations** and **Segment Adjusted EBITDA**, which exclude unallocated corporate expenses, interest, and taxes. \n\n**For Q1 2026:**\n*   **Space:** Operating loss of $(662) million | Segment Adjusted EBITDA of $(351) million. *(Driven by $930 million in R&D for the Starship program).*\n*   **Connectivity:** Operating income of $1,188 million | Segment Adjusted EBITDA of $2,087 million.\n*   **AI:** Operating loss of $(2,469) million | Segment Adjusted EBITDA of $(609) million.\n*   **Total Reportable Segments:** Operating loss of **$(1,943) million** | Segment Adjusted EBITDA of **$1,127 million**.\n\n**For FY 2025:**\n*   **Space:** Operating loss of $(657) million | Segment Adjusted EBITDA of $653 million. *(Funded $3,004 million in Starship R&D).*\n*   **Connectivity:** Operating income of $4,423 million | Segment Adjusted EBITDA of $7,168 million.\n*   **Consolidated Adjusted EBITDA:** **$6,584 million** (on $18,674 million in revenue).\n\n### 3. Comparison: Consolidated Net Loss vs. Segment Results\nThere is a massive divergence between the company's segment-level operating performance and its consolidated GAAP net loss. This comparison highlights several key financial dynamics:\n\n*   **Core Operations vs. Capital Structure:** While the **Total Reportable Segments** generated a positive Segment Adjusted EBITDA of $1,127 million in Q1 2026 (and $6,584 million for FY 2025), the consolidated GAAP net losses were $(4,276) million and $(4,937) million, respectively. This shows that the core business operations are generating positive cash-adjusted earnings, but the bottom line is being severely dragged down by the company's capital structure and non-operating items.\n*   **The \"Bridge\" to Net Loss (Unallocated Expenses):** The gap between Segment Operating Loss and Consolidated Net Loss is primarily caused by massive unallocated expenses. For example, in Q1 2026, the total segment operating loss was $(1,943) million. However, the company incurred an additional **$664 million in Interest Expense**, a staggering **$1,876 million in Other Expense (net)**, and a $6 million tax provision, pushing the final net loss to $(4,276) million. \n*   **Heavy R&D and Depreciation Burdens:** Segment Adjusted EBITDA adds back heavy non-cash and strategic investments. In the Space segment, massive depreciation and share-based compensation turn a $(662) million GAAP operating loss into a smaller $(351) million Adjusted EBITDA loss in Q1 2026. Furthermore, the Connectivity segment acts as the primary profit engine, generating enough operating income to offset the heavy R&D and operational losses of the Space and AI segments at the Adjusted EBITDA level.\n*   **GAAP vs. Non-GAAP Reality:** Management explicitly notes that GAAP Net Income (Loss) is heavily distorted by items outside of segment managers' control (like interest and taxes). Therefore, they rely on **Segment Adjusted EBITDA** to measure true operational leverage and scale. Under this metric, the company is highly profitable operationally ($6.58 billion in FY 2025), even though GAAP accounting reports a nearly $5 billion net loss for the same year."
+          },
+          {
+            "source_call_id": "call_b2bba984c91f47fa90573bc4",
+            "content": "Based on the provided financial statement notes and disclosures, here are the details regarding the company's share-based compensation, stock class structure, and valuation methodologies:\n\n### 1. Share-Based Compensation Details\n**Award Types & Expense Recognition Policies**\n*   **Types of Awards:** The company grants stock options, Restricted Share Units (RSUs), Restricted Share Awards (RSAs), Stock Appreciation Rights (SARs), and offers an Employee Share Purchase Plan (ESPP).\n*   **Expense Recognition:** \n    *   *Service Conditions:* Recognized on a straight-line basis over the requisite service period.\n    *   *Performance Conditions:* Recognized on a graded vesting basis only when the vesting condition becomes probable.\n    *   *Forfeitures:* Accounted for as they occur (not estimated upfront).\n*   **Capitalization & Taxes:** Share-based compensation capitalized to the balance sheets was $154 million, $132 million, and $108 million for the years ended December 31, 2025, 2024, and 2023, respectively. No income tax benefits were recognized due to a valuation allowance on U.S. deferred tax assets.\n\n**Financial Impact (Expense Breakdown)**\nTotal share-based compensation expense for 2025, 2024, and 2023 was **$1,947 million**, **$784 million**, and **$679 million**, respectively. \n*   *Cost of Revenue:* $253M (2025) | $193M (2024) | $167M (2023)\n*   *Research & Development:* $859M (2025) | $230M (2024) | $179M (2023)\n*   *Selling, General & Administrative:* $835M (2025) | $360M (2024) | $333M (2023)\n*   *Unvested Expense:* As of December 31, 2025, $4,842 million of total remaining expense is expected to be recognized over a weighted-average period of 3.2 years.\n\n**Notable Executive & Employee Awards**\n*   **Elon Musk\u2019s \"xAI Award\" (Nov 2025) & \"AI CEO Award\" (March 2026):** The xAI Award (12 tranches tied to $213B\u2013$1,313B valuation milestones and a $2B capital raise) was cancelled in March 2026 and replaced by the **AI CEO Award**. The new award consists of 302.1 million performance-based Class B restricted shares tied to market cap milestones ($1.065T to $6.565T) and the completion of non-Earth-based data centers delivering 100 terawatts of compute/year. Treated as an accounting modification, no expense was recognized as of March 31, 2026, because the milestones were deemed improbable.\n*   **SpaceX CEO Award:** Similar to the AI CEO Award, performance milestones are currently considered improbable, and no expense has been recognized.\n*   **CFO Award (Bret Johnsen):** Amended in January 2026. 4 million performance-based stock options now vest based on adjusted EBITDA milestones ($10 billion increments from 2025\u20132029), followed by an additional one-year and one-day service requirement.\n*   **X Employee RSUs:** Granted in March 2023 with liquidity-event performance conditions. In 2025, the performance condition was removed, triggering additional share-based compensation expense.\n*   **Gwynne Shotwell:** Received RSUs in lieu of $726,923 of her 2025 base salary.\n\n**Merger Conversions**\n*   **xAI Merger:** xAI options, RSUs, and RSAs were converted into SpaceX equity at a **0.1433** ratio (on a pre-2026 Stock Split basis).\n*   **X Merger:** Outstanding X RSUs were converted into xAI RSUs at a **2.776** ratio.\n\n---\n\n### 2. Stock Class Structure & Earnings Per Share (EPS)\n**Stock Classes & Rights**\n*   The company has **Class A, Class B, and Class C** common stock. All classes possess identical economic rights, resulting in the same net income (loss) per share. Consequently, the company presents a single EPS figure for all common classes. \n*   *Note:* Class C common stock awards are subject to a one-for-one reclassification into Class A common stock.\n\n**EPS Methodology**\n*   **Basic EPS:** Computed using the **two-class method** required for participating securities. Certain redeemable convertible preferred stocks are considered participating securities because they are entitled to dividends on an as-converted basis, though they do not participate in net losses.\n*   **Diluted EPS:** Computed using the more dilutive of the two-class method or the if-converted method. Potentially dilutive shares (options, RSUs) are included using the treasury stock method.\n*   **Anti-Dilutive Exclusions:** For Q1 2026 and Q1 2025, the company excluded xAI Preferred Stock, SpaceX Preferred Stock, and hundreds of millions of share-based compensation awards (including 1,319.1 million awards in Q1 2026 subject to unmet performance/market conditions) from the diluted EPS calculation.\n\n---\n\n### 3. Valuation Disclosures & Methodologies\n**Valuation Models Used**\n*   **RSUs, RSAs, and ESPP:** Valued based on the fair market value of the company\u2019s common stock on the grant date (determined via third-party 409A valuations).\n*   **Standard Stock Options:** Valued using the **Black-Scholes option-pricing model**.\n*   **CEO Awards (Market/Performance Conditions):** Valued using a **Monte Carlo simulation model**.\n\n**Key Assumptions: Employee Stock Options (Black-Scholes)**\n*   **Expected Term:** Calculated using the simplified method (midpoint between vesting period and contractual life). *2025: 6.94 yrs | 2024: 6.80 yrs | 2023: 6.70 yrs.*\n*   **Volatility:** Based on daily historical prices of comparable public companies. *2025: 43.14% | 2024: 39.80% | 2023: 43.20%.*\n*   **Risk-Free Interest Rate:** Based on U.S. Government securities matching the expected term. *2025: 4.02% | 2024: 4.30% | 2023: 3.60%.*\n*   **Dividend Yield:** **0.00%** (The company has never paid dividends and does not anticipate doing so).\n\n**Key Assumptions: CEO Awards (Monte Carlo)**\n*   **xAI Award:** Expected term of 10.0 years; Volatility of 45%\u201355%; Risk-free rate of 4.06%; Dividend yield of 0.00%.\n*   **SpaceX & AI CEO Awards:** Because these awards lack a defined performance period other than continued employment, an expected term of **30 years** (the midpoint of a 10-to-50-year analysis) was used. Volatility and risk-free rates were adjusted to match this 30-year expected term using comparable public companies and U.S. Government securities. The grant date fair value of the AI CEO Award was determined to be **$91.47 to $95.92 per share**."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10245,
+        "completion_tokens": 193,
+        "cached_tokens": 0,
+        "cost_usd": 0.0275425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T20:57:31.659386+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive understanding of the filing. Let me also look at the specific revenue breakdown and how the common-control recast affects historical comparability.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_cfa862155f4040c6a6274372",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the revenue breakdown by segment and how has revenue grown over time in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_a3b5b85f0e5641398cfd448c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the goodwill, intangible assets, and acquisition accounting disclosures in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_cfa862155f4040c6a6274372",
+            "content": "Based on the provided financial disclosures, the company operates across three primary reportable segments: **Space**, **Connectivity**, and **AI**. \n\nHere is the breakdown of revenue by segment and an analysis of how revenue has grown over time.\n\n### 1. Revenue Breakdown by Segment\nThe company's total revenue has grown from **$10.38 billion in 2023** to **$18.67 billion in 2025**, with the Connectivity segment emerging as the dominant source of income.\n\n**Full-Year Revenue Breakdown (in millions)**\n| Segment | 2023 | 2024 | 2025 |\n| :--- | :--- | :--- | :--- |\n| **Connectivity** | $3,869 | $7,599 | $11,387 |\n| **Space** | $3,557 | $3,796 | $4,086 |\n| **AI** | $2,961 | $2,620 | $3,201 |\n| **Total Revenues** | **$10,387** | **$14,015** | **$18,674** |\n\n**Quarterly Revenue Breakdown (Q1 2025 vs. Q1 2026, in millions)**\n| Segment | Q1 2025 | Q1 2026 |\n| :--- | :--- | :--- |\n| **Connectivity** | $2,475 | $3,257 |\n| **AI** | $727 | $818 |\n| **Space** | $865 | $619 |\n| **Total Revenues** | **$4,067** | **$4,694** |\n\n---\n\n### 2. Revenue Growth and Trends Over Time\n\n**Total Company Growth**\n*   **2024:** Total revenue increased by **$3,628 million (34.9%)** year-over-year.\n*   **2025:** Total revenue increased by **$4,659 million (33.2%)** year-over-year.\n*   **Q1 2026:** Total revenue increased by **$627 million (15.4%)** compared to Q1 2025.\n\n**Connectivity Segment (The Primary Growth Engine)**\n*   **Growth:** This segment has seen massive, sustained growth, driven primarily by **Starlink**. Revenue nearly tripled from 2023 ($3.86B) to 2025 ($11.38B). In 2025, it represented 49.8% year-over-year growth. \n*   **Drivers:** Growth is fueled by a rapidly expanding consumer subscriber base and increasing enterprise/government sales (including aviation, maritime, and mobility). \n*   **Q1 2026:** Revenue grew by $782 million year-over-year due to continued subscriber growth.\n*   *Note:* All of the company's \"Products\" revenue (e.g., Starlink Kits) is attributable to this segment.\n\n**Space Segment (Modest Growth Constrained by Internal Demand)**\n*   **Growth:** Space revenue grew modestly from $3.55B in 2023 to $4.08B in 2025. \n*   **Drivers & Constraints:** The company expects Space revenue growth to remain lower than total company growth. This is because the Space segment is allocating a significant amount of its launch capacity internally to support the Connectivity (Starlink) and AI segments. **Space revenue only reflects *customer* launches** and external government contracts, not internal launches.\n*   **Q1 2026:** Revenue *decreased* by $246 million year-over-year due to fewer external Launch Services missions and the timing of government development contracts.\n\n**AI Segment (Volatile, Early-Stage Growth)**\n*   **Growth:** Revenue dipped in 2024 to $2.62B (down $341M from 2023) but recovered to $3.20B in 2025. The text refers to this as a \"newly acquired\" segment where the company is prioritizing heavy investment over immediate profitability.\n*   **Drivers:** The 2024 decline was driven by a drop in **Advertising** sales. However, the recovery in 2025 and Q1 2026 (up $91M YoY) is being driven by higher **X and Grok subscriptions**, as well as data licensing and AI Solutions/Infrastructure.\n\n---\n\n### 3. Sub-Segment Breakdown (2025 Full Year)\nTo provide further granularity, the text disaggregates the main segments into specific service types:\n\n*   **Connectivity ($11,387M Total):**\n    *   *Consumer:* $7,208M\n    *   *Enterprise & Government:* $4,179M (includes Starlink Mobile service offerings)\n*   **Space ($4,086M Total):**\n    *   *Launch Services:* $2,576M (recognized at a point in time)\n    *   *Launch & Development:* $1,510M (recognized over time; expected to represent a larger portion of revenue in the future due to long-term government contracts)\n*   **AI ($3,201M Total):**\n    *   *Advertising:* $1,844M\n    *   *AI Solutions & Infrastructure:* $1,357M"
+          },
+          {
+            "source_call_id": "call_a3b5b85f0e5641398cfd448c",
+            "content": "Based on the provided financial statement excerpts, here is a detailed summary of the disclosures regarding **Goodwill**, **Intangible Assets**, and **Acquisition Accounting**.\n\n### 1. Goodwill\n**Accounting Policy & Impairment Testing**\n*   **Definition:** Goodwill represents the excess of the purchase price over the fair value of identifiable assets acquired and liabilities assumed in a business combination.\n*   **Impairment Testing:** Goodwill is not amortized. It is tested for impairment annually on October 1, or more frequently if triggering events occur (e.g., adverse market conditions, declining industry outlook, entity-specific underperformance). \n*   **Methodology:** The company may first perform a qualitative assessment. If it is \"more likely than not\" that the fair value is below the carrying value, a quantitative test is performed using discounted future cash flows and the market approach (guideline public company method). Impairment is recognized if the carrying value exceeds the fair value.\n*   **Recent Testing:** Annual impairment tests for the years ended December 31, 2025, 2024, and 2023 identified **no goodwill impairments**.\n\n**Goodwill Roll-Forward Schedule**\n| Activity | Amount (in millions) |\n| :--- | :--- |\n| **Balance at December 31, 2023** | **$11,418** |\n| Cumulative translation adjustments (2024) | (289) |\n| **Balance at December 31, 2024** | **$11,129** |\n| Business combinations (2025) | 52 |\n| Cumulative translation adjustments (2025) | 628 |\n| **Balance at December 31, 2025** | **$11,809** |\n| Business combinations (Q1 2026) | 3 |\n| Cumulative translation adjustments (Q1 2026) | (131) |\n| **Balance at March 31, 2026** | **$11,681** |\n\n**Segment Allocation (as of March 31, 2026 / December 31, 2025)**\n*   **Connectivity Segment:** $515 million / $513 million\n*   **AI Segment:** $11,166 million / $11,296 million\n\n---\n\n### 2. Intangible Assets\n**Finite-Lived Intangible Assets**\nThe company holds finite-lived intangibles which are amortized over their useful lives. Amortization expense for the three months ended March 31, 2026, and 2025, was **$113 million** and **$206 million**, respectively.\n\n*Gross and Net Carrying Values (in millions):*\n| Asset Category | Wtd. Avg. Life | Gross (Mar 2026) | Accum. Amort. | Net (Mar 2026) | Net (Dec 2025) | Net (Dec 2024) |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n| **Brand** | 5.0 yrs | $735 | $(367) | **$368** | $408 | $530 |\n| **User base** | 9.0 yrs | 1,277 | (486) | **791** | 835 | 928 |\n| **Existing/Developed Tech** | 2.0 - 3.2 yrs | 27 | (17) | **10** | 11 | 318* |\n| **Ad Customer Relationships** | 5.0 yrs | 745 | (510) | **235** | 274 | 403 |\n| **Acquired Workforce** | 2.0 yrs | 11 | (2) | **9** | 9 | \u2014 |\n| **Data Licensing Rel.** | 3.0 yrs | \u2014 | \u2014 | **\u2014** | \u2014 | 28 |\n| **Total** | | **$2,795** | **$(1,382)** | **$1,413** | **$1,537** | **$2,207** |\n*(Note: 2024 Existing/Developed Tech combined net value was $318M).*\n\n**Indefinite-Lived Intangible Assets**\n*   **Balances:** $19 million (March 31, 2026) and $11 million (December 31, 2025).\n*   **Composition:** Primarily consists of **trade names and domain names**, expected to provide long-term branding and marketing benefits.\n*   **Policy:** Not amortized; subject to the same annual and event-driven impairment testing framework as goodwill.\n\n---\n\n### 3. Acquisition Accounting & Business Combinations\n**Common-Control Mergers (SpaceX, xAI, and X)**\n*   **Transaction:** In 2025, xAI completed the acquisition of X Holdings Corp. (\u201cX\u201d) and X.AI Corp. via share exchanges. \n*   **Accounting Treatment:** Because Elon Musk held majority voting interest and controlling financial interest across all entities, these transactions were accounted for as **reorganizations of entities under common control**.\n*   **Retrospective Application:** The consolidated financial statements reflect the retrospective combination of the net assets at their **historical carrying amounts**. \n*   **Impact on Goodwill/Intangibles:** **No new goodwill or other intangible assets were recorded** as a result of these specific common-control mergers.\n*   **Equity & Eliminations:** All historical related-party transactions were eliminated. Historical capital stock and equity reflect a continuation of SpaceX's equity combined with X and xAI (adjusted for exchange ratios). xAI's historical redeemable convertible preferred stock was converted to SpaceX common stock. This constitutes a **change in reporting entity**.\n\n**Pending Spectrum Acquisition (EchoStar)**\n*   **Status:** The company has a pending Spectrum License Purchase Agreement with EchoStar, with closing expected on or about **November 30, 2027**.\n*   **Conditions:** Subject to customary closing conditions, including FCC and Department of Justice (DOJ) approvals.\n*   **Accounting Impact:** As of December 31, 2025, the closing had not occurred, and no payments were obligated. Once the transfer closes, the spectrum transactions will be recognized as **acquired intangible assets**.\n\n**General Business Combinations**\n*   Outside of the common-control reorganizations, the company engages in standard business combinations that generate goodwill (e.g., $52 million in goodwill added from business combinations in 2025, and $3 million in Q1 2026).\n*   The company also adopted **ASU 2023-08 (Crypto Assets)** effective January 1, 2024, utilizing a modified retrospective approach to measure its Bitcoin holdings at fair value (Level I inputs), recognizing realized/unrealized gains and losses in *Other income (expense), net*."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13437,
+        "completion_tokens": 132,
+        "cached_tokens": 9728,
+        "cost_usd": 0.022752500000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T20:59:21.270352+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive understanding of the filing. Let me synthesize the key comparability challenges. The question asks which disclosed metric or presentation convention is MOST likely to create comparability challenges versus traditional IPO issuers, and how an analyst should adjust their framework.\n\nThe key challenges I've identified:\n\n1. **Common-Control Recast Financials** - This is arguably the most significant comparability challenge. The financial statements have been retrospectively recast to combine SpaceX, xAI, and X as if they had always been a single entity. This means:\n   - Historical financials for 2023 and 2024 include xAI and X operations even though the mergers didn't happen until 2025/2026\n   - No goodwill was recorded for these mergers (unlike a typical acquisition)\n   - No fair value step-up of assets\n   - No standalone SpaceX financials are provided\n   - This makes it impossible to compare to a traditional IPO where you see the actual historical entity that is going public\n\n2. **Segment Adjusted EBITDA** - The non-GAAP measure adds back depreciation, share-based compensation, restructuring, and impairment. The SBC add-back is particularly significant ($1.9B in 2025) and the measure excludes massive unallocated corporate costs, interest, and taxes.\n\n3. **The AI segment's massive capex and losses** - The AI segment had $12.7B in capex in 2025 but only $3.2B in revenue, creating a massive investment cycle that distorts consolidated metrics.\n\n4. **Inter-segment eliminations** - The Space segment doesn't recognize revenue for internal Starlink launches, which means the Space segment's revenue only reflects external customers, potentially understating the true economic activity.\n\n5. **ARPU declining while subscribers grow** - The Connectivity segment's ARPU has declined from $99/month (2023) to $66/month (Q1 2026), which complicates unit economics analysis.\n\nThe MOST significant comparability challenge is the **common-control recast presentation** combined with the **Segment Adjusted EBITDA framework**. Here's why:\n\nThe common-control recast means that:\n- The \"company\" going public is fundamentally different from what investors see in the historical financials\n- 2023 and 2024 financials include xAI (which was only founded in 2023) and X (formerly Twitter), making trend analysis misleading\n- No goodwill or fair value adjustments were recorded, so the balance sheet doesn't reflect the true economic cost of combining these entities\n- The AI segment's $11.2B in goodwill (from X's original acquisition by xAI) is embedded in the balance sheet, but no new goodwill was created by the SpaceX merger\n\nActually, let me reconsider. The question asks which SINGLE metric or presentation convention is MOST likely to create comparability challenges. Let me think about this more carefully.\n\nThe common-control recast is the most fundamental challenge because:\n1. It creates a \"synthetic\" historical entity that never actually existed as a single operating unit\n2. It makes year-over-year trend analysis unreliable because the segments had different ownership structures, cost allocations, and intercompany pricing in historical periods\n3. It eliminates intercompany transactions that may have been at non-market rates\n4. No standalone SpaceX financials are available, so investors cannot evaluate the core SpaceX business independently\n\nBut the Segment Adjusted EBITDA is also a major challenge because:\n1. It adds back SBC which is a real economic cost ($1.9B in 2025, growing rapidly)\n2. It excludes unallocated corporate expenses, interest, and taxes\n3. The gap between Segment Adjusted EBITDA ($6.6B in 2025) and net income (-$4.9B in 2025) is enormous ($11.5B)\n4. Other companies may calculate it differently\n\nI think the most compelling answer is that the **common-control recast presentation** is the most significant comparability challenge, but it's compounded by the Segment Adjusted EBITDA framework. Let me write a comprehensive answer.\n\nActually, let me think about this more carefully. The question is asking about which metric or presentation convention creates the MOST comparability challenges. I think the answer should focus on the common-control recast as the primary challenge, with Segment Adjusted EBITDA as a secondary but significant challenge.\n\nLet me also consider the capex intensity. The AI segment's capex of $12.7B in 2025 vs. $3.2B in revenue is extraordinary. Traditional IPO issuers typically have more balanced capex-to-revenue ratios.\n\nLet me structure my answer around:\n1. The common-control recast as the primary comparability challenge\n2. Segment Adjusted EBITDA as a secondary challenge\n3. The capex intensity and investment cycle as a tertiary challenge\n4. How an analyst should adjust their framework\n\nLet me also retrieve some additional information about the unallocated corporate expenses to understand the full bridge.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_61ab951c395d4bfb872f3716",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the unallocated corporate expenses, interest expense, other income expense, and the bridge from segment operating income to consolidated net income in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_9f0a4ea5945b42689565e161",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the free cash flow, operating cash flow, and cash flow statement details in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_61ab951c395d4bfb872f3716",
+            "content": "Based on the provided financial text, here are the details regarding your requested items:\n\n### 1. Unallocated Corporate Expenses\n**Not explicitly broken out.** The provided segment tables and consolidated statements of operations do not list \"unallocated corporate expenses\" as a separate reconciling line item. The \"Total Reportable Segments\" Income (loss) from operations rolls directly into non-operating items (interest and other income/expense) to arrive at consolidated Income (loss) before income taxes. Any corporate expenses are likely embedded within the consolidated Cost of revenue, R&D, or SG&A line items allocated to the segments or total company.\n\n### 2. Interest Expense\nInterest expense (which includes borrowings, debt issuance cost amortization, undrawn fees, and finance leases, net of capitalized interest) is reported as follows:\n*   **Year Ended December 31, 2025:** $(1,945) million *(includes $66 million related party)*\n*   **Year Ended December 31, 2024:** $(1,580) million\n*   **Year Ended December 31, 2023:** $(1,693) million\n*   **Three Months Ended March 31, 2026:** $(664) million *(includes $186 million related party)*\n*   **Three Months Ended March 31, 2025:** $(447) million\n\n### 3. Other Income (Expense), Net\nOther income/expense (which includes gains/losses on digital assets and foreign currency transactions) is reported as follows:\n*   **Year Ended December 31, 2025:** $(177) million *(driven by unrealized loss on digital assets)*\n*   **Year Ended December 31, 2024:** $985 million *(driven by unrealized gain on digital assets)*\n*   **Year Ended December 31, 2023:** $(42) million\n*   **Three Months Ended March 31, 2026:** $(1,876) million *(driven by loss on extinguishment of debt)*\n*   **Three Months Ended March 31, 2025:** $(211) million\n\n### 4. Bridge from Segment Operating Income to Consolidated Net Income\nAccording to the segment reconciliation tables and the Consolidated Statements of Operations, the bridge from **Total Reportable Segments' Income (loss) from operations** to **Consolidated Net Income (loss)** consists strictly of non-operating and tax items. There is no separate deduction for unallocated corporate expenses in the bridge. \n\nThe reconciliation steps are:\n1. **Total Reportable Segments Income (loss) from operations**\n2. *Less:* **Interest expense**\n3. *Plus:* **Interest income**\n4. *Plus/Less:* **Other income (expense), net**\n   *(= Consolidated Income (loss) before income taxes)*\n5. *Less:* **Provision for (benefit from) income taxes**\n   *(= Consolidated Net income (loss))* \n\n**Example of the Bridge (Year Ended December 31, 2024):**\n*   **Segment Income from operations:** $466 million\n*   Interest expense: $(1,580) million\n*   Interest income: $371 million\n*   Other income, net: $985 million\n*   **Income before income taxes:** $242 million\n*   Benefit from income taxes: $549 million\n*   **Consolidated Net Income:** $791 million"
+          },
+          {
+            "source_call_id": "call_9f0a4ea5945b42689565e161",
+            "content": "Based on the provided financial text, here are the details for Operating Cash Flow, Free Cash Flow (calculated), and the broader Cash Flow Statement. \n\n*(Note: All figures are in millions, as indicated by the MD&A narrative in the text).*\n\n### 1. Operating Cash Flow\nNet cash provided by operating activities showed consistent year-over-year growth, driven by higher net income (exclusive of non-cash items), increases in deferred revenue from upfront customer payments, and timing of accounts payable.\n* **Year Ended December 31, 2025:** $6,785\n* **Year Ended December 31, 2024:** $5,776\n* **Year Ended December 31, 2023:** $4,520\n* **Three Months Ended March 31, 2026:** $1,047\n* **Three Months Ended March 31, 2025:** $727\n\n### 2. Free Cash Flow\n*Free Cash Flow is not explicitly listed as a line item in the provided text, but it is standardly calculated as **Operating Cash Flow minus Capital Expenditures** (Purchases of property, plant, and equipment).* \n\nThe company has been heavily investing in infrastructure (noted as likely for AI), resulting in negative free cash flow in recent periods due to massive CapEx outlays.\n* **Year Ended December 31, 2025:** $6,785 (OCF) - $20,737 (CapEx) = **$(13,952)**\n* **Year Ended December 31, 2024:** $5,776 (OCF) - $11,163 (CapEx) = **$(5,387)**\n* **Year Ended December 31, 2023:** $4,520 (OCF) - $4,415 (CapEx) = **$105**\n* **Three Months Ended March 31, 2026:** $1,047 (OCF) - $10,107 (CapEx) = **$(9,060)**\n* **Three Months Ended March 31, 2025:** $727 (OCF) - $4,140 (CapEx) = **$(3,413)**\n\n### 3. Cash Flow Statement Details\n\n**Operating Activities**\n* **Core Drivers:** Reconciles Net Income/Loss to cash flow using non-cash adjustments such as Depreciation & Amortization (e.g., $6,701 in 2025), Share-based compensation, and Unrealized gains/losses on digital assets.\n* **Working Capital:** Significant cash inflows from **Deferred Revenue** (e.g., $1,929 in 2025; $1,119 in Q1 2026) due to upfront payments from Space, Connectivity, and Aviation customers. This was partially offset by cash outflows for Accounts Receivable, Inventory, and Prepaid expenses.\n\n**Investing Activities**\n* **Capital Expenditures:** Massive cash outflows for **Purchases of property, plant, and equipment** ($20,737 in 2025 and $10,107 in Q1 2026), highlighting aggressive infrastructure expansion. \n* **Marketable Securities:** Routine cash flows from the purchase, maturity, and sale of marketable securities to manage liquidity.\n* **Net Cash Used in Investing Activities:** $(19,575) for 2025 and $(16,724) for Q1 2026.\n\n**Financing Activities**\n* **Debt & Leases:** Significant proceeds from debt and other financing obligations ($16,055 in 2025; $22,694 in Q1 2026), offset by heavy repayments on debt and finance leases. Q1 2026 also included a $1,153 payment for a debt extinguishment premium.\n* **Equity Transactions:** Substantial cash inflows from the **Issuance of capital stock** ($18,807 in 2025; $8,319 in Q1 2026) and employee equity award plans.\n* **Repurchases & Taxes:** Cash outflows for repurchases of common/preferred stock and taxes paid related to net share settlements of equity awards.\n* **Net Cash Provided by Financing Activities:** $26,350 for 2025 and $7,125 for Q1 2026.\n\n**Supplemental Disclosures & Non-Cash Activities**\n* **Cash Paid:** Interest (net of capitalized) and Income taxes.\n* **Non-Cash CapEx:** Significant amounts of property, plant, and equipment acquisitions were included in accounts payable/accrued expenses at the end of the periods (e.g., $7,088 at the end of 2025 and $10,649 at the end of Q1 2026), meaning the actual cash spent on infrastructure was slightly lower than the total assets acquired during the period."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16455,
+        "completion_tokens": 1207,
+        "cached_tokens": 13056,
+        "cost_usd": 0.036887500000000004
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T21:00:40.646096+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a very comprehensive picture. Let me synthesize the answer.\n\nThe key comparability challenges are:\n\n1. **Common-Control Recast Financials** (MOST SIGNIFICANT)\n   - The financial statements combine SpaceX, xAI, and X retrospectively for all periods as if they had always been one entity\n   - No goodwill or fair value step-up was recorded for the mergers\n   - No standalone SpaceX financials are provided\n   - This makes it impossible to evaluate the actual entity that investors are buying into\n   - Historical trend analysis is fundamentally compromised because the \"company\" in 2023 never existed as a single operating unit\n\n2. **Segment Adjusted EBITDA with Massive SBC Add-Backs**\n   - SBC was $1.9B in 2025 and is growing rapidly\n   - The gap between Segment Adjusted EBITDA ($6.6B) and net income (-$4.9B) is $11.5B in 2025\n   - This is much larger than typical IPO issuers\n\n3. **Extreme Capex Intensity Driven by AI Segment**\n   - AI segment capex of $12.7B in 2025 vs. $3.2B in revenue\n   - Total capex of $20.7B vs. operating cash flow of $6.8B\n   - Free cash flow was -$14.0B in 2025\n\n4. **Inter-Segment Eliminations**\n   - Space segment doesn't recognize revenue for internal Starlink launches\n   - This understates the true economic activity of the Space segment\n\nLet me now write a comprehensive answer focusing on the common-control recast as the primary challenge, with the other factors as compounding issues.\n\nActually, I want to think about this more carefully. The question asks which \"disclosed metric or presentation convention\" is MOST likely to create comparability challenges. Let me think about what's truly unique here vs. traditional IPOs.\n\nTraditional IPO issuers typically:\n- Have a single, coherent business with consistent historical financials\n- May have some non-GAAP measures but usually with smaller gaps to GAAP\n- Have capex that is roughly in line with their industry peers\n- Have a clear path from segment metrics to consolidated results\n\nSpaceX's S-1 is unique because:\n1. The common-control recast creates a \"synthetic\" historical entity - this is the most fundamental challenge\n2. The Segment Adjusted EBITDA adds back SBC which is a real and growing cost\n3. The AI segment's capex intensity is extraordinary\n4. The inter-segment eliminations make it hard to evaluate individual segments\n\nI think the most compelling answer is that the **common-control recast presentation** is the primary comparability challenge, but it's the combination of the recast with the Segment Adjusted EBITDA framework that creates the most significant analytical challenge.\n\nLet me write a comprehensive, well-structured answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8143df80830c4bd0acef0791",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total depreciation and amortization expense, and how is it allocated across segments in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_82896e361d624c08bcf126cf",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the deferred revenue balances, contract liabilities, and customer concentration disclosures in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8143df80830c4bd0acef0791",
+            "content": "Based on the table reconciling segment income from operations to Segment Adjusted EBITDA for the **three months ended March 31, 2025**, the total depreciation and amortization expense is **$1,443 million**. \n\nIt is allocated across the segments as follows:\n* **Space:** $162 million\n* **Connectivity:** $510 million\n* **AI:** $771 million"
+          },
+          {
+            "source_call_id": "call_82896e361d624c08bcf126cf",
+            "content": "Based on the provided financial disclosures, here are the details regarding deferred revenue (contract liabilities), backlog, and customer concentration:\n\n### **Deferred Revenue Balances (Contract Liabilities)**\nDeferred revenue is primarily driven by Space agreements, Connectivity enterprise and government contracts, and advanced payments for Starlink broadband and mobile services. \n\n**Total Deferred Revenue Balances:**\n*   **As of March 31, 2026:** **$13,236 million** \n    *   *Current:* $7,207 million | *Non-current:* $6,029 million\n*   **As of December 31, 2025:** **$12,116 million** \n    *   *Current:* $6,111 million | *Non-current:* $6,005 million\n*   **As of December 31, 2024:** **$10,179 million** \n    *   *Current:* $5,498 million | *Non-current:* $4,681 million\n\n**Revenue Recognized from Beginning Deferred Revenue Balances:**\n*   **Q1 2026:** $1,165 million of the Dec 31, 2025 balance was recognized as revenue in the three months ended March 31, 2026.\n*   **Full Year 2025:** $4,080 million of the Dec 31, 2024 balance was recognized as revenue.\n*   **Full Year 2024:** $3,414 million was recognized from the beginning of period balance.\n*   **Full Year 2023:** $2,691 million was recognized from the beginning of period balance.\n\n*(Note: The cash flow statement also reflects continuous working capital inflows from deferred revenue, showing increases of $1,929 million in 2025, $1,876 million in 2024, and $1,695 million in 2023).*\n\n---\n\n### **Backlog (Remaining Performance Obligations)**\nBacklog represents the transaction price of enforceable performance obligations where work remains to be performed. It excludes obligations billed/recognized as delivered, optional purchases lacking material rights, and constrained variable consideration.\n\n*   **As of March 31, 2026:** Total backlog was **$27,621 million** (of which $13,236 million was recorded as deferred revenue).\n    *   *Recognition Timeline:* ~36% expected within one year; ~46% between one and three years; remaining 18% thereafter.\n*   **As of December 31, 2025:** Total backlog was **$28,377 million** (of which $12,116 million was recorded as deferred revenue).\n    *   *Recognition Timeline:* ~32% expected within one year; ~53% in 2027 and 2028; remaining 15% thereafter.\n\n---\n\n### **Customer Concentration Disclosures**\nThe company relies heavily on a single significant customer (Customer A), though the concentration percentage has been gradually decreasing year-over-year. \n\n**Consolidated Revenue from Customer A:**\n*   **2025:** 20.9%\n*   **2024:** 24.2%\n*   **2023:** 25.2%\n\n**Additional Concentration Context:**\n*   Revenue from Customer A relates to **all three** of the company's operating segments.\n*   **No other customers** represented more than 10% of consolidated revenue during the years ended December 31, 2025, 2024, and 2023."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 19630,
+        "completion_tokens": 745,
+        "cached_tokens": 0,
+        "cost_usd": 0.056525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T21:00:45.300552+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a very comprehensive picture. Let me write the final answer.\n\nThe key insight is that the **common-control recast presentation** is the most significant comparability challenge, but it's compounded by several other factors. Let me structure the answer around:\n\n1. Primary Challenge: Common-Control Recast Financials\n2. Secondary Challenge: Segment Adjusted EBITDA with massive SBC add-backs\n3. Tertiary Challenge: Extreme capex intensity and negative free cash flow\n4. How an analyst should adjust their framework\n\nLet me also calculate some key metrics to support the analysis.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_979faf0b8a084e18add1493f",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "6584 - (-4937)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_979faf0b8a084e18add1493f",
+            "content": "11521"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21324,
+        "completion_tokens": 163,
+        "cached_tokens": 19584,
+        "cost_usd": 0.030459999999999997
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T21:00:52.125194+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "So the gap between Segment Adjusted EBITDA ($6,584M) and Net Income (-$4,937M) in FY2025 is $11,521M. That's enormous.\n\nLet me also calculate the SBC as a percentage of revenue and other key metrics.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_6a23aa993eda423ea238a635",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1947 / 18674 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_943d0fb0896143baa799d1df",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "20737 / 18674 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_0b4d987a25b84c58aa34cb7d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "6785 - 20737"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_6a23aa993eda423ea238a635",
+            "content": "10.426261111706117"
+          },
+          {
+            "source_call_id": "call_943d0fb0896143baa799d1df",
+            "content": "111.04744564635322"
+          },
+          {
+            "source_call_id": "call_0b4d987a25b84c58aa34cb7d",
+            "content": "-13952"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21506,
+        "completion_tokens": 191,
+        "cached_tokens": 16256,
+        "cost_usd": 0.035355
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-09T21:00:57.032724+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Key metrics:\n- SBC as % of revenue: 10.4% in FY2025\n- Capex as % of revenue: 111% in FY2025\n- Free cash flow: -$13.95B in FY2025\n\nLet me also calculate the AI segment's capex-to-revenue ratio.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_66c2c28bbfb840e8a91f0562",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "12727 / 3201 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_72690d5c329f49d4bd90f28d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(6584 - 1947)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_66c2c28bbfb840e8a91f0562",
+            "content": "397.59450171821305"
+          },
+          {
+            "source_call_id": "call_72690d5c329f49d4bd90f28d",
+            "content": "4637"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21763,
+        "completion_tokens": 161,
+        "cached_tokens": 20608,
+        "cost_usd": 0.030257500000000003
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-09T21:01:41.345983+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed to provide a comprehensive answer. Let me synthesize the analysis.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "So the AI segment's capex is 398% of its revenue. That's extraordinary.\n\nAnd Segment Adjusted EBITDA minus SBC = $4,637M in FY2025. This is a more conservative measure.\n\nNow let me write the comprehensive answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_843e185e45644ba39acbb5a5",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Most Significant Comparability Challenge: The Common-Control Recast Presentation Combined with Segment Adjusted EBITDA\n\n### Primary Challenge: Common-Control Recast Financials\n\nThe **common-control recast presentation** is the single most consequential disclosure convention for comparability. Because SpaceX, xAI, and X Holdings were all controlled by Elon Musk, the mergers (xAI into SpaceX on February 2, 2026; X Holdings into xAI on March 28, 2025) were accounted for as **reorganizations of entities under common control** rather than as business combinations under ASC 805. This produces several analytical distortions that are highly atypical for IPO issuers:\n\n1. **Synthetic Historical Entity:** All historical periods (2023, 2024, 2025, and Q1 2025/2026) are presented as if SpaceX, xAI, and X had always been a single consolidated entity. In reality, xAI was only founded in 2023 and X was acquired by xAI in 2025. No standalone SpaceX financial statements are provided. This means trend analysis across the three-year period is fundamentally compromised\u2014the \"company\" reported in 2023 never existed as a single operating unit.\n\n2. **No Goodwill or Fair Value Step-Up:** Unlike a typical acquisition, no new goodwill or intangible assets were recorded for the common-control mergers. Assets were combined at **historical carrying amounts** (book value). The $11.2 billion in goodwill on the balance sheet relates to X's original acquisition by xAI, not to the SpaceX combination. This means the balance sheet does not reflect the true economic cost of combining these entities, and return-on-assets and asset-turnover ratios are not comparable to companies that grew through arm's-length acquisitions.\n\n3. **Intercompany Eliminations at Historical Cost:** All historical related-party transactions between SpaceX, xAI, and X were eliminated in consolidation. If intercompany pricing was not at market rates (a risk the filing acknowledges through its related-party transaction audit committee policy), the recast segment margins may not reflect true standalone economics.\n\n4. **No Pro Forma or Carve-Out Disclosures:** Traditional IPO issuers with complex histories typically provide pro forma financials or carve-out statements that allow investors to evaluate the specific business being taken public. SpaceX provides neither\u2014investors cannot isolate the performance of the legacy SpaceX business from the xAI/X operations.\n\n### Secondary Challenge: Segment Adjusted EBITDA with Extraordinary SBC Add-Backs\n\nThe **Segment Adjusted EBITDA** metric\u2014defined as segment income from operations excluding depreciation, amortization, share-based compensation, restructuring charges, and impairment\u2014creates a second layer of comparability risk:\n\n| Metric (FY 2025) | Amount ($M) |\n|---|---|\n| Segment Adjusted EBITDA | $6,584 |\n| Less: Share-Based Compensation | ($1,947) |\n| Less: Depreciation & Amortization | ($6,701) |\n| Less: Restructuring + Impairment | ($525) |\n| **Segment Income from Operations** | **($2,589)** |\n| Less: Interest Expense | ($1,945) |\n| Plus: Interest Income | ~$371 |\n| Less: Other Expense, net | ($177) |\n| Less: Tax Provision | ($600) |\n| **Consolidated Net Loss** | **($4,937)** |\n\n**The gap between Segment Adjusted EBITDA ($6.6B) and GAAP net loss (-$4.9B) is $11.5 billion in FY 2025.** This is extraordinary by any IPO standard. Key issues:\n\n- **SBC is a real economic cost:** At $1.95B (10.4% of revenue) in FY2025, up from $784M in FY2024 and $679M in FY2023, SBC is rapidly growing and represents genuine dilution to public shareholders. Adding it back overstates cash-generating ability.\n- **SBC-adjusted EBITDA:** If an analyst removes only the SBC add-back, FY2025 \"Segment Adjusted EBITDA ex-SBC\" drops to $4.6B\u2014a 30% reduction from the headline figure.\n- **No unallocated corporate cost reconciliation:** The filing does not separately disclose unallocated corporate expenses as a reconciling line between segment results and consolidated results, making it difficult to assess true corporate overhead.\n\n### Tertiary Challenge: Extreme Capex Intensity Driven by the AI Segment\n\nThe AI segment's capital intensity is without peer among traditional IPO issuers:\n\n| Segment Capex (FY 2025) | Amount ($M) | Capex / Revenue |\n|---|---|---|\n| Space | $3,832 | 93.8% |\n| Connectivity | $4,178 | 36.7% |\n| AI | $12,727 | **397.6%** |\n| **Total** | **$20,737** | **111.0%** |\n\n- Total capex ($20.7B) exceeded total revenue ($18.7B) in FY2025.\n- Free cash flow (OCF minus capex) was **-$14.0B** in FY2025 and **-$9.1B** in Q1 2026 alone.\n- The AI segment spent nearly 4x its revenue on capex, funded entirely by the Connectivity segment's cash generation and external financing ($26.4B from financing activities in FY2025).\n- Traditional IPO issuers typically present capex as a fraction of revenue; here, the consolidated capex-to-revenue ratio is meaningless because it blends a mature cash-generating business (Connectivity) with a pre-revenue-scale infrastructure buildout (AI).\n\n### How an Analyst Should Adjust Their Framework\n\n**1. Deconsolidate and Evaluate Segments Independently**\n- Treat each segment as a standalone business. The Connectivity segment (Starlink) is the profit engine: $7.2B Segment Adjusted EBITDA on $11.4B revenue in FY2025 (63% margin). The Space segment is modestly profitable ($653M Adjusted EBITDA). The AI segment is deeply loss-making (-$1.2B Adjusted EBITDA on $3.2B revenue with $12.7B capex).\n- Apply segment-specific peer multiples: Connectivity vs. telecom/satellite peers (e.g., Viasat, Iridium); Space vs. defense/aerospace (e.g., Rocket Lab, Lockheed Martin); AI vs. hyperscaler/AI infrastructure peers.\n\n**2. Use SBC-Adjusted Earnings Metrics**\n- Calculate \"Segment Adjusted EBITDA ex-SBC\" as the primary profitability metric. For FY2025, this yields $4.6B rather than $6.6B.\n- Model SBC as a real cash cost using the disclosed $4.8B in unvested expense over 3.2 years, plus the potential dilution from the CEO performance awards (302.1M Class B shares tied to market cap milestones up to $6.6T).\n\n**3. Apply a Sum-of-the-Parts (SOTP) Valuation**\n- Do not apply a single consolidated multiple. The AI segment's massive losses and capex drag consolidated metrics, while Connectivity's strong margins are obscured.\n- Assign separate discount rates reflecting each segment's risk profile: lower for Connectivity (proven, scaling), higher for AI (pre-profit, massive capex commitment).\n\n**4. Scrutinize the Recast Financials for Trend Reliability**\n- Treat 2023 and 2024 financials with caution. The AI segment's 2023 revenue ($2.96B) and impairment charges ($3.78B) reflect X's post-acquisition transition, not a steady-state business.\n- Focus on Q1 2025 vs. Q1 2026 comparisons as the most reliable year-over-year trend data, since both periods reflect the post-merger operating structure.\n\n**5. Model Free Cash Flow on a Segment Basis**\n- Connectivity likely generates substantial positive FCF that funds the other segments. Estimate segment-level FCF by allocating capex and estimating segment-level operating cash flow.\n- The AI segment's FCF is deeply negative and will remain so until its data center buildout moderates. The filing discloses $10.6B in non-cash capex accruals at Q1 2026, suggesting the cash capex run-rate may be even higher than reported.\n\n**6. Adjust for Customer Concentration**\n- Customer A (likely the U.S. government) represented 20.9% of FY2025 revenue across all three segments. This concentration risk should be factored into discount rates and scenario analysis.\n\n### Summary\n\nThe **common-control recast** is the most fundamental comparability challenge because it presents a synthetic historical entity that never existed as a single operating unit, with no standalone SpaceX financials, no fair value step-up, and no pro forma disclosures. This is compounded by a **Segment Adjusted EBITDA framework** that adds back $1.9B in rapidly growing SBC, creating an $11.5B gap to GAAP net loss. Together, these conventions require analysts to deconsolidate the business, apply SOTP valuation, use SBC-adjusted metrics, and treat pre-2025 trend data with significant caution.\n\n---\n\n**Sources:**\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_843e185e45644ba39acbb5a5",
+            "content": "## Most Significant Comparability Challenge: The Common-Control Recast Presentation Combined with Segment Adjusted EBITDA\n\n### Primary Challenge: Common-Control Recast Financials\n\nThe **common-control recast presentation** is the single most consequential disclosure convention for comparability. Because SpaceX, xAI, and X Holdings were all controlled by Elon Musk, the mergers (xAI into SpaceX on February 2, 2026; X Holdings into xAI on March 28, 2025) were accounted for as **reorganizations of entities under common control** rather than as business combinations under ASC 805. This produces several analytical distortions that are highly atypical for IPO issuers:\n\n1. **Synthetic Historical Entity:** All historical periods (2023, 2024, 2025, and Q1 2025/2026) are presented as if SpaceX, xAI, and X had always been a single consolidated entity. In reality, xAI was only founded in 2023 and X was acquired by xAI in 2025. No standalone SpaceX financial statements are provided. This means trend analysis across the three-year period is fundamentally compromised\u2014the \"company\" reported in 2023 never existed as a single operating unit.\n\n2. **No Goodwill or Fair Value Step-Up:** Unlike a typical acquisition, no new goodwill or intangible assets were recorded for the common-control mergers. Assets were combined at **historical carrying amounts** (book value). The $11.2 billion in goodwill on the balance sheet relates to X's original acquisition by xAI, not to the SpaceX combination. This means the balance sheet does not reflect the true economic cost of combining these entities, and return-on-assets and asset-turnover ratios are not comparable to companies that grew through arm's-length acquisitions.\n\n3. **Intercompany Eliminations at Historical Cost:** All historical related-party transactions between SpaceX, xAI, and X were eliminated in consolidation. If intercompany pricing was not at market rates (a risk the filing acknowledges through its related-party transaction audit committee policy), the recast segment margins may not reflect true standalone economics.\n\n4. **No Pro Forma or Carve-Out Disclosures:** Traditional IPO issuers with complex histories typically provide pro forma financials or carve-out statements that allow investors to evaluate the specific business being taken public. SpaceX provides neither\u2014investors cannot isolate the performance of the legacy SpaceX business from the xAI/X operations.\n\n### Secondary Challenge: Segment Adjusted EBITDA with Extraordinary SBC Add-Backs\n\nThe **Segment Adjusted EBITDA** metric\u2014defined as segment income from operations excluding depreciation, amortization, share-based compensation, restructuring charges, and impairment\u2014creates a second layer of comparability risk:\n\n| Metric (FY 2025) | Amount ($M) |\n|---|---|\n| Segment Adjusted EBITDA | $6,584 |\n| Less: Share-Based Compensation | ($1,947) |\n| Less: Depreciation & Amortization | ($6,701) |\n| Less: Restructuring + Impairment | ($525) |\n| **Segment Income from Operations** | **($2,589)** |\n| Less: Interest Expense | ($1,945) |\n| Plus: Interest Income | ~$371 |\n| Less: Other Expense, net | ($177) |\n| Less: Tax Provision | ($600) |\n| **Consolidated Net Loss** | **($4,937)** |\n\n**The gap between Segment Adjusted EBITDA ($6.6B) and GAAP net loss (-$4.9B) is $11.5 billion in FY 2025.** This is extraordinary by any IPO standard. Key issues:\n\n- **SBC is a real economic cost:** At $1.95B (10.4% of revenue) in FY2025, up from $784M in FY2024 and $679M in FY2023, SBC is rapidly growing and represents genuine dilution to public shareholders. Adding it back overstates cash-generating ability.\n- **SBC-adjusted EBITDA:** If an analyst removes only the SBC add-back, FY2025 \"Segment Adjusted EBITDA ex-SBC\" drops to $4.6B\u2014a 30% reduction from the headline figure.\n- **No unallocated corporate cost reconciliation:** The filing does not separately disclose unallocated corporate expenses as a reconciling line between segment results and consolidated results, making it difficult to assess true corporate overhead.\n\n### Tertiary Challenge: Extreme Capex Intensity Driven by the AI Segment\n\nThe AI segment's capital intensity is without peer among traditional IPO issuers:\n\n| Segment Capex (FY 2025) | Amount ($M) | Capex / Revenue |\n|---|---|---|\n| Space | $3,832 | 93.8% |\n| Connectivity | $4,178 | 36.7% |\n| AI | $12,727 | **397.6%** |\n| **Total** | **$20,737** | **111.0%** |\n\n- Total capex ($20.7B) exceeded total revenue ($18.7B) in FY2025.\n- Free cash flow (OCF minus capex) was **-$14.0B** in FY2025 and **-$9.1B** in Q1 2026 alone.\n- The AI segment spent nearly 4x its revenue on capex, funded entirely by the Connectivity segment's cash generation and external financing ($26.4B from financing activities in FY2025).\n- Traditional IPO issuers typically present capex as a fraction of revenue; here, the consolidated capex-to-revenue ratio is meaningless because it blends a mature cash-generating business (Connectivity) with a pre-revenue-scale infrastructure buildout (AI).\n\n### How an Analyst Should Adjust Their Framework\n\n**1. Deconsolidate and Evaluate Segments Independently**\n- Treat each segment as a standalone business. The Connectivity segment (Starlink) is the profit engine: $7.2B Segment Adjusted EBITDA on $11.4B revenue in FY2025 (63% margin). The Space segment is modestly profitable ($653M Adjusted EBITDA). The AI segment is deeply loss-making (-$1.2B Adjusted EBITDA on $3.2B revenue with $12.7B capex).\n- Apply segment-specific peer multiples: Connectivity vs. telecom/satellite peers (e.g., Viasat, Iridium); Space vs. defense/aerospace (e.g., Rocket Lab, Lockheed Martin); AI vs. hyperscaler/AI infrastructure peers.\n\n**2. Use SBC-Adjusted Earnings Metrics**\n- Calculate \"Segment Adjusted EBITDA ex-SBC\" as the primary profitability metric. For FY2025, this yields $4.6B rather than $6.6B.\n- Model SBC as a real cash cost using the disclosed $4.8B in unvested expense over 3.2 years, plus the potential dilution from the CEO performance awards (302.1M Class B shares tied to market cap milestones up to $6.6T).\n\n**3. Apply a Sum-of-the-Parts (SOTP) Valuation**\n- Do not apply a single consolidated multiple. The AI segment's massive losses and capex drag consolidated metrics, while Connectivity's strong margins are obscured.\n- Assign separate discount rates reflecting each segment's risk profile: lower for Connectivity (proven, scaling), higher for AI (pre-profit, massive capex commitment).\n\n**4. Scrutinize the Recast Financials for Trend Reliability**\n- Treat 2023 and 2024 financials with caution. The AI segment's 2023 revenue ($2.96B) and impairment charges ($3.78B) reflect X's post-acquisition transition, not a steady-state business.\n- Focus on Q1 2025 vs. Q1 2026 comparisons as the most reliable year-over-year trend data, since both periods reflect the post-merger operating structure.\n\n**5. Model Free Cash Flow on a Segment Basis**\n- Connectivity likely generates substantial positive FCF that funds the other segments. Estimate segment-level FCF by allocating capex and estimating segment-level operating cash flow.\n- The AI segment's FCF is deeply negative and will remain so until its data center buildout moderates. The filing discloses $10.6B in non-cash capex accruals at Q1 2026, suggesting the cash capex run-rate may be even higher than reported.\n\n**6. Adjust for Customer Concentration**\n- Customer A (likely the U.S. government) represented 20.9% of FY2025 revenue across all three segments. This concentration risk should be factored into discount rates and scenario analysis.\n\n### Summary\n\nThe **common-control recast** is the most fundamental comparability challenge because it presents a synthetic historical entity that never existed as a single operating unit, with no standalone SpaceX financials, no fair value step-up, and no pro forma disclosures. This is compounded by a **Segment Adjusted EBITDA framework** that adds back $1.9B in rapidly growing SBC, creating an $11.5B gap to GAAP net loss. Together, these conventions require analysts to deconsolidate the business, apply SOTP valuation, use SBC-adjusted metrics, and treat pre-2025 trend data with significant caution.\n\n---\n\n**Sources:**\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21965,
+        "completion_tokens": 2351,
+        "cached_tokens": 21760,
+        "cost_usd": 0.0512225
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 160779,
+    "total_completion_tokens": 5687,
+    "total_cached_tokens": 107392,
+    "total_cost_usd": 0.3245775,
+    "total_steps": 13
+  }
+}

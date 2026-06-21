@@ -1,0 +1,789 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "f08be812-1686-41a4-9dcf-40b148845799",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T16:09:58.110215+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T16:09:58.110215+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nViasat's most recent 10-K discloses satellite depreciation as a significant line item within its space segment, and Viasat has historically reported negative or near-zero segment operating income despite positive EBITDA, precisely because satellite useful-life assumptions drive a large non-cash depreciation charge. Using SpaceX's disclosed Connectivity segment operating income and Segment Adjusted EBITDA for FY2025, calculate the implied depreciation and amortization add-back embedded in the EBITDA bridge. Compare this gap directionally to Viasat's disclosed satellite depreciation as a percentage of satellite-segment revenue. What does the comparison reveal about how LEO constellation economics \u2014 with higher satellite counts, shorter useful lives, and continuous replenishment \u2014 structurally differ from GEO satellite depreciation profiles, and why does this make EBITDA-to-operating-income conversion particularly important when evaluating LEO broadband operators as a class?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T16:09:58.110215+00:00",
+      "source": "agent",
+      "message": "I'll tackle this systematically. Let me start by parsing the SpaceX S-1 filing and searching for Viasat's most recent 10-K simultaneously.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "This is a complex question that requires me to:\n\n1. Find SpaceX's Connectivity segment operating income and Segment Adjusted EBITDA for FY2025 from the S-1 filing\n2. Calculate the implied depreciation and amortization add-back (the gap between EBITDA and operating income)\n3. Find Viasat's most recent 10-K and get satellite depreciation as a percentage of satellite-segment revenue\n4. Compare directionally and analyze the structural differences between LEO and GEO constellation economics\n\nLet me start by parsing the SpaceX S-1 filing and searching for Viasat's 10-K.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_2817ebd5d5e8411ba3b45e41",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        },
+        {
+          "tool_call_id": "call_8f34dfd292bc4be097941acf",
+          "function_name": "edgar_search",
+          "arguments": {
+            "search_query": "Viasat satellite depreciation",
+            "form_types": [
+              "10-K"
+            ],
+            "ciks": [
+              "0000797542"
+            ],
+            "top_n_results": 5
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_2817ebd5d5e8411ba3b45e41",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          },
+          {
+            "source_call_id": "call_8f34dfd292bc4be097941acf",
+            "content": "[]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3649,
+        "completion_tokens": 338,
+        "cached_tokens": 0,
+        "cost_usd": 0.0125025
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T16:10:32.961952+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "The EDGAR search for Viasat returned no results. Let me try a different CIK or search query. Let me also retrieve the SpaceX Connectivity segment data.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4b6ecaff3ae24b7ba4c4a176",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment operating income and Segment Adjusted EBITDA for FY2025 (fiscal year 2025) from {{spacex_s1}}? Include the reconciliation table if available."
+          }
+        },
+        {
+          "tool_call_id": "call_e0b625a8d33245168fac52b9",
+          "function_name": "edgar_search",
+          "arguments": {
+            "search_query": "Viasat 10-K",
+            "form_types": [
+              "10-K"
+            ],
+            "top_n_results": 5,
+            "start_date": "2024-01-01"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4b6ecaff3ae24b7ba4c4a176",
+            "content": "Based on the provided document, here is the financial information for the Connectivity segment for the fiscal year ended December 31, 2025 (FY2025):\n\n*   **Income from operations (Operating Income):** $4,423 million\n*   **Segment Adjusted EBITDA:** $7,168 million\n\n### Reconciliation Table (Year Ended December 31, 2025)\nBelow is the table reconciling segment income from operations to Segment Adjusted EBITDA for FY2025 across all reportable segments:\n\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(657)** | **$4,423** | **$(6,355)** | **$(2,589)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 757 | 2,376 | 3,568 | 6,701 |\n| Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |"
+          },
+          {
+            "source_call_id": "call_e0b625a8d33245168fac52b9",
+            "content": "[{\"accessionNo\": \"0000950170-24-066031\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"EX-21.1\", \"formType\": \"10-K\", \"type\": \"EX-21.1\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017024066031/vsat-ex21_1.htm\", \"filedAt\": \"2024-05-29\"}, {\"accessionNo\": \"0000950170-25-077138\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"EX-21.1\", \"formType\": \"10-K\", \"type\": \"EX-21.1\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-ex21_1.htm\", \"filedAt\": \"2025-05-27\"}, {\"accessionNo\": \"0000950170-24-066031\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"EX-4.7\", \"formType\": \"10-K\", \"type\": \"EX-4.7\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017024066031/vsat-ex4_7.htm\", \"filedAt\": \"2024-05-29\"}, {\"accessionNo\": \"0000950170-24-066031\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"EX-19\", \"formType\": \"10-K\", \"type\": \"EX-19\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017024066031/vsat-ex19.htm\", \"filedAt\": \"2024-05-29\"}, {\"accessionNo\": \"0000950170-24-066031\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017024066031/vsat-20240331.htm\", \"filedAt\": \"2024-05-29\"}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4019,
+        "completion_tokens": 193,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0079775
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T16:11:08.214510+00:00",
+      "source": "agent",
+      "message": "Now let me find Viasat's most recent 10-K filing and also get SpaceX's Connectivity segment revenue for context.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "I have the SpaceX Connectivity segment data. Now let me find Viasat's most recent 10-K. The most recent one appears to be filed 2025-05-27. Let me find the actual 10-K filing URL for that one and also parse the 2024 one. Let me search for the 2025 10-K filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d8760da225c44d8b81d82fa6",
+          "function_name": "edgar_search",
+          "arguments": {
+            "search_query": "Viasat 10-K annual report",
+            "form_types": [
+              "10-K"
+            ],
+            "ciks": [
+              "0000797721"
+            ],
+            "top_n_results": 10,
+            "start_date": "2025-01-01"
+          }
+        },
+        {
+          "tool_call_id": "call_fcf4f481541b45b5bca503a4",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment revenue for FY2025 (fiscal year ended December 31, 2025) from {{spacex_s1}}? Also retrieve any information about satellite useful life assumptions, depreciation policies, or satellite constellation details."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d8760da225c44d8b81d82fa6",
+            "content": "[{\"accessionNo\": \"0000950170-25-077138\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"EX-32.1\", \"formType\": \"10-K\", \"type\": \"EX-32.1\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-ex32_1.htm\", \"filedAt\": \"2025-05-27\"}, {\"accessionNo\": \"0000950170-25-077138\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-20250331.htm\", \"filedAt\": \"2025-05-27\"}, {\"accessionNo\": \"0000950170-25-077138\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"EX-31.2\", \"formType\": \"10-K\", \"type\": \"EX-31.2\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-ex31_2.htm\", \"filedAt\": \"2025-05-27\"}, {\"accessionNo\": \"0000950170-25-077138\", \"cik\": \"797721\", \"companyNameLong\": \"VIASAT INC (VSAT) (CIK 0000797721)\", \"ticker\": \"VSAT\", \"description\": \"EX-31.1\", \"formType\": \"10-K\", \"type\": \"EX-31.1\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-ex31_1.htm\", \"filedAt\": \"2025-05-27\"}]"
+          },
+          {
+            "source_call_id": "call_fcf4f481541b45b5bca503a4",
+            "content": "Based on the provided financial documents, here is the information regarding the Connectivity segment's revenue for FY2025, as well as the details on satellite useful life assumptions and depreciation policies:\n\n### **Connectivity Segment Revenue (FY2025)**\n* **Total Revenue:** **$11,387 million** (for the fiscal year ended December 31, 2025). \n*(Note: This represents a significant increase from $7,599 million in 2024, driven by the growth of the Starlink Subscriber base, enterprise, and government sales).*\n\n---\n\n### **Satellite Useful Life Assumptions & Depreciation Policies**\n**1. Useful Life Estimation Criteria:**\nThe company estimates the useful lives of its satellite assets based on several factors, including:\n* Engineering studies and historical on-orbit performance\n* Propellant life and utilization patterns\n* Design enhancements across generations\n* Planned transitions to newer satellite technology\n* *Management periodically reviews these estimates with engineering and operations teams and revises them as additional data becomes available.*\n\n**2. Specific Satellite Lifespans:**\n* **Broadband Satellites:** Estimated to have a **5-year** useful life.\n* **First-Generation Mobile Satellites:** Estimated to have a **3-year** useful life.\n\n**3. Depreciation Policies:**\n* **Method:** Satellite assets are depreciated using the **straight-line method** over their estimated useful lives. *(Note: Flight vehicles/rockets are an exception and are depreciated based on the expected number of average flights per vehicle).*\n* **Capitalization vs. Expensing:** Expenditures for standard maintenance and repairs that do not extend the life of the assets are expensed as incurred. However, significant refurbishments, renewals, and enhancements that increase an asset's functionality, output, or expected life are capitalized and depreciated ratably over the identified useful life.\n* **Cost of Revenue:** The Connectivity segment\u2019s cost of revenue explicitly includes depreciation (which encompasses launch, satellite, and ground infrastructure costs). In 2025, this depreciation expense grew significantly due to the increased number of satellites placed into orbit and the higher cadence of Starlink flights. \n\n### **Satellite Constellation Details**\n* The constellation includes both **broadband satellites** (consumer/enterprise internet) and **mobile satellites** (direct-to-cell/mobile connectivity).\n* The company experienced a massive expansion of its constellation in 2025, noted by a surge in capitalized launch and satellite costs, an increase in Starlink flights (from 89 launches in 2024 to 122 launches in 2025), and the ongoing transition to next-generation satellite production."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5459,
+        "completion_tokens": 306,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0127075
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T16:11:13.384614+00:00",
+      "source": "agent",
+      "message": "Now let me parse Viasat's most recent 10-K filing to get their satellite depreciation and segment data.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Excellent! Now I have SpaceX's Connectivity segment data:\n- Operating Income: $4,423 million\n- Segment Adjusted EBITDA: $7,168 million\n- Revenue: $11,387 million\n- Depreciation and amortization add-back: $2,376 million\n- Satellite useful life: 5 years for broadband, 3 years for first-gen mobile\n\nNow let me parse Viasat's most recent 10-K (filed 2025-05-27, for fiscal year ended March 31, 2025).\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_a76b62284db047ee89050aff",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-20250331.htm",
+            "key": "viasat_10k_2025"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_a76b62284db047ee89050aff",
+            "content": "SUCCESS: Loaded portable assets for key: viasat_10k_2025"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7059,
+        "completion_tokens": 259,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0162375
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T16:13:04.890035+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve Viasat's satellite depreciation and segment information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_de667303ffb74f9b962c45b5",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Viasat's satellite depreciation expense, satellite segment revenue, and satellite segment operating income for the most recent fiscal year from {{viasat_10k_2025}}? Include the segment reporting table and any depreciation breakdown by segment."
+          }
+        },
+        {
+          "tool_call_id": "call_086d76fd48d14bcf92397a3b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are Viasat's satellite useful life assumptions, depreciation policies for satellites, and the satellite depreciation expense disclosed in {{viasat_10k_2025}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_de667303ffb74f9b962c45b5",
+            "content": "Based on the provided financial disclosures, Viasat does not report a standalone \"Satellite\" segment. Instead, its satellite operations, bandwidth, and related services are housed within the **Communication Services** segment. Furthermore, the company does not break out \"satellite-only\" depreciation expense on the income statement; rather, it reports aggregate depreciation for the segment (which includes satellites, earth stations, networking equipment, and CPE units). \n\nHere are the metrics for the **Communication Services** segment for the most recent fiscal year (**FY25**, ended March 31, 2025):\n\n### 1. Requested Financial Metrics (FY25)\n*   **Segment Depreciation Expense:** $988,447 thousand ($988.4 million)\n    *   *Note: This encompasses depreciation for satellites, earth stations, networking equipment, and CPE units. A standalone satellite depreciation expense figure is not separated in the segment breakdown.*\n*   **Segment Revenue:** $3,298,485 thousand ($3.30 billion)\n*   **Segment Operating Income (Loss):** $(50,222) thousand (-$50.2 million operating loss)\n\n*(For additional context on asset depreciation, the notes disclose that the accumulated depreciation specifically for CPE units included in \"property, equipment and satellites, net\" was $328.0 million as of March 31, 2025).*\n\n---\n\n### 2. Depreciation Breakdown by Segment (FY25)\n*   **Communication Services:** $988,447 thousand\n*   **Defense and Advanced Technologies:** $48,020 thousand\n*   **Total Segment Depreciation:** $1,036,467 thousand ($1.04 billion)\n\n---\n\n### 3. Segment Reporting Table (Fiscal Years 2023\u20132025)\n*(In thousands)*\n\n| Line Item | FY25 (Ended Mar 31, 2025) | FY24 (Ended Mar 31, 2024) | FY23 (Ended Mar 31, 2023) |\n| :--- | :--- | :--- | :--- |\n| **Revenues:** | | | |\n| **Communication services** | | | |\n| Aviation services | $ 1,048,225 | $ 864,834 | $ 346,950 |\n| Government satcom services | 754,552 | 596,826 | 165,897 |\n| Maritime services | 477,968 | 430,090 | 3,362 |\n| Fixed services and other services | 741,601 | 906,762 | 919,440 |\n| *Total services* | *3,022,346* | *2,798,512* | *1,435,649* |\n| *Total products* | *276,139* | *343,028* | *269,126* |\n| **Total communication services revenues** | **3,298,485** | **3,141,540** | **1,704,775** |\n| **Defense and advanced technologies** | | | |\n| *Total services* | *203,430* | *206,082* | *166,383* |\n| *Total products* | *1,017,656* | *936,136* | *685,000* |\n| **Total defense and advanced technologies revenues** | **1,221,086** | **1,142,218** | **851,383** |\n| Elimination of intersegment revenues | \u2014 | \u2014 | \u2014 |\n| **Total Revenues** | **$ 4,519,571** | **$ 4,283,758** | **$ 2,556,158** |\n| | | | |\n| **Expenses:** | | | |\n| **Communication services** | | | |\n| Depreciation | $ 988,447 | $ 825,788 | $ 350,954 |\n| Stock-based compensation expense | 48,760 | 52,662 | 51,578 |\n| Other than acquired intangible assets amortization | 41,373 | 50,718 | 49,058 |\n| Acquisition and transaction related expenses | 50,807 | 114,113 | 53,285 |\n| Ground network (FY25), satellite (FY24) impairment & related charges, net | 169,400 | 905,496 | \u2014 |\n| Other segment items | 2,049,920 | 2,009,817 | 1,389,302 |\n| **Total communication services expenses** | **3,348,707** | **3,958,594** | **1,894,177** |\n| **Defense and advanced technologies** | | | |\n| Depreciation | 48,020 | 41,853 | 52,701 |\n| Stock-based compensation expense | 31,625 | 30,969 | 30,534 |\n| Other than acquired intangible assets amortization | 19,034 | 12,000 | 11,047 |\n| Acquisition and transaction related expenses | 13,660 | 43,466 | 33,011 |\n| Other segment items | 892,072 | 859,517 | 660,833 |\n| **Total defense and advanced technologies expenses** | **1,004,411** | **987,805** | **788,126** |\n| **Total Expenses** | **$ 4,353,118** | **$ 4,946,399** | **$ 2,682,303** |\n| | | | |\n| **Operating profits (losses):** | | | |\n| **Communication services** | **$ (50,222)** | **$ (817,054)** | **$ (189,402)** |\n| **Defense and advanced technologies** | **216,675** | **154,413** | **63,257** |\n| Elimination of intersegment operating profits (losses) | \u2014 | \u2014 | \u2014 |"
+          },
+          {
+            "source_call_id": "call_086d76fd48d14bcf92397a3b",
+            "content": "Based on the provided text, here are Viasat's satellite useful life assumptions, depreciation policies, and the disclosures regarding depreciation and related expenses:\n\n### 1. Satellite Useful Life Assumptions\n*   **Estimation Factors:** At the time satellites are placed in commercial service, the useful life is estimated based on an analysis of the satellite\u2019s performance against the original manufacturer\u2019s orbital design life, estimated fuel levels and consumption rates, and historical operating trends.\n*   **Periodic Review:** The company periodically reviews the remaining estimated useful lives to determine if revisions are necessary.\n*   **Specific Useful Life Ranges:** \n    *   **Satellites:** 7 to 17 years\n    *   **Satellite Ka-band capacity obtained under finance leases:** 7 to 15 years\n*   **Risk Factors:** The company acknowledges that actual operational life may be shorter than the estimated \"mission life\" due to factors such as component durability, orbit maintenance, fuel consumption, solar panel degradation, space environment anomalies, or technological obsolescence.\n\n### 2. Depreciation Policies for Satellites\n*   **Initial Recording:** Satellites are recorded at cost (or fair value at the acquisition date for certain acquired satellites), net of accumulated depreciation.\n*   **Capitalized Costs:** Capitalized satellite costs include construction and launch costs, launch and in-orbit testing insurance, the net present value of performance incentives payable to manufacturers, direct monitoring and support costs, and interest costs incurred during construction.\n*   **Subsequent Costs:** Costs for additions, major renewals, and betterments are capitalized and depreciated over the asset's remaining life. Maintenance, repairs, and minor renewals are expensed as incurred.\n*   **Depreciation Method:** Satellites (along with earth stations, networking equipment, CPE units, and installation costs) are depreciated over their estimated useful lives.\n*   **Disposals:** When assets are sold or disposed of, the cost and accumulated depreciation are removed from the accounts, and any resulting gain or loss is recognized in operations.\n\n### 3. Satellite Depreciation Expense Disclosed\n**The specific dollar amount for periodic satellite depreciation expense is not disclosed in the provided text chunks.** However, the text does disclose the following related financial figures regarding satellite assets, impairments, and customer equipment:\n*   **Satellite Impairment Charges (FY24):** Due to anomalies with the ViaSat-3 F1 and I-6 F2 satellites and Inmarsat integration impacts, the company recorded a **$1.67 billion** reduction to the carrying value of satellites under construction. This was partially offset by **$770.0 million** in insurance claim receivables, resulting in a **net loss of approximately $905.5 million** recorded in Selling, General, and Administrative (SG&A) expenses. \n*   **Insurance Recoveries:** The company received **$251.5 million** (FY25) and **$508.6 million** (FY24) in insurance recovery proceeds related to these satellite anomaly claims, with an additional $10.0 million received subsequent to FY25.\n*   **CPE Unit Accumulated Depreciation:** While not the satellites themselves, the accumulated depreciation for Customer Premise Equipment (CPE) units leased to customers was disclosed as **$328.0 million** (against $526.0 million in total cost) as of March 31, 2025, and **$267.4 million** (against $567.5 million in total cost) as of March 31, 2024. \n*   **MD&A Context:** Management notes that placing a new satellite into commercial service triggers a cycle of increased operating costs that explicitly includes depreciation, though the exact dollar impact of this depreciation is not quantified in the provided excerpts."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7352,
+        "completion_tokens": 159,
+        "cached_tokens": 6528,
+        "cost_usd": 0.011810000000000001
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T16:14:52.607466+00:00",
+      "source": "agent",
+      "message": "Let me get more detail on Viasat's satellite asset values and any EBITDA reconciliation.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have the key data. Let me also try to get Viasat's satellite-specific depreciation or at least the property, equipment and satellites breakdown to understand the satellite portion. Let me also look for Viasat's EBITDA or adjusted EBITDA reconciliation.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_df6172b1f5624552af1b547d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Viasat's property equipment and satellites net balance sheet breakdown, including the gross cost and accumulated depreciation for satellites specifically from {{viasat_10k_2025}}? Also retrieve any Adjusted EBITDA reconciliation or non-GAAP measures."
+          }
+        },
+        {
+          "tool_call_id": "call_011a34d75a184e7aab055ff6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the SpaceX Connectivity segment depreciation and amortization details, satellite constellation size, number of satellites in orbit, and any discussion of satellite replenishment rates or capital expenditure from {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_df6172b1f5624552af1b547d",
+            "content": "Based on the provided financial disclosures, here is the breakdown of Viasat's **Property, Equipment, and Satellites, net**, along with the specific details regarding satellites and your request for non-GAAP measures.\n\n### 1. Property, Equipment, and Satellites Breakdown\nThe following is the gross cost breakdown by asset category as of March 31, 2025, and March 31, 2024 *(all figures in thousands)*:\n\n| Asset Category | As of March 31, 2025 | As of March 31, 2024 |\n| :--- | :--- | :--- |\n| Equipment and software (3-7 years) | $3,837,083 | $2,992,325 |\n| CPE leased equipment (4-7 years) | $525,972 | $567,548 |\n| Furniture and fixtures (7 years) | $58,153 | $65,433 |\n| Leasehold improvements (2-20 years) | $313,249 | $209,162 |\n| Buildings (12-38 years) | $15,388 | $16,647 |\n| Land | $19,661 | $20,787 |\n| Construction in progress | $722,194 | $1,301,376 |\n| **Satellites (7-17 years)** | **$3,405,067** | **$3,324,458** |\n| **Satellite Ka-band capacity (finance leases, 7-15 years)**| **$338,201** | **$177,576** |\n| **Satellites under construction** | **$2,205,305** | **$1,976,469** |\n| **Total Gross Property, Equipment & Satellites** | **$11,440,273** | **$10,651,781** |\n| *Less: Accumulated depreciation and amortization* | *$(4,034,609)* | *$(3,094,575)* |\n| **Total Property, Equipment & Satellites, net** | **$7,405,664** | **$7,557,206** |\n\n### 2. Satellite-Specific Gross Cost and Accumulated Depreciation\n**Gross Cost for Satellites:**\nThe gross cost specifically tied to satellite assets (combining in-orbit satellites, leased Ka-band capacity, and satellites under construction) is:\n*   **Fiscal 2025:** $5,948,573 (approx. $5.95 billion)\n*   **Fiscal 2024:** $5,478,503 (approx. $5.48 billion)\n\n**Accumulated Depreciation for Satellites:**\nThe provided text **does not isolate the accumulated depreciation exclusively for satellites**. The accumulated depreciation and amortization of **$4,034,609** (2025) and **$3,094,575** (2024) is an *aggregate* figure that applies to the entire \"Property, equipment and satellites\" balance. \n*(Note: The only specific sub-category accumulated depreciation explicitly broken out in the notes is for Customer Premise Equipment (CPE) units, which had $328.0 million in accumulated depreciation in 2025 and $267.4 million in 2024).*\n\n### 3. Adjusted EBITDA Reconciliation & Non-GAAP Measures\n**Not Available in Provided Text:** \nThe provided excerpts from the 10-K filing (which include the Consolidated Balance Sheets, Statements of Operations, Common-Size Income Statements, Quarterly Financial Data, and Accounting Policies) **do not contain** any Adjusted EBITDA reconciliations or Non-GAAP financial measures. To find Viasat's Adjusted EBITDA reconciliation, you would typically need to refer to the \"Management's Discussion and Analysis of Financial Condition and Results of Operations\" (MD&A) section or the company's earnings press releases, which are not included in these specific text chunks."
+          },
+          {
+            "source_call_id": "call_011a34d75a184e7aab055ff6",
+            "content": "Based on the provided prospectus excerpts, here are the details regarding the SpaceX Connectivity segment (Starlink), broken down by your requested categories:\n\n### 1. Depreciation and Amortization Details (Connectivity Segment)\nThe Connectivity segment has seen significant increases in depreciation and amortization, which the MD&A explicitly attributes to the growing number of satellites placed into orbit. \n* **Q1 2026 (Three Months Ended March 31, 2026):** $783 million\n* **Q1 2025 (Three Months Ended March 31, 2025):** $510 million\n* **Full Year 2024:** $1,508 million\n* **Full Year 2023:** $884 million\n* **MD&A Context:** The company noted that Cost of Revenue for Q1 2026 increased by $437 million in the Connectivity segment, which was primarily \"driven by an increase in depreciation related to the number of satellites placed into orbit.\"\n\n### 2. Satellite Constellation Size & Satellites in Orbit\nAs of **March 31, 2026**, SpaceX's Connectivity segment operates a massive and dominant low-Earth orbit (LEO) constellation:\n* **Total Starlink Satellites in Orbit:** Approximately **9,600** broadband and mobile satellites. \n* **Market Dominance:** These 9,600 satellites account for approximately **75% of all active maneuverable satellites** in orbit globally (out of an industry total of ~12,700).\n* **Constellation Composition:** The majority of the broadband constellation is composed of second-generation **V2 Mini** satellites.\n* **Mobile Constellation:** The dedicated satellite-to-mobile constellation has grown from approximately 360 \"V1 Mobile\" satellites in January 2025 to approximately **650 mobile V1 Mobile satellites** as of March 31, 2026, serving ~7.4 million monthly unique devices across ~30 countries.\n\n### 3. Capital Expenditure (Connectivity Segment)\nCapital expenditures for the Connectivity segment have scaled steadily to support constellation expansion, ground infrastructure, and spectrum acquisitions:\n* **Q1 2026:** $1,332 million\n* **Q1 2025:** $814 million\n* **Full Year 2025:** $4,178 million\n* **Full Year 2024:** $3,498 million\n* **Full Year 2023:** $2,455 million\n\n### 4. Satellite Replenishment, Deployment Rates, and Future Capacity\nThe text highlights an aggressive roadmap for satellite replenishment, next-generation deployments, and capacity expansion:\n* **Next-Generation V3 Satellites & Starship Deployment:** SpaceX expects to commence deploying its V3 satellites in the **second half of 2026** using the Starship launch vehicle. \n  * **Capacity:** Each V3 satellite is designed to offer **1 Tbps** of downlink capacity.\n  * **Deployment Rate/Cadence:** A single Starship launch will be capable of deploying up to **60 V3 satellites** to LEO. This represents a potential **twenty-fold increase** in Starlink downlink capacity deployed per launch compared to a Falcon 9 launch.\n* **2025 Replenishment & Upgrades:** Throughout 2025, the company focused on launching and operating higher-throughput satellites to increase available network capacity and improve service consistency during peak usage periods.\n* **Regulatory Authorizations & Spectrum Expansion:** The company noted its authorization to deploy **7,500 satellites** (including operations in the 2GHz spectrum band). This is tied to a massive $19.6 billion equity and cash agreement to acquire 65 MHz of U.S. spectrum and global Mobile Satellite Service spectrum licenses from EchoStar (expected to close in November 2027). \n* **Strategic Impact:** The company explicitly states that \"investments in satellite scale, per-satellite capacity, and expanded capabilities are instrumental to the growth and operating performance of our Connectivity segment, enabling us to onboard new users while improving service.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9987,
+        "completion_tokens": 228,
+        "cached_tokens": 6528,
+        "cost_usd": 0.0190875
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T16:15:42.243307+00:00",
+      "source": "agent",
+      "message": "Let me retrieve Viasat's MD&A for any EBITDA discussion and segment profitability analysis.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the key data I need. Let me also try to get Viasat's Communication Services segment Adjusted EBITDA or at least calculate the EBITDA proxy. Let me also look for Viasat's MD&A section for any EBITDA discussion.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_cca792aa7b484d538a9f86b3",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve Viasat's Communication Services segment Adjusted EBITDA, EBITDA, or any non-GAAP profitability measure from the MD&A section of {{viasat_10k_2025}}. Also retrieve any discussion of satellite depreciation impact on operating income versus EBITDA."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_cca792aa7b484d538a9f86b3",
+            "content": "Based on the provided text, there is **no mention** of Adjusted EBITDA, EBITDA, or any other non-GAAP profitability measures for the Communication Services segment. \n\nAdditionally, the provided text **does not contain** a discussion comparing the impact of satellite depreciation on operating income versus EBITDA. \n\nHowever, the text does detail the cyclical financial impacts of satellite launches and depreciation on the company's **GAAP operating profit** and general financial results. Here is what the provided text outlines regarding those impacts:\n\n*   **Cyclical Operating Costs & Depreciation:** In connection with the launch and commercialization of new satellites (such as ViaSat-2 historically, and the ViaSat-3 constellation currently), Viasat incurs a cycle of increased operating costs that negatively impact financial results during the ramp-up period. These increased costs explicitly include **depreciation**, amortization of capitalized software development, earth station connectivity, marketing, logistics, and customer care.\n*   **Interest Expense Impacts:** Financial results are further pressured because the company can no longer capitalize interest expense relating to the debt incurred for satellite construction and gateway equipment once the satellite enters commercial service.\n*   **Impact on Operating Profit:** The text warns that there is \"no assurance that we will be successful in significantly increasing revenues or achieving or maintaining **operating profit** in our communication services segment\" due to these heavy upfront investments and global business offsets. \n*   **Capacity Constraints:** The company experiences constrained bandwidth supply and capacity constraints on existing satellites in the lead-up to new launches (noting constraints experienced since fiscal year 2023 pending the ViaSat-3 launch).\n*   **Long-Term Segment Earnings:** Eventually, as services on the new satellites scale, the broadband revenue base expands and operating cost efficiencies are gained, which together are expected to yield \"incremental segment earnings contributions.\" \n\n*(Note: The provided financial tables only report GAAP \"Segment operating profit (loss)\", which for the Communication Services segment was $(50.2) million for the fiscal year ended March 31, 2025, and $(817.1) million for the fiscal year ended March 31, 2024, heavily impacted by satellite and ground network impairments rather than just standard depreciation.)*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12132,
+        "completion_tokens": 169,
+        "cached_tokens": 9728,
+        "cost_usd": 0.01986
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T16:16:36.553738+00:00",
+      "source": "agent",
+      "message": "Now let me compute the key metrics precisely.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me compile the analysis:\n\n**SpaceX Connectivity Segment (FY2025):**\n- Operating Income: $4,423 million\n- Segment Adjusted EBITDA: $7,168 million\n- Revenue: $11,387 million\n- D&A add-back: $2,376 million (explicitly disclosed in reconciliation)\n- Other add-backs: Share-based compensation $369 million\n- Gap (EBITDA - Operating Income): $7,168 - $4,423 = $2,745 million\n- But the D&A specifically is $2,376 million\n- D&A as % of Revenue: $2,376 / $11,387 = 20.87%\n- Satellite useful life: 5 years (broadband), 3 years (first-gen mobile)\n- ~9,600 satellites in orbit\n\n**Viasat Communication Services Segment (FY2025, ended March 31, 2025):**\n- Segment Operating Income (Loss): $(50.2) million\n- Segment Revenue: $3,298.5 million\n- Segment Depreciation: $988.4 million\n- Segment Amortization (other than acquired intangibles): $41.4 million\n- Total D&A: $988.4 + $41.4 = $1,029.8 million\n- D&A as % of Revenue: $1,029.8 / $3,298.5 = 31.22%\n- Satellite useful life: 7-17 years\n- Satellite gross cost: $3,405 million (in-orbit) + $338 million (leased) + $2,205 million (under construction) = $5,949 million\n\nWait, let me reconsider. The question asks about \"satellite depreciation as a percentage of satellite-segment revenue\" for Viasat. Viasat doesn't break out satellite-only depreciation from its Communication Services segment depreciation. The $988.4 million includes depreciation for satellites, earth stations, networking equipment, and CPE units.\n\nLet me calculate what I can:\n\n**SpaceX Connectivity:**\n- Implied D&A add-back: $2,376 million (explicitly disclosed)\n- The gap between Segment Adjusted EBITDA and Operating Income = $7,168 - $4,423 = $2,745 million\n- This gap includes: D&A ($2,376M) + SBC ($369M) = $2,745M \u2713\n- D&A as % of Connectivity Revenue: $2,376 / $11,387 = 20.87%\n\n**Viasat Communication Services:**\n- Total segment depreciation: $988.4 million\n- Total segment amortization: $41.4 million\n- Total D&A: $1,029.8 million\n- D&A as % of segment revenue: $1,029.8 / $3,298.5 = 31.22%\n- Operating loss: $(50.2) million\n\nNow, the question asks about \"satellite depreciation\" specifically for Viasat. Since Viasat doesn't break out satellite-only depreciation, I should note this. But the Communication Services segment is the satellite segment for Viasat.\n\nLet me also compute the EBITDA proxy for Viasat:\n- Operating Income: $(50.2) million\n- Add back D&A: $1,029.8 million\n- Add back SBC: $48.8 million\n- Add back impairment: $169.4 million\n- Add back acquisition costs: $50.8 million\n- EBITDA proxy \u2248 $(50.2) + $1,029.8 + $48.8 = $1,028.4 million (just D&A and SBC add-back)\n\nActually, let me focus on what the question asks:\n\n1. Calculate the implied D&A add-back embedded in SpaceX's EBITDA bridge for Connectivity FY2025\n2. Compare this gap directionally to Viasat's disclosed satellite depreciation as a % of satellite-segment revenue\n3. What does the comparison reveal about LEO vs GEO economics?\n\nLet me calculate:\n\n**SpaceX Connectivity FY2025:**\n- D&A add-back: $2,376 million\n- D&A as % of Revenue: $2,376 / $11,387 = 20.87%\n- Operating Income: $4,423 million (positive, strong)\n- Operating margin: $4,423 / $11,387 = 38.84%\n\n**Viasat Communication Services FY2025:**\n- Total D&A: $988.4M (depreciation) + $41.4M (amortization) = $1,029.8M\n- D&A as % of Revenue: $1,029.8 / $3,298.5 = 31.22%\n- Operating Income: $(50.2) million (negative)\n- Operating margin: -1.52%\n\nNow, the interesting comparison:\n- SpaceX D&A/Revenue: ~20.9%\n- Viasat D&A/Revenue: ~31.2%\n\nWait, this is counterintuitive. One might expect LEO with shorter useful lives (5 years vs 7-17 years) to have HIGHER D&A as a percentage of revenue. But SpaceX's is lower. Why?\n\nThe key insight is that SpaceX's revenue base is much larger ($11.4B vs $3.3B), which dilutes the D&A as a percentage. The absolute D&A is much higher for SpaceX ($2.4B vs $1.0B), reflecting the massive constellation. But the revenue scale more than compensates.\n\nHowever, the question is about the structural difference. Let me think about this more carefully:\n\n1. **LEO satellites have shorter useful lives** (5 years for SpaceX vs 7-17 years for Viasat GEO), meaning each satellite depreciates faster on a per-unit basis.\n2. **LEO requires many more satellites** (~9,600 for SpaceX vs a handful of GEO satellites for Viasat), meaning the absolute depreciation base is enormous.\n3. **Continuous replenishment** means LEO operators face a perpetual capex treadmill - they must constantly launch replacement satellites.\n4. **The EBITDA-to-operating-income gap** is structurally larger for LEO operators because of the higher D&A burden from shorter lives and larger constellation counts.\n\nBut wait - SpaceX's D&A as % of revenue is actually LOWER than Viasat's. This is because SpaceX has achieved massive revenue scale. The question is about the structural nature of the D&A burden.\n\nLet me reconsider. The question says \"Viasat has historically reported negative or near-zero segment operating income despite positive EBITDA, precisely because satellite depreciation drives a large non-cash charge.\" This is confirmed: Viasat's Communication Services had $(50.2)M operating loss but would have ~$980M positive EBITDA proxy.\n\nFor SpaceX, the Connectivity segment has $4,423M operating income and $7,168M Adjusted EBITDA. The gap is $2,745M (D&A of $2,376M + SBC of $369M).\n\nThe key analytical point is:\n- SpaceX's D&A as % of revenue: 20.9%\n- Viasat's D&A as % of segment revenue: 31.2%\n\nBut this comparison is somewhat misleading because:\n1. Viasat's segment includes non-satellite depreciation (earth stations, CPE, networking equipment)\n2. SpaceX's segment also includes ground infrastructure depreciation\n3. SpaceX's revenue scale is 3.5x Viasat's\n\nThe structural difference is:\n- **GEO model**: Few satellites (5-10), long lives (15+ years), high per-satellite cost ($500M-$1B each), lumpy capex cycles, depreciation spread over long periods\n- **LEO model**: Thousands of satellites, short lives (5 years), lower per-satellite cost, continuous capex treadmill, depreciation is a constant and growing charge\n\nThe EBITDA-to-operating-income conversion is particularly important for LEO operators because:\n1. The D&A charge is structurally larger in absolute terms due to constellation scale\n2. Shorter useful lives mean faster depreciation per dollar of capex\n3. Continuous replenishment means D&A never \"runs off\" - it's a permanent, growing charge\n4. EBITDA can significantly overstate the cash-generating ability because it ignores the mandatory capex needed to maintain the constellation\n5. For GEO operators, satellites eventually become fully depreciated while still generating revenue; for LEO operators, the constellation must be continuously replaced\n\nLet me now calculate the specific numbers and write the analysis.\n\nActually, let me also compute the D&A as a percentage of the EBITDA-to-OpIncome gap more precisely:\n\nSpaceX Connectivity:\n- Gap = EBITDA - OpIncome = $7,168 - $4,423 = $2,745M\n- D&A = $2,376M (86.6% of the gap)\n- SBC = $369M (13.4% of the gap)\n\nViasat Communication Services:\n- Operating loss = $(50.2)M\n- D&A = $1,029.8M\n- Implied EBITDA proxy (OpIncome + D&A + SBC) = $(50.2) + $1,029.8 + $48.8 = $1,028.4M\n- D&A as % of EBITDA proxy: $1,029.8 / $1,028.4 = ~100% (essentially all of EBITDA is consumed by D&A)\n\nThis is the key insight: For Viasat, D&A essentially consumes ALL of the EBITDA, leaving near-zero operating income. For SpaceX, D&A consumes about 33% of EBITDA ($2,376 / $7,168 = 33.1%), leaving substantial operating income.\n\nBut the question is about the structural implications for LEO vs GEO. Let me think about this more carefully.\n\nThe question asks: \"What does the comparison reveal about how LEO constellation economics \u2014 with higher satellite counts, shorter useful lives, and continuous replenishment \u2014 structurally differ from GEO satellite depreciation profiles, and why does this make EBITDA-to-operating-income conversion particularly important when evaluating LEO broadband operators as a class?\"\n\nThe answer should address:\n1. LEO has shorter useful lives (5 years vs 7-17 years) \u2192 faster depreciation per satellite\n2. LEO has many more satellites (9,600 vs ~10-15 for GEO) \u2192 larger absolute depreciation base\n3. LEO requires continuous replenishment \u2192 D&A is a permanent, non-declining charge\n4. GEO satellites can operate past their depreciation period \u2192 \"free\" revenue after depreciation runs off\n5. EBITDA overstates cash generation for LEO because it ignores the mandatory maintenance capex\n6. The EBITDA-to-OpIncome gap is the key metric for understanding true profitability\n\nLet me now write the comprehensive analysis.\n\nLet me also calculate some additional metrics:\n\nSpaceX Connectivity:\n- D&A / Revenue = $2,376 / $11,387 = 20.87%\n- D&A / EBITDA = $2,376 / $7,168 = 33.15%\n- Operating margin = $4,423 / $11,387 = 38.84%\n- EBITDA margin = $7,168 / $11,387 = 62.95%\n\nViasat Communication Services:\n- D&A / Revenue = $1,029.8 / $3,298.5 = 31.22%\n- Operating margin = $(50.2) / $3,298.5 = -1.52%\n- Implied EBITDA margin \u2248 $1,028.4 / $3,298.5 = 31.18%\n\nNow let me also think about the capex intensity:\n- SpaceX Connectivity capex FY2025: $4,178M\n- SpaceX Connectivity D&A FY2025: $2,376M\n- Capex / D&A ratio: 1.76x (meaning capex significantly exceeds D&A, the constellation is growing)\n- This means the D&A charge will continue to grow as more satellites are deployed\n\nFor Viasat:\n- I don't have Viasat's capex specifically for the Communication Services segment, but their total satellite-related capex would be much lower in absolute terms.\n\nLet me finalize the analysis now.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c3dd41c3f1294c2caed3319c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2376 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_0e45d56cb04b479d9bc39b1e",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(988.447 + 41.373) / 3298.485 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_268f20f69e7849beb88e237f",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - 4423"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c3dd41c3f1294c2caed3319c",
+            "content": "20.865899710195837"
+          },
+          {
+            "source_call_id": "call_0e45d56cb04b479d9bc39b1e",
+            "content": "31.22099994391364"
+          },
+          {
+            "source_call_id": "call_268f20f69e7849beb88e237f",
+            "content": "2745"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12793,
+        "completion_tokens": 3110,
+        "cached_tokens": 11904,
+        "cost_usd": 0.0482025
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T16:16:41.679966+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me compute a few more metrics.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_a93a937b90094d0c81cf1b2c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2376 / 7168 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_c8f9cff4c64b495ba1bc41df",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4423 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_e8a9ce43c22a4157bcfcdaf1",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_f8e2ac29d2f047d5b291c233",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "-50.222 / 3298.485 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_8647f861ed314e4f881fc849",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(-50.222 + 988.447 + 41.373 + 48.760)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_a93a937b90094d0c81cf1b2c",
+            "content": "33.14732142857143"
+          },
+          {
+            "source_call_id": "call_c8f9cff4c64b495ba1bc41df",
+            "content": "38.84253973829806"
+          },
+          {
+            "source_call_id": "call_e8a9ce43c22a4157bcfcdaf1",
+            "content": "62.94897690348643"
+          },
+          {
+            "source_call_id": "call_f8e2ac29d2f047d5b291c233",
+            "content": "-1.5225777895003312"
+          },
+          {
+            "source_call_id": "call_8647f861ed314e4f881fc849",
+            "content": "1028.3580000000002"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15966,
+        "completion_tokens": 239,
+        "cached_tokens": 11904,
+        "cost_usd": 0.027425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-09T16:16:46.965888+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me compute the Viasat EBITDA margin and the capex/D&A ratio for SpaceX.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b9516b35a5e74c3e81f12bca",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1028.358 / 3298.485 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_722c96c4666945f383ca69e0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4178 / 2376"
+          }
+        },
+        {
+          "tool_call_id": "call_ea5bca9232cd4ba094c53122",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "988.447 / 3298.485 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b9516b35a5e74c3e81f12bca",
+            "content": "31.176676565150363"
+          },
+          {
+            "source_call_id": "call_722c96c4666945f383ca69e0",
+            "content": "1.7584175084175084"
+          },
+          {
+            "source_call_id": "call_ea5bca9232cd4ba094c53122",
+            "content": "29.966696832030458"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16327,
+        "completion_tokens": 156,
+        "cached_tokens": 0,
+        "cost_usd": 0.0423775
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-09T16:17:38.939526+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed for a comprehensive analysis. Let me compile the final answer.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me compile the comprehensive analysis.\n\nKey metrics summary:\n\n**SpaceX Connectivity Segment (FY2025):**\n- Revenue: $11,387M\n- Operating Income: $4,423M\n- Segment Adjusted EBITDA: $7,168M\n- D&A add-back: $2,376M\n- SBC add-back: $369M\n- Total EBITDA-to-OpIncome gap: $2,745M\n- D&A as % of Revenue: 20.87%\n- D&A as % of EBITDA: 33.15%\n- Operating margin: 38.84%\n- EBITDA margin: 62.95%\n- Capex: $4,178M\n- Capex/D&A ratio: 1.76x\n- Satellite useful life: 5 years (broadband), 3 years (mobile)\n- Satellites in orbit: ~9,600\n\n**Viasat Communication Services Segment (FY2025, ended March 31, 2025):**\n- Revenue: $3,298.5M\n- Operating Income (Loss): $(50.2)M\n- Depreciation: $988.4M\n- Amortization (other than acquired intangibles): $41.4M\n- Total D&A: $1,029.8M\n- SBC: $48.8M\n- Implied EBITDA proxy: $1,028.4M\n- D&A as % of Revenue: 31.22%\n- Depreciation only as % of Revenue: 29.97%\n- Operating margin: -1.52%\n- Implied EBITDA margin: 31.18%\n- Satellite useful life: 7-17 years\n- Satellite gross cost (in-orbit): $3,405M\n\nNow let me write the comprehensive analysis.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e49b7f629ff34df1a31e152c",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## SpaceX Connectivity vs. Viasat Communication Services: Depreciation, EBITDA Conversion, and LEO vs. GEO Structural Economics\n\n---\n\n### 1. SpaceX Connectivity Segment \u2014 Implied D&A Add-Back (FY2025)\n\nFrom the SpaceX S-1 reconciliation table for the year ended December 31, 2025:\n\n| Metric | Amount ($M) |\n|---|---|\n| Connectivity Segment Revenue | $11,387 |\n| Income from Operations | $4,423 |\n| **Add: Depreciation & Amortization** | **$2,376** |\n| Add: Share-Based Compensation | $369 |\n| **Segment Adjusted EBITDA** | **$7,168** |\n\n**The implied D&A add-back embedded in the EBITDA bridge is $2,376 million.**\n\nThe total gap between Segment Adjusted EBITDA and Operating Income is **$2,745 million** ($7,168 \u2212 $4,423), of which D&A constitutes **86.6%** ($2,376 / $2,745) and SBC constitutes the remaining 13.4%.\n\nKey ratios for SpaceX Connectivity:\n- **D&A as % of Revenue:** 20.87% ($2,376 / $11,387)\n- **D&A as % of Segment Adjusted EBITDA:** 33.15% ($2,376 / $7,168)\n- **Operating Margin:** 38.84%\n- **EBITDA Margin:** 62.95%\n- **Capex / D&A Ratio:** 1.76\u00d7 ($4,178M capex / $2,376M D&A) \u2014 indicating the constellation is still net-growing\n\n---\n\n### 2. Viasat Communication Services Segment \u2014 Depreciation Burden (FY2025, ended March 31, 2025)\n\nFrom Viasat's 10-K filed May 27, 2025:\n\n| Metric | Amount ($M) |\n|---|---|\n| Communication Services Revenue | $3,298.5 |\n| Segment Depreciation | $988.4 |\n| Segment Amortization (ex-acquired intangibles) | $41.4 |\n| **Total D&A** | **$1,029.8** |\n| Stock-Based Compensation | $48.8 |\n| **Segment Operating Income (Loss)** | **$(50.2)** |\n| Implied EBITDA Proxy (OpIncome + D&A + SBC) | ~$1,028.4 |\n\nKey ratios for Viasat Communication Services:\n- **D&A as % of Revenue:** 31.22% ($1,029.8 / $3,298.5)\n- **Depreciation alone as % of Revenue:** 29.97%\n- **Operating Margin:** \u22121.52%\n- **Implied EBITDA Margin:** ~31.18%\n- **Satellite useful life assumptions:** 7\u201317 years (GEO satellites); Ka-band finance leases: 7\u201315 years\n\n---\n\n### 3. Directional Comparison\n\n| Metric | SpaceX Connectivity (LEO) | Viasat Comm. Services (GEO) |\n|---|---|---|\n| D&A as % of Revenue | **20.87%** | **31.22%** |\n| D&A as % of EBITDA | **33.15%** | **~100.1%** |\n| Operating Margin | **+38.84%** | **\u22121.52%** |\n| EBITDA Margin | 62.95% | ~31.18% |\n| Satellite Useful Life | 5 yrs (broadband), 3 yrs (mobile) | 7\u201317 yrs |\n| Satellites in Orbit | ~9,600 | ~10\u201315 (GEO) |\n\n**Critical observation:** Viasat's D&A consumes essentially **100% of its EBITDA**, converting a ~$1.0 billion positive EBITDA proxy into a **$(50) million operating loss**. SpaceX's D&A consumes only **33% of EBITDA**, leaving $4.4 billion in operating income. On the surface, this makes SpaceX's EBITDA-to-OpIncome conversion appear far more favorable.\n\nHowever, this comparison is heavily influenced by **revenue scale** ($11.4B vs. $3.3B) and **constellation maturity**. The structural dynamics are more nuanced than the headline percentages suggest.\n\n---\n\n### 4. What This Reveals About LEO vs. GEO Structural Economics\n\n#### A. The Depreciation Velocity Paradox\n\nLEO satellites have **dramatically shorter useful lives** (5 years for SpaceX broadband, 3 years for first-gen mobile) compared to GEO satellites (7\u201317 years for Viasat). On a per-satellite basis, this means:\n\n- A $500K\u2013$1M LEO satellite depreciates at **$100K\u2013$200K/year** over 5 years\n- A $500M\u2013$1B GEO satellite depreciates at **$33M\u2013$143M/year** over 7\u201317 years\n\nWhile each individual LEO satellite carries far less depreciation, the **sheer volume** (~9,600 satellites) creates an aggregate D&A charge ($2.376B) that is **2.3\u00d7 Viasat's total segment D&A** ($1.030B) \u2014 despite SpaceX's satellites being individually orders of magnitude cheaper.\n\n#### B. The Continuous Replenishment Treadmill\n\nThis is the most structurally important difference:\n\n- **GEO model:** A Viasat satellite launched in 2015 with a 15-year life will be fully depreciated by 2030 but may continue generating revenue through 2035+. During those \"post-depreciation\" years, the satellite produces revenue with **zero depreciation expense** \u2014 a period of highly accretive cash flow. GEO operators experience **lumpy capex cycles** followed by **harvest periods**.\n\n- **LEO model:** SpaceX's 5-year useful life means satellites placed in orbit in 2023 will be fully depreciated by 2028 \u2014 but they will also likely be **deorbited or non-functional** by then. There is **no harvest period**. The constellation must be continuously replenished, meaning D&A is a **permanent, non-declining, and growing** charge. SpaceX's capex-to-D&A ratio of **1.76\u00d7** in FY2025 confirms the constellation is still expanding, and D&A will continue to grow.\n\n#### C. Why EBITDA-to-Operating-Income Conversion Is Critical for LEO Operators\n\nThe comparison reveals three reasons this conversion is analytically essential when evaluating LEO broadband operators as a class:\n\n**1. EBITDA structurally overstates sustainable cash generation for LEO operators.**\nFor GEO operators, EBITDA is a reasonable proxy for cash flow during the \"harvest\" phase of a satellite's life, because maintenance capex is minimal. For LEO operators, EBITDA ignores the **mandatory, continuous replenishment capex** required simply to maintain the constellation at current service levels. SpaceX's $4.178B in Connectivity capex vs. $2.376B in D&A means the business must spend **$1.76 in capex for every $1 of depreciation** just to grow \u2014 and even maintaining the constellation requires capex roughly equal to D&A on a steady-state basis.\n\n**2. The D&A charge is a better proxy for long-run maintenance capex in LEO than in GEO.**\nIn GEO, D&A often significantly exceeds actual maintenance capex during harvest years (the satellite is depreciating but doesn't need replacement). In LEO, D&A **understates** the true economic cost because each satellite must be physically replaced. The $2.376B D&A charge in SpaceX's Connectivity segment is not a \"non-cash add-back\" that can be ignored \u2014 it represents real satellites that will need to be replaced with real launch costs within 5 years.\n\n**3. Scale is the only path to EBITDA-to-OpIncome convergence in LEO.**\nSpaceX's 38.84% operating margin demonstrates that LEO economics *can* work \u2014 but only at massive revenue scale ($11.4B) that dilutes the D&A burden to 20.87% of revenue. Viasat's near-zero operating income at $3.3B in revenue shows that satellite-dependent businesses with high D&A loads cannot achieve operating profitability without either (a) sufficient revenue scale or (b) long-lived assets that create harvest periods. LEO operators lack option (b), making option (a) the only path \u2014 and making the EBITDA-to-OpIncome gap the single most important metric for assessing whether a LEO operator has achieved sufficient scale to overcome its structural depreciation treadmill.\n\n---\n\n### Summary\n\nSpaceX's Connectivity segment embeds **$2,376 million in D&A** within its FY2025 EBITDA bridge \u2014 a charge that represents 20.87% of revenue and 33.15% of Segment Adjusted EBITDA. Viasat's Communication Services segment carries D&A of **$1,029.8 million**, representing 31.22% of revenue and approximately **100% of its implied EBITDA**, converting positive EBITDA into a $(50) million operating loss.\n\nThe directional comparison reveals that while LEO constellations benefit from lower per-satellite costs and massive revenue scale, they face a structurally permanent D&A burden driven by shorter useful lives (5 vs. 7\u201317 years), higher satellite counts (~9,600 vs. ~10\u201315), and continuous replenishment requirements. Unlike GEO operators, LEO operators have no \"post-depreciation harvest period\" \u2014 making EBITDA a potentially misleading measure of value creation and rendering the EBITDA-to-operating-income conversion the critical analytical lens for evaluating LEO broadband operators as a class.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-20250331.htm\",\n      \"name\": \"Viasat Inc. 10-K Annual Report (FY2025, ended March 31, 2025; filed May 27, 2025)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e49b7f629ff34df1a31e152c",
+            "content": "## SpaceX Connectivity vs. Viasat Communication Services: Depreciation, EBITDA Conversion, and LEO vs. GEO Structural Economics\n\n---\n\n### 1. SpaceX Connectivity Segment \u2014 Implied D&A Add-Back (FY2025)\n\nFrom the SpaceX S-1 reconciliation table for the year ended December 31, 2025:\n\n| Metric | Amount ($M) |\n|---|---|\n| Connectivity Segment Revenue | $11,387 |\n| Income from Operations | $4,423 |\n| **Add: Depreciation & Amortization** | **$2,376** |\n| Add: Share-Based Compensation | $369 |\n| **Segment Adjusted EBITDA** | **$7,168** |\n\n**The implied D&A add-back embedded in the EBITDA bridge is $2,376 million.**\n\nThe total gap between Segment Adjusted EBITDA and Operating Income is **$2,745 million** ($7,168 \u2212 $4,423), of which D&A constitutes **86.6%** ($2,376 / $2,745) and SBC constitutes the remaining 13.4%.\n\nKey ratios for SpaceX Connectivity:\n- **D&A as % of Revenue:** 20.87% ($2,376 / $11,387)\n- **D&A as % of Segment Adjusted EBITDA:** 33.15% ($2,376 / $7,168)\n- **Operating Margin:** 38.84%\n- **EBITDA Margin:** 62.95%\n- **Capex / D&A Ratio:** 1.76\u00d7 ($4,178M capex / $2,376M D&A) \u2014 indicating the constellation is still net-growing\n\n---\n\n### 2. Viasat Communication Services Segment \u2014 Depreciation Burden (FY2025, ended March 31, 2025)\n\nFrom Viasat's 10-K filed May 27, 2025:\n\n| Metric | Amount ($M) |\n|---|---|\n| Communication Services Revenue | $3,298.5 |\n| Segment Depreciation | $988.4 |\n| Segment Amortization (ex-acquired intangibles) | $41.4 |\n| **Total D&A** | **$1,029.8** |\n| Stock-Based Compensation | $48.8 |\n| **Segment Operating Income (Loss)** | **$(50.2)** |\n| Implied EBITDA Proxy (OpIncome + D&A + SBC) | ~$1,028.4 |\n\nKey ratios for Viasat Communication Services:\n- **D&A as % of Revenue:** 31.22% ($1,029.8 / $3,298.5)\n- **Depreciation alone as % of Revenue:** 29.97%\n- **Operating Margin:** \u22121.52%\n- **Implied EBITDA Margin:** ~31.18%\n- **Satellite useful life assumptions:** 7\u201317 years (GEO satellites); Ka-band finance leases: 7\u201315 years\n\n---\n\n### 3. Directional Comparison\n\n| Metric | SpaceX Connectivity (LEO) | Viasat Comm. Services (GEO) |\n|---|---|---|\n| D&A as % of Revenue | **20.87%** | **31.22%** |\n| D&A as % of EBITDA | **33.15%** | **~100.1%** |\n| Operating Margin | **+38.84%** | **\u22121.52%** |\n| EBITDA Margin | 62.95% | ~31.18% |\n| Satellite Useful Life | 5 yrs (broadband), 3 yrs (mobile) | 7\u201317 yrs |\n| Satellites in Orbit | ~9,600 | ~10\u201315 (GEO) |\n\n**Critical observation:** Viasat's D&A consumes essentially **100% of its EBITDA**, converting a ~$1.0 billion positive EBITDA proxy into a **$(50) million operating loss**. SpaceX's D&A consumes only **33% of EBITDA**, leaving $4.4 billion in operating income. On the surface, this makes SpaceX's EBITDA-to-OpIncome conversion appear far more favorable.\n\nHowever, this comparison is heavily influenced by **revenue scale** ($11.4B vs. $3.3B) and **constellation maturity**. The structural dynamics are more nuanced than the headline percentages suggest.\n\n---\n\n### 4. What This Reveals About LEO vs. GEO Structural Economics\n\n#### A. The Depreciation Velocity Paradox\n\nLEO satellites have **dramatically shorter useful lives** (5 years for SpaceX broadband, 3 years for first-gen mobile) compared to GEO satellites (7\u201317 years for Viasat). On a per-satellite basis, this means:\n\n- A $500K\u2013$1M LEO satellite depreciates at **$100K\u2013$200K/year** over 5 years\n- A $500M\u2013$1B GEO satellite depreciates at **$33M\u2013$143M/year** over 7\u201317 years\n\nWhile each individual LEO satellite carries far less depreciation, the **sheer volume** (~9,600 satellites) creates an aggregate D&A charge ($2.376B) that is **2.3\u00d7 Viasat's total segment D&A** ($1.030B) \u2014 despite SpaceX's satellites being individually orders of magnitude cheaper.\n\n#### B. The Continuous Replenishment Treadmill\n\nThis is the most structurally important difference:\n\n- **GEO model:** A Viasat satellite launched in 2015 with a 15-year life will be fully depreciated by 2030 but may continue generating revenue through 2035+. During those \"post-depreciation\" years, the satellite produces revenue with **zero depreciation expense** \u2014 a period of highly accretive cash flow. GEO operators experience **lumpy capex cycles** followed by **harvest periods**.\n\n- **LEO model:** SpaceX's 5-year useful life means satellites placed in orbit in 2023 will be fully depreciated by 2028 \u2014 but they will also likely be **deorbited or non-functional** by then. There is **no harvest period**. The constellation must be continuously replenished, meaning D&A is a **permanent, non-declining, and growing** charge. SpaceX's capex-to-D&A ratio of **1.76\u00d7** in FY2025 confirms the constellation is still expanding, and D&A will continue to grow.\n\n#### C. Why EBITDA-to-Operating-Income Conversion Is Critical for LEO Operators\n\nThe comparison reveals three reasons this conversion is analytically essential when evaluating LEO broadband operators as a class:\n\n**1. EBITDA structurally overstates sustainable cash generation for LEO operators.**\nFor GEO operators, EBITDA is a reasonable proxy for cash flow during the \"harvest\" phase of a satellite's life, because maintenance capex is minimal. For LEO operators, EBITDA ignores the **mandatory, continuous replenishment capex** required simply to maintain the constellation at current service levels. SpaceX's $4.178B in Connectivity capex vs. $2.376B in D&A means the business must spend **$1.76 in capex for every $1 of depreciation** just to grow \u2014 and even maintaining the constellation requires capex roughly equal to D&A on a steady-state basis.\n\n**2. The D&A charge is a better proxy for long-run maintenance capex in LEO than in GEO.**\nIn GEO, D&A often significantly exceeds actual maintenance capex during harvest years (the satellite is depreciating but doesn't need replacement). In LEO, D&A **understates** the true economic cost because each satellite must be physically replaced. The $2.376B D&A charge in SpaceX's Connectivity segment is not a \"non-cash add-back\" that can be ignored \u2014 it represents real satellites that will need to be replaced with real launch costs within 5 years.\n\n**3. Scale is the only path to EBITDA-to-OpIncome convergence in LEO.**\nSpaceX's 38.84% operating margin demonstrates that LEO economics *can* work \u2014 but only at massive revenue scale ($11.4B) that dilutes the D&A burden to 20.87% of revenue. Viasat's near-zero operating income at $3.3B in revenue shows that satellite-dependent businesses with high D&A loads cannot achieve operating profitability without either (a) sufficient revenue scale or (b) long-lived assets that create harvest periods. LEO operators lack option (b), making option (a) the only path \u2014 and making the EBITDA-to-OpIncome gap the single most important metric for assessing whether a LEO operator has achieved sufficient scale to overcome its structural depreciation treadmill.\n\n---\n\n### Summary\n\nSpaceX's Connectivity segment embeds **$2,376 million in D&A** within its FY2025 EBITDA bridge \u2014 a charge that represents 20.87% of revenue and 33.15% of Segment Adjusted EBITDA. Viasat's Communication Services segment carries D&A of **$1,029.8 million**, representing 31.22% of revenue and approximately **100% of its implied EBITDA**, converting positive EBITDA into a $(50) million operating loss.\n\nThe directional comparison reveals that while LEO constellations benefit from lower per-satellite costs and massive revenue scale, they face a structurally permanent D&A burden driven by shorter useful lives (5 vs. 7\u201317 years), higher satellite counts (~9,600 vs. ~10\u201315), and continuous replenishment requirements. Unlike GEO operators, LEO operators have no \"post-depreciation harvest period\" \u2014 making EBITDA a potentially misleading measure of value creation and rendering the EBITDA-to-operating-income conversion the critical analytical lens for evaluating LEO broadband operators as a class.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/797721/000095017025077138/vsat-20250331.htm\",\n      \"name\": \"Viasat Inc. 10-K Annual Report (FY2025, ended March 31, 2025; filed May 27, 2025)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16561,
+        "completion_tokens": 3038,
+        "cached_tokens": 15232,
+        "cost_usd": 0.0527425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 111304,
+    "total_completion_tokens": 8195,
+    "total_cached_tokens": 71424,
+    "total_cost_usd": 0.27093,
+    "total_steps": 13
+  }
+}

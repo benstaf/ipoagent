@@ -1,0 +1,796 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "7fe49a87-1c19-480b-a47a-4c3c3b45a5f3",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T19:15:28.557664+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T19:15:28.557664+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nRocket Lab's most recent 10-K or 20-F discloses launch revenue and launch count separately, allowing calculation of an implied revenue-per-launch figure for its Electron vehicle. SpaceX's S-1 discloses Space segment revenue and launch-related KPIs including booster launches and flight-proven booster launches but does not provide a per-launch revenue figure. Using disclosed Space segment revenue and any launch volume data in the S-1, construct an implied revenue-per-launch proxy for SpaceX. Compare this directionally to Rocket Lab's disclosed figure. What does the comparison reveal about the effect of vertical integration and vehicle reusability on per-launch economics, and what specific disclosure in the SpaceX S-1 \u2014 present for Rocket Lab but absent here \u2014 would be required to make this comparison precise rather than approximate?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T19:15:28.557664+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "This is a complex question that requires me to:\n\n1. Find Rocket Lab's most recent 10-K or 20-F to get their launch revenue and launch count for Electron\n2. Find SpaceX's S-1 filing to get Space segment revenue and launch volume data\n3. Calculate implied revenue-per-launch for both companies\n4. Compare them directionally\n5. Discuss what the comparison reveals about vertical integration and reusability\n6. Identify what specific disclosure SpaceX is missing that would make the comparison precise\n\nLet me start by searching for both filings.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3a72bcb90b314d64a8d27660",
+          "function_name": "edgar_search",
+          "arguments": {
+            "search_query": "Rocket Lab launch revenue Electron",
+            "form_types": [
+              "10-K",
+              "20-F"
+            ],
+            "top_n_results": 10
+          }
+        },
+        {
+          "tool_call_id": "call_a64570aeae0d49698ac4ac42",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3a72bcb90b314d64a8d27660",
+            "content": "[{\"accessionNo\": \"0001819994-26-000013\", \"cik\": \"1819994\", \"companyNameLong\": \"Rocket Lab Corp (RKLB) (CIK 0001819994)\", \"ticker\": \"RKLB\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1819994/000181999426000013/rklb-20251231.htm\", \"filedAt\": \"2026-02-26\"}, {\"accessionNo\": \"0000950170-23-006499\", \"cik\": \"1819994\", \"companyNameLong\": \"Rocket Lab USA, Inc. (RKLB) (CIK 0001819994)\", \"ticker\": \"RKLB\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1819994/000095017023006499/rklb-20221231.htm\", \"filedAt\": \"2023-03-07\"}, {\"accessionNo\": \"0000950170-24-022160\", \"cik\": \"1819994\", \"companyNameLong\": \"Rocket Lab USA, Inc. (RKLB) (CIK 0001819994)\", \"ticker\": \"RKLB\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1819994/000095017024022160/rklb-20231231.htm\", \"filedAt\": \"2024-02-28\"}, {\"accessionNo\": \"0001628280-25-008724\", \"cik\": \"1819994\", \"companyNameLong\": \"Rocket Lab USA, Inc. (RKLB) (CIK 0001819994)\", \"ticker\": \"RKLB\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1819994/000162828025008724/rklb-20241231.htm\", \"filedAt\": \"2025-02-27\"}, {\"accessionNo\": \"0000950170-22-004458\", \"cik\": \"1819994\", \"companyNameLong\": \"Rocket Lab USA, Inc. (RKLB) (CIK 0001819994)\", \"ticker\": \"RKLB\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1819994/000095017022004458/rklb-20211231.htm\", \"filedAt\": \"2022-03-24\"}, {\"accessionNo\": \"0001628280-25-021054\", \"cik\": \"1819994\", \"companyNameLong\": \"Rocket Lab USA, Inc. (RKLB) (CIK 0001819994)\", \"ticker\": \"RKLB\", \"description\": \"10-K/A\", \"formType\": \"10-K/A\", \"type\": \"10-K/A\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1819994/000162828025021054/rklb-20241231.htm\", \"filedAt\": \"2025-04-30\"}, {\"accessionNo\": \"0000040888-15-000004\", \"cik\": \"40888\", \"companyNameLong\": \"GENCORP INC (CIK 0000040888)\", \"ticker\": \"AJRD\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/40888/000004088815000004/gencorp201410-k.htm\", \"filedAt\": \"2015-01-30\"}, {\"accessionNo\": \"0001193125-14-040681\", \"cik\": \"40888\", \"companyNameLong\": \"GENCORP INC (CIK 0000040888)\", \"ticker\": \"AJRD\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/40888/000119312514040681/d651405d10k.htm\", \"filedAt\": \"2014-02-07\"}, {\"accessionNo\": \"0001140361-23-009252\", \"cik\": \"1281895\", \"companyNameLong\": \"ROCKET PHARMACEUTICALS, INC. (RCKT, RCKTW) (CIK 0001281895)\", \"ticker\": \"RCKT\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1281895/000114036123009252/brhc10048995_10k.htm\", \"filedAt\": \"2023-02-28\"}, {\"accessionNo\": \"0000950152-05-001227\", \"cik\": \"40888\", \"companyNameLong\": \"GENCORP INC (CIK 0000040888)\", \"ticker\": \"AJRD\", \"description\": \"FORM 10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/40888/000095015205001227/l11133ae10vk.htm\", \"filedAt\": \"2005-02-14\"}]"
+          },
+          {
+            "source_call_id": "call_a64570aeae0d49698ac4ac42",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3630,
+        "completion_tokens": 274,
+        "cached_tokens": 3200,
+        "cost_usd": 0.007815
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T19:16:41.369255+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Good, I found Rocket Lab's most recent 10-K filed on 2026-02-26 (for FY2025 ending 12/31/2025). Let me parse that filing and also retrieve information from the SpaceX S-1.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3d8ef2b8a539432b87fe1c42",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1819994/000181999426000013/rklb-20251231.htm",
+            "key": "rocketlab_10k_2025"
+          }
+        },
+        {
+          "tool_call_id": "call_1346b779b4a6473c8709bcb5",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Space segment revenue for SpaceX for each year presented? Also find any launch volume data including booster launches, flight-proven booster launches, total launches, or any launch count KPIs in {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3d8ef2b8a539432b87fe1c42",
+            "content": "SUCCESS: Loaded portable assets for key: rocketlab_10k_2025"
+          },
+          {
+            "source_call_id": "call_1346b779b4a6473c8709bcb5",
+            "content": "Based on the provided text, here is the breakdown of the Space segment's revenue and the comprehensive launch volume data/KPIs.\n\n### **1. Space Segment Revenue**\nThe text explicitly states the absolute revenue for 2025 and Q1 2026. The figures for 2024 and 2023 are derived from the year-over-year variance explanations provided in the MD&A section.\n\n*   **2025:** **$4,086 million** *(Explicitly stated)*\n*   **Q1 2026 (Three Months Ended March 31, 2026):** **$619 million** *(Explicitly stated)*\n*   **2024:** **$3,796 million** *(Derived: The text notes 2025 revenue of $4,086M was an increase of $290M from 2024).*\n*   **2023:** **$3,557 million** *(Derived: The MD&A states 2024 revenue increased by $239M, or 6.7%, compared to 2023).*\n\n*(Note: The text also provides a percentage breakdown of this revenue between \"Launch Services\" and \"Launch & Development\" for the years 2023\u20132025 and Q1 2025\u20132026, but does not provide the absolute dollar amounts for those specific sub-categories).*\n\n---\n\n### **2. Launch Volume Data & KPIs**\nThe document details extensive operational metrics regarding launch cadence, reusability, and payload capacity. \n\n#### **Total Launches (All Vehicles)**\n*From the Segment Operating and Financial Data table:*\n*   **2023:** 98 launches\n*   **2024:** 138 launches\n*   **2025:** 170 launches\n*   **Q1 2025:** 38 launches\n*   **Q1 2026:** 40 launches\n\n#### **Falcon Launch Breakdown (Customer vs. Internal)**\n*From Footnote 1 / Preamble details:*\n*   **2023:** 96 total (33 customer / 63 internal)\n*   **2024:** 134 total (45 customer / 89 internal)\n*   **2025:** 165 total (43 customer / 122 internal)\n*   **Q1 2025:** 36 total (12 customer / 24 internal)\n*   **Q1 2026:** 40 total (7 customer / 33 internal)\n\n#### **Flight-Proven Booster Launches (Reusability KPI)**\n*   **2025:** **157** flight-proven Falcon 9 launches (out of 165 Falcon 9 rockets). *Note: Another section mentions **159** flight-proven booster launches when accounting for all 170 Falcon and Starship missions combined.*\n*   **Q1 2026:** **39** flight-proven booster launches (out of 40 Falcon rockets).\n*   **Cumulative (as of March 31, 2026):** Over **540** launches completed by a flight-proven Falcon rocket.\n*   **Reusability Record:** The company has demonstrated the ability to refly a first-stage booster up to **34 times**.\n\n#### **Starship Flight Tests**\n*   **To Date:** **11** Starship flight tests executed.\n*   **Upcoming:** A **12th** flight test is scheduled (debuting the next-generation vehicle and Super Heavy booster).\n\n#### **Mass to Orbit (Segment Capacity KPI)**\n*   **2023:** 1,210 metric tons (205 customer / 1,005 internal)\n*   **2024:** 1,699 metric tons (282 customer / 1,418 internal)\n*   **2025:** 2,213 metric tons (312 customer / 1,901 internal) \u2014 *Represented over 80% of global mass to orbit for the world in 2025.*\n*   **Q1 2025:** 450 metric tons\n*   **Q1 2026:** 556 metric tons\n\n#### **Cumulative / Historical Milestones (as of March 31, 2026)**\n*   **~650** total orbital space launches completed company-wide.\n*   **~620** orbital space launches attributed specifically to Falcon 9.\n*   **~7,400 metric tons** total mass to orbit delivered historically.\n*   **>99%** mission success rate across Falcon rockets.\n*   **>99%** success rate on attempted booster recoveries in 2025."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5698,
+        "completion_tokens": 238,
+        "cached_tokens": 3200,
+        "cost_usd": 0.012624999999999999
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T19:17:02.370189+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Excellent! Now I have SpaceX's Space segment revenue and launch data. Let me now retrieve Rocket Lab's launch revenue and launch count from their 10-K.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_24e405ad15d14a80b613f25f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Rocket Lab's launch services revenue or launch revenue for each year? Also find the number of Electron launches completed for each year in {{rocketlab_10k_2025}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_24e405ad15d14a80b613f25f",
+            "content": "Based on the provided text, here is Rocket Lab's Launch Services revenue and the number of Electron launches completed for the years 2023, 2024, and 2025:\n\n**2025**\n* **Launch Services Revenue:** $199.0 million ($199,042 thousand)\n* **Electron Launches Completed:** 21\n\n**2024**\n* **Launch Services Revenue:** $125.4 million ($125,376 thousand)\n* **Electron Launches Completed:** 16\n\n**2023**\n* **Launch Services Revenue:** $71.9 million ($71,894 thousand)\n* **Electron Launches Completed:** 10"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7085,
+        "completion_tokens": 103,
+        "cached_tokens": 5376,
+        "cost_usd": 0.0120225
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T19:18:09.500081+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have the data I need. Let me calculate the implied revenue-per-launch for both companies.\n\n**Rocket Lab (Electron):**\n- 2025: $199.0M / 21 launches = $9.48M per launch\n- 2024: $125.4M / 16 launches = $7.84M per launch\n- 2023: $71.9M / 10 launches = $7.19M per launch\n\n**SpaceX (Space Segment):**\n- 2025: $4,086M / 170 launches = $24.04M per launch\n- 2024: $3,796M / 138 launches = $27.51M per launch\n- 2023: $3,557M / 98 launches = $36.30M per launch\n\nBut wait - I need to be careful here. SpaceX's Space segment revenue includes more than just launch services. The retrieval mentioned that there's a percentage breakdown between \"Launch Services\" and \"Launch & Development\" sub-categories. Let me get more details on this.\n\nAlso, SpaceX's launches include both customer launches and internal launches (Starlink). The internal launches are essentially intercompany - they're launching their own Starlink satellites. So the revenue attributed to those internal launches might be different from customer launches.\n\nLet me retrieve more details about the Space segment revenue breakdown.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e9d80edc1e52448b837cbc9c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the percentage breakdown of Space segment revenue between Launch Services and Launch & Development for 2023, 2024, 2025 and Q1 2026? Also find any discussion of customer launch revenue versus internal Starlink launch revenue in {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_40e9b5d36a83420c8245555a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the revenue breakdown between Launch Services revenue and other Space segment revenue categories? Find the segment revenue composition table and any discussion of how internal Starlink launches are accounted for in revenue in {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e9d80edc1e52448b837cbc9c",
+            "content": "Based on the provided financial documents, here is the percentage breakdown of the Space segment's revenue and the discussion regarding customer versus internal launch revenue.\n\n### Percentage Breakdown of Space Segment Revenue\nThe revenue for the Space segment is disaggregated into **Launch Services** (recognized at a point in time) and **Launch & Development** (recognized over time). The percentage breakdown for the requested periods is as follows:\n\n*   **2023:** \n    *   Launch Services: **55.2%**\n    *   Launch & Development: **44.8%**\n*   **2024:** \n    *   Launch Services: **68.2%**\n    *   Launch & Development: **31.8%**\n*   **2025:** \n    *   Launch Services: **63.0%**\n    *   Launch & Development: **37.0%**\n*   **Q1 2026** *(Three Months Ended March 31, 2026)*: \n    *   Launch Services: **53.3%**\n    *   Launch & Development: **46.7%**\n\n*(Note: The company expects Launch and Development to represent a larger portion of Space revenue in the future as it continues to serve long-term government contracts).*\n\n---\n\n### Customer Launch Revenue vs. Internal Starlink Launch Revenue\nThe MD&A and Preamble sections detail strict accounting and operational boundaries between external customer launches and internal Starlink launches:\n\n*   **No Inter-Segment Revenue Recognition:** The Space segment's revenue **only** reflects external customer launches and customer activities. When the company launches its own Starlink satellites, it does not recognize any inter-segment revenue within the Space segment.\n*   **Capitalization of Internal Launches:** For launches dedicated to deploying Starlink satellites, the associated costs are not expensed through the Space segment's cost of revenue. Instead, these costs are capitalized as satellites within \"Property, plant, and equipment, net\" on the balance sheet (attributed to the Connectivity segment) and are depreciated over time.\n*   **Impact on Revenue Growth:** The company allocates a significant amount of its launch capacity to its internal Connectivity segment (and expects to allocate significant capacity to its AI segment in the future). Because internal business needs absorb most of the growth in launch capacity, the company expects Space segment revenue growth to continue to be lower than total company revenue growth.\n*   **Payload Timing and Financial Variability:** The company plans launches and allocates payloads in advance, but managing the timing of customer payload arrivals is difficult. If an expected customer payload is not ready for a planned launch, the company pivots and uses that launch capacity for its own Starlink satellites. Consequently, the company frequently adjusts expected launch payloads, meaning that period-to-period Space revenue and cost of revenue will naturally vary based on the shifting mix of customer versus internal launches."
+          },
+          {
+            "source_call_id": "call_40e9b5d36a83420c8245555a",
+            "content": "Based on the provided MD&A section, here is the revenue breakdown for the Space segment and the accounting treatment for internal Starlink launches:\n\n### 1. Space Segment Revenue Composition\nThe Space segment's revenue is divided into two main categories: **Launch Services** (recognized at a point in time) and **Launch & Development** (recognized over time). The percentage breakdown of total Space segment revenue is as follows:\n\n| Revenue Category | Three Months Ended Mar 31, 2026 | Three Months Ended Mar 31, 2025 | Year Ended Dec 31, 2025 | Year Ended Dec 31, 2024 | Year Ended Dec 31, 2023 |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| **Launch Services** | 53.3% | 65.4% | 63.0% | 68.2% | 55.2% |\n| **Launch & Development** | 46.7% | 34.6% | 37.0% | 31.8% | 44.8% |\n| **Total Space** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |\n\n### 2. Accounting for Internal Starlink Launches\nThe company does **not** recognize inter-segment revenue for internal launches dedicated to deploying its own Starlink satellites. The specific accounting treatment is as follows:\n* **Cost Capitalization:** Instead of recognizing revenue in the Space segment, the associated launch costs are capitalized within the **Connectivity segment** as satellites in *Property, plant, and equipment, net*, and are subsequently depreciated over time.\n* **Revenue Recognition Scope:** The Space segment's reported revenue **only** reflects external customer launches and customer activities. \n* **Customer vs. Internal Designation:** A launch is only designated as a \"customer launch\" (and thus recognized as Space revenue) if an external customer payload constitutes the primary payload and the mission parameters are designed around that customer's requirements. (Additionally, all Starship launches to date have been classified as internal).\n\n### 3. Growth Expectations and Capacity Allocation\nThe document highlights how internal demand and future AI focus impact the Space segment's top-line growth and revenue mix:\n* **Suppressed External Revenue Growth:** Space revenue growth is expected to continue to be lower than total company revenue growth because internal business needs (Starlink) will continue to absorb most of the growth in overall launch capacity.\n* **Future AI Allocation:** The company currently allocates a significant amount of launch capacity to the Connectivity segment and expects to allocate a significant amount of capacity to its **AI segment** in the future.\n* **Shift in Revenue Mix:** Launch and Development is expected to represent a larger portion of external Space revenue over time as the company continues to fulfill long-term contracts for government customers. Furthermore, period-to-period Space revenue will naturally fluctuate based on the mix of launches used for internal versus external payloads."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7372,
+        "completion_tokens": 495,
+        "cached_tokens": 6528,
+        "cost_usd": 0.015220000000000001
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T19:19:58.438105+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "This is very important. SpaceX's Space segment revenue ONLY reflects external customer launches. Internal Starlink launches do NOT generate revenue in the Space segment. So when I calculate revenue per launch, I should use only customer launches, not total launches.\n\nLet me recalculate:\n\n**SpaceX Space Segment - Customer Launches Only:**\n- 2023: 33 customer launches, Space segment revenue = $3,557M\n- 2024: 45 customer launches, Space segment revenue = $3,796M\n- 2025: 43 customer launches, Space segment revenue = $4,086M\n\nBut wait - the Space segment revenue includes both \"Launch Services\" (point-in-time) and \"Launch & Development\" (over time). The Launch & Development revenue is recognized over time and likely relates to government development contracts, not per-launch revenue. So the more appropriate comparison would be to use only the \"Launch Services\" portion.\n\nLet me calculate:\n\n**SpaceX - Launch Services Revenue (point-in-time, customer launches):**\n- 2023: 55.2% \u00d7 $3,557M = $1,963M / 33 customer launches = $59.5M per launch\n- 2024: 68.2% \u00d7 $3,796M = $2,589M / 45 customer launches = $57.5M per launch\n- 2025: 63.0% \u00d7 $4,086M = $2,574M / 43 customer launches = $59.9M per launch\n\n**SpaceX - Total Space Segment Revenue / Customer Launches:**\n- 2023: $3,557M / 33 = $107.8M per launch\n- 2024: $3,796M / 45 = $84.4M per launch\n- 2025: $4,086M / 43 = $95.0M per launch\n\n**Rocket Lab - Launch Services Revenue / Electron Launches:**\n- 2023: $71.9M / 10 = $7.19M per launch\n- 2024: $125.4M / 16 = $7.84M per launch\n- 2025: $199.0M / 21 = $9.48M per launch\n\nNow, the comparison is complicated because:\n1. SpaceX's Launch Services revenue includes more than just Falcon 9 customer launches - it may include Dragon missions, rideshare missions, government launch contracts, etc.\n2. SpaceX's \"Launch & Development\" revenue recognized over time likely includes long-term government development contracts (like HLS, national security launch contracts, etc.)\n3. The customer launch count includes Falcon Heavy launches which are much more expensive\n4. SpaceX's launches are to much higher orbits and carry much heavier payloads\n\nLet me also check if Rocket Lab's launch services revenue includes anything beyond just Electron launches. Let me also look at whether Rocket Lab discloses Neutron or other launch-related revenue.\n\nActually, let me also check if the SpaceX S-1 provides any more granular data on customer launch revenue specifically.\n\nLet me also verify the Rocket Lab data more carefully - does their \"Launch Services\" revenue include only Electron, or does it include other launch-related activities?\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_993077acd0664667bb5d040a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does Rocket Lab's Launch Services revenue include? Does it include only Electron launches or also other activities? What is the revenue breakdown between Launch Services and Space Systems segments? Find any discussion of average selling price per launch or revenue per launch in {{rocketlab_10k_2025}}"
+          }
+        },
+        {
+          "tool_call_id": "call_318b332c934846cf95e996ec",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the average price per launch for Falcon 9 and Falcon Heavy? What are the listed prices or contracted prices for customer launches? Find any discussion of launch pricing, average revenue per customer launch, or pricing for rideshare missions in {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_993077acd0664667bb5d040a",
+            "content": "Based on the provided financial statements and MD&A excerpts, here is the breakdown of Rocket Lab's Launch Services revenue, segment performance, and pricing metrics:\n\n### 1. What Launch Services Revenue Includes\nLaunch Services revenue is **not limited strictly to the physical act of launching an Electron rocket**. It encompasses a broader suite of launch-related activities and contract structures:\n*   **Mission Structures:** It includes both dedicated missions (for a single customer) and rideshare arrangements (hosting multiple spacecraft from multiple customers on a single rocket).\n*   **Vehicle Types:** While the **Electron** small launch vehicle is the primary revenue driver, the company's launch facilities also support **HASTE** (a suborbital/hypersonic test vehicle), and the company is actively developing **Neutron** (a medium-lift launch vehicle).\n*   **Other Launch Activities:** The text explicitly states that the segment includes **\"other launch revenue, which includes termination and study revenue.\"** Therefore, if a customer cancels a contract and pays a termination fee, or if Rocket Lab conducts paid mission studies, it is recognized under Launch Services.\n*   **Revenue Recognition:** Revenue is recognized either at a \"point-in-time\" (upon launch) or \"over-time\" (using an input method based on costs incurred relative to total estimated costs at completion).\n\n### 2. Revenue Breakdown: Launch Services vs. Space Systems\nRocket Lab manages its business across two distinct reportable segments. The revenue breakdown for the past three years is as follows *(in thousands)*:\n\n| Year | Launch Services Revenue | Space Systems Revenue | Total Revenue |\n| :--- | :--- | :--- | :--- |\n| **2025** | $199,042 | $402,757 | $601,799 |\n| **2024** | $125,376 | $310,838 | $436,214 |\n| **2023** | $71,894 | $172,698 | $244,592 |\n\n**Products vs. Services Breakdown (2025 Data):**\n*   **Launch Services:** 100% of this segment's revenue ($199.0M) is classified as **Services**. \n*   **Space Systems:** The vast majority of this segment's revenue comes from **Products** ($371.6M from spacecraft manufacturing and components), while a smaller portion comes from **Services** ($31.1M from space engineering, program management, and mission operations).\n\n### 3. Discussion of \"Revenue Per Launch\" (Average Selling Price)\nThe MD&A section explicitly tracks and discusses **Revenue per launch**, which acts as the company's average selling price metric for launch contracts. \n\n*   **Definition:** The company defines it as *\"the average transaction price attributable to launch contract performance obligations during the period in which the launch occurs, regardless of whether the revenue is recognized as point-in-time or over-time.\"*\n*   **Revenue Per Launch Trend:**\n    *   **2025:** $8.5 million\n    *   **2024:** $7.8 million\n    *   **2023:** $7.1 million\n*   **Pricing Variables:** The company cautions that this metric *\"can vary considerably\"* and may not provide absolute clarity on general market pricing dynamics because each contract is highly customized. Factors that cause the selling price to fluctuate include:\n    *   Unique orbit and insertion requirements\n    *   Payload handling needs\n    *   Launch location\n    *   Time sensitivity of mission completion\n*   **Cost Per Launch & Margins:** To provide context on profitability, the company also tracks *Cost per launch*. Driven by \"efficiencies of scale,\" the cost per launch dropped from **$7.0 million in 2023** to **$5.7 million in 2024**, and down to **$4.8 million in 2025**. This demonstrates a rapidly expanding gross margin per launch as the Electron program matures and launch cadence increases (from 10 launches in 2023 to 21 launches in 2025)."
+          },
+          {
+            "source_call_id": "call_318b332c934846cf95e996ec",
+            "content": "Based on the provided text, **specific dollar amounts for the average price per launch, listed prices, contracted prices, average revenue per customer launch, and rideshare mission pricing are not disclosed.** \n\nHowever, the text does provide qualitative discussions on launch pricing trends, contract structures, and historical cost-per-kilogram metrics. Here is a detailed breakdown of what the text contains regarding your queries:\n\n### 1. Average Price Per Launch & Average Revenue\n* **No specific dollar amounts are provided.** \n* The MD&A section only offers a qualitative trend, stating that despite total Falcon launches increasing from 134 in 2024 to 165 in 2025, **\"Space customer launches and average price per launch remained relatively flat year over year.\"**\n* The text notes that period-to-period Space revenue varies based on the mix of launches, but it does not break down the exact average revenue generated per customer launch.\n\n### 2. Listed or Contracted Prices\n* **Specific listed prices or contract values are not mentioned.**\n* The text explains the *structure* of the pricing, noting that Space segment revenue is derived from **\"fixed-price contracts.\"**\n  * **Launch Services** contracts typically range from **one to five years**.\n  * **Launch and Development** contracts (typically for government agency spacecraft development and mission services) can range from **one to fourteen years**.\n\n### 3. Rideshare Missions\n* **There is no mention of rideshare missions** (e.g., the Transporter program) or their specific pricing models anywhere in the provided text.\n\n### 4. Available Pricing & Cost Metrics (Per-Kilogram Focus)\nInstead of quoting per-launch prices, the text heavily emphasizes SpaceX's historical disruption of the industry through **cost-per-kilogram** reductions driven by reusability:\n* **Historical Industry Average:** $18,500 per kilogram to reach orbit.\n* **Falcon 9 (2010 debut):** Reduced launch costs to approximately **$2,700 per kilogram** (an ~85% reduction compared to the historical average).\n* **Falcon Heavy (2018 debut):** Further reduced costs to approximately **$1,400 per kilogram** (an ~92% reduction).\n* **Starship (Future Goal):** Aims to reduce the cost to reach orbit by **99% or more** relative to the historical average, enabling new markets like \"orbital AI compute.\"\n\n### 5. Important Context on Revenue vs. Launch Cadence\nWhen analyzing average revenue per launch, the text highlights a crucial accounting distinction that skews total launch counts versus recognized revenue:\n* **Customer vs. Internal Launches:** The Space segment's revenue *only* reflects third-party customer launches and activities. \n* **Starlink/Internal Launches:** For internal Starlink deployments, the company **does not recognize inter-segment revenue**. Instead, these launch costs are capitalized as Property, Plant, and Equipment (PP&E) within the Connectivity segment. \n* **Capacity Allocation:** A significant and growing amount of launch capacity is absorbed internally by the Connectivity segment and is expected to be absorbed by the AI segment in the future. Therefore, a large portion of the company's total launch cadence (e.g., 122 internal launches vs. 43 customer launches in 2025) does not generate direct Space segment revenue, making a simple \"Total Revenue / Total Launches\" calculation inaccurate for determining customer pricing."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9165,
+        "completion_tokens": 932,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0282325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T19:20:06.956076+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Excellent! Now I have very detailed data. Let me compile the analysis.\n\n**Rocket Lab (Electron) - Disclosed Revenue Per Launch:**\n- 2025: $8.5M per launch (explicitly disclosed)\n- 2024: $7.8M per launch (explicitly disclosed)\n- 2023: $7.1M per launch (explicitly disclosed)\n\nRocket Lab also discloses cost per launch:\n- 2025: $4.8M\n- 2024: $5.7M\n- 2023: $7.0M\n\n**SpaceX - Implied Revenue Per Launch (using customer launches only):**\n\nSpace segment revenue only reflects external customer launches. So:\n\nUsing total Space segment revenue / customer launches:\n- 2023: $3,557M / 33 customer launches = $107.8M per customer launch\n- 2024: $3,796M / 45 customer launches = $84.4M per customer launch\n- 2025: $4,086M / 43 customer launches = $95.0M per customer launch\n\nBut this includes \"Launch & Development\" revenue which is recognized over time (government contracts). If I use only \"Launch Services\" (point-in-time):\n- 2023: 55.2% \u00d7 $3,557M = $1,963M / 33 = $59.5M per customer launch\n- 2024: 68.2% \u00d7 $3,796M = $2,589M / 45 = $57.5M per customer launch\n- 2025: 63.0% \u00d7 $4,086M = $2,574M / 43 = $59.9M per customer launch\n\nLet me verify these calculations.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_718aac41f5b044cf92e8d033",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3557 * 0.552"
+          }
+        },
+        {
+          "tool_call_id": "call_088645d0011d4629a9529d15",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3796 * 0.682"
+          }
+        },
+        {
+          "tool_call_id": "call_f2a7ab9fb68143678049583a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4086 * 0.63"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_718aac41f5b044cf92e8d033",
+            "content": "1963.4640000000002"
+          },
+          {
+            "source_call_id": "call_088645d0011d4629a9529d15",
+            "content": "2588.8720000000003"
+          },
+          {
+            "source_call_id": "call_f2a7ab9fb68143678049583a",
+            "content": "2574.18"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11762,
+        "completion_tokens": 553,
+        "cached_tokens": 8704,
+        "cost_usd": 0.024055
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T19:20:11.724610+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me calculate the per-launch figures:",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_213946e526934fcb9eed55f3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1963.464 / 33"
+          }
+        },
+        {
+          "tool_call_id": "call_69743df243eb433aadbe9879",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2588.872 / 45"
+          }
+        },
+        {
+          "tool_call_id": "call_57c73cb1d33c4e72a20b15ad",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2574.18 / 43"
+          }
+        },
+        {
+          "tool_call_id": "call_5d176b01fd174700a894bd8c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3557 / 33"
+          }
+        },
+        {
+          "tool_call_id": "call_17db3c62f3c04ebbb7361838",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3796 / 45"
+          }
+        },
+        {
+          "tool_call_id": "call_ce311f9b5c834c18bc08bfaf",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4086 / 43"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_213946e526934fcb9eed55f3",
+            "content": "59.49890909090909"
+          },
+          {
+            "source_call_id": "call_69743df243eb433aadbe9879",
+            "content": "57.53048888888888"
+          },
+          {
+            "source_call_id": "call_57c73cb1d33c4e72a20b15ad",
+            "content": "59.86465116279069"
+          },
+          {
+            "source_call_id": "call_5d176b01fd174700a894bd8c",
+            "content": "107.78787878787878"
+          },
+          {
+            "source_call_id": "call_17db3c62f3c04ebbb7361838",
+            "content": "84.35555555555555"
+          },
+          {
+            "source_call_id": "call_ce311f9b5c834c18bc08bfaf",
+            "content": "95.02325581395348"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12382,
+        "completion_tokens": 222,
+        "cached_tokens": 10880,
+        "cost_usd": 0.019575
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T19:21:55.418651+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also check if there's any additional detail about what the SpaceX customer launches include - are they all Falcon 9, or do they include Falcon Heavy and Dragon missions? Let me also check if there's any data on the number of customer launches that are Falcon Heavy vs Falcon 9.\n\nAlso, I should note that the SpaceX S-1 mentions that \"Space customer launches and average price per launch remained relatively flat year over year\" between 2024 and 2025. This is interesting because my calculation shows:\n- 2024: $57.5M per customer launch (Launch Services only)\n- 2025: $59.9M per customer launch (Launch Services only)\n\nThat's relatively flat, which is consistent.\n\nNow let me also think about what the comparison reveals:\n\n1. SpaceX's implied revenue per customer launch (~$57-60M for Launch Services only, or ~$84-108M for total Space segment) is dramatically higher than Rocket Lab's ~$7-9M per Electron launch.\n\n2. But this is comparing apples to oranges because:\n   - Falcon 9 carries much heavier payloads (22,800 kg to LEO vs ~300 kg for Electron)\n   - Falcon 9 missions go to higher energy orbits (GTO, etc.)\n   - SpaceX's customer launches include Falcon Heavy (much more expensive), Dragon crew/cargo missions to ISS, and national security launches\n   - SpaceX's \"Launch Services\" revenue may include more than just the launch itself (e.g., mission integration, payload handling)\n\n3. The key insight about vertical integration and reusability:\n   - SpaceX's reusability (157 out of 165 Falcon launches used flight-proven boosters in 2025) dramatically reduces the cost per launch\n   - SpaceX's vertical integration (making their own engines, avionics, etc.) further reduces costs\n   - But SpaceX charges much more per launch because they're launching much larger payloads to more demanding orbits\n   - The cost savings from reusability allow SpaceX to offer competitive pricing while maintaining high margins\n\n4. The missing disclosure: SpaceX does not disclose a \"revenue per launch\" or \"average selling price per launch\" metric like Rocket Lab does. Rocket Lab explicitly discloses:\n   - Revenue per launch (average transaction price): $8.5M in 2025\n   - Cost per launch: $4.8M in 2025\n   - This allows calculation of gross margin per launch\n\n   SpaceX would need to disclose:\n   - A specific \"revenue per customer launch\" or \"average selling price per launch\" metric\n   - Ideally broken down by vehicle type (Falcon 9 vs Falcon Heavy)\n   - And a \"cost per launch\" metric\n   - This would allow a true apples-to-apples comparison of per-launch economics\n\nLet me also check if there's any data on Falcon Heavy launches specifically in the customer launch count.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_f25095f08b3c4135b250bde2",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "How many Falcon Heavy launches were there in 2023, 2024, and 2025? Are any of the customer launches Falcon Heavy missions? What is the breakdown between Falcon 9 and Falcon Heavy customer launches in {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_8e89d35e23094618a81dc9f6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the payload capacity of Falcon 9 and Falcon Heavy to LEO and GTO? What is the mass to orbit per launch for customer launches versus internal launches in {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_f25095f08b3c4135b250bde2",
+            "content": "Based on the provided text, here are the answers to your questions:\n\n**1. How many Falcon Heavy launches were there in 2023, 2024, and 2025?**\nThe provided text **does not specify** the year-over-year breakdown of Falcon Heavy launches for 2023, 2024, and 2025. It only provides a cumulative historical metric, stating that as of March 31, 2026, Falcon Heavy had successfully completed **11 total launches** since its inaugural flight in 2018. *(Note: The text lists total \"Falcon launches\" as 96, 134, and 165 for the years 2023, 2024, and 2025, but other sections explicitly refer to these annual figures as \"Falcon 9 rockets,\" and no annual separation for Falcon Heavy is provided).*\n\n**2. Are any of the customer launches Falcon Heavy missions?**\n**Yes**, the text indicates that Falcon Heavy is used for external customer and government missions. It notes that Falcon Heavy has been selected by NASA for critical interplanetary probes (Europa Clipper, Dragonfly) and the Nancy Grace Roman telescope. It is also certified for National Security Space Launch (NSSL) U.S. government operations. However, the text does not quantify exactly how many of the reported \"customer launches\" were flown on Falcon Heavy. \n\n**3. What is the breakdown between Falcon 9 and Falcon Heavy customer launches?**\nThe provided text **does not contain a breakdown** of customer launches between Falcon 9 and Falcon Heavy. It only provides the aggregate totals for \"Falcon\" customer launches:\n*   **2023:** 33 customer launches\n*   **2024:** 45 customer launches\n*   **2025:** 43 customer launches\n*   **Q1 2025:** 12 customer launches\n*   **Q1 2026:** 7 customer launches\n\nThe text defines a \"customer launch\" based on payload criteria (where an external customer payload is the primary objective) but does not separate these metrics by vehicle type (Falcon 9 vs. Falcon Heavy)."
+          },
+          {
+            "source_call_id": "call_8e89d35e23094618a81dc9f6",
+            "content": "Based on the provided prospectus preamble, here are the payload capacities for Falcon 9 and Falcon Heavy, as well as the breakdown of mass to orbit per launch for customer versus internal missions.\n\n### 1. Payload Capacity to LEO and GTO\n*Note: Capacities are stated for when the vehicles are fully expendable or operating in their standard heavy-lift configurations.*\n\n**Falcon 9**\n*   **Low Earth Orbit (LEO):** ~23 metric tons\n*   **Geosynchronous Transfer Orbit (GTO):** ~8 metric tons\n\n**Falcon Heavy**\n*   **Low Earth Orbit (LEO):** ~64 metric tons\n*   **Geosynchronous Transfer Orbit (GTO):** ~27 metric tons\n\n---\n\n### 2. Mass to Orbit per Launch: Customer vs. Internal\nThe document explicitly notes that across all Falcon 9 missions, the **overall average capacity is roughly 13 metric tons per mission** since 2023. However, by cross-referencing the provided \"Mass to Orbit\" metrics with the \"Launches\" footnote, a stark contrast emerges between customer and internal launches. \n\nInternal launches (primarily dedicated to deploying SpaceX's own Starlink satellites to LEO) consistently maximize the rocket's reusable payload capacity. Customer launches average significantly less due to varying mission profiles, diverse orbital destinations (like GTO, which requires more fuel and reduces payload mass), and rideshare configurations.\n\nHere is the calculated mass to orbit per launch based on the provided annual data:\n\n#### **2023**\n*   **Customer Launches:** 205 metric tons / 33 launches = **~6.2 metric tons per launch**\n*   **Internal Launches:** 1,005 metric tons / 63 launches = **~15.9 metric tons per launch**\n*   *(Total: 1,210 metric tons across 96 launches)*\n\n#### **2024**\n*   **Customer Launches:** 282 metric tons / 45 launches = **~6.3 metric tons per launch**\n*   **Internal Launches:** 1,418 metric tons / 89 launches = **~15.9 metric tons per launch**\n*   *(Total: ~1,700 metric tons across 134 launches)*\n\n#### **2025**\n*   **Customer Launches:** 312 metric tons / 43 launches = **~7.3 metric tons per launch**\n*   **Internal Launches:** 1,901 metric tons / 122 launches = **~15.6 metric tons per launch**\n*   *(Total: 2,213 metric tons across 165 launches)*\n\n### Key Context on Launch Classifications:\n*   **Customer Launches:** Defined as missions where an external customer payload is the *primary* payload, and mission parameters (window, orbit, profile) are designed around the customer's requirements.\n*   **Internal Launches:** Primarily consist of Starlink constellation deployments and development tests. The document notes that SpaceX capitalizes the costs of these Starlink deployments within its Connectivity segment and does not recognize inter-segment Space revenue for them. (Additionally, all *Starship* flight tests to date are currently classified as internal)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12746,
+        "completion_tokens": 802,
+        "cached_tokens": 11904,
+        "cost_usd": 0.025005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T19:22:13.534434+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "This is very helpful. Now I have a much more complete picture. Let me also calculate the revenue per metric ton for SpaceX customer launches to get a sense of the pricing:\n\n2025: $2,574M (Launch Services) / 312 metric tons = $8.25M per metric ton\n2024: $2,589M / 282 metric tons = $9.18M per metric ton\n2023: $1,963M / 205 metric tons = $9.58M per metric ton\n\nFor Rocket Lab, Electron can carry ~300 kg to LEO. If we assume an average payload of, say, 150 kg per launch (since many are rideshare or smaller payloads), then:\n2025: $8.5M / 0.15 metric tons = $56.7M per metric ton (very rough)\n\nBut this is getting too speculative. Let me focus on the core comparison.\n\nNow let me also check if Rocket Lab's 10-K mentions anything about Neutron or future launch vehicles that might be relevant.\n\nActually, I think I have enough data to write a comprehensive answer. Let me compile everything.\n\nKey findings:\n\n**Rocket Lab (Electron) - Explicitly Disclosed:**\n- Revenue per launch (avg transaction price): $8.5M (2025), $7.8M (2024), $7.1M (2023)\n- Cost per launch: $4.8M (2025), $5.7M (2024), $7.0M (2023)\n- Implied gross margin per launch: $3.7M (2025), $2.1M (2024), $0.1M (2023)\n- Launches: 21 (2025), 16 (2024), 10 (2023)\n\n**SpaceX - Implied (using customer launches only, Launch Services revenue only):**\n- Implied revenue per customer launch: ~$59.9M (2025), ~$57.5M (2024), ~$59.5M (2023)\n- Customer launches: 43 (2025), 45 (2024), 33 (2023)\n- Avg mass per customer launch: ~7.3 tons (2025), ~6.3 tons (2024), ~6.2 tons (2023)\n\n**SpaceX - Implied (using total Space segment revenue / customer launches):**\n- Implied revenue per customer launch: ~$95.0M (2025), ~$84.4M (2024), ~$107.8M (2023)\n\nThe comparison reveals:\n1. SpaceX's per-launch revenue is ~7x higher than Rocket Lab's, but this reflects fundamentally different vehicle classes (Falcon 9: 23t to LEO vs Electron: 0.3t to LEO)\n2. SpaceX's reusability (95%+ flight-proven boosters in 2025) drives down costs while maintaining high per-launch revenue\n3. SpaceX's vertical integration allows it to capture more value per launch\n4. The missing disclosure is a per-launch revenue and cost metric like Rocket Lab provides\n\nThe specific disclosure present for Rocket Lab but absent for SpaceX:\n- Rocket Lab explicitly discloses \"revenue per launch\" (average transaction price) and \"cost per launch\" as operating KPIs\n- SpaceX does not disclose any per-launch revenue or cost metric\n- SpaceX also does not break down customer launch count by vehicle type (Falcon 9 vs Falcon Heavy)\n- Without these, the comparison remains approximate because SpaceX's customer launch mix includes higher-value Falcon Heavy missions, Dragon missions, and government missions that skew the average\n\nLet me now write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b225cdd3fbc64a6689a04811",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2574.18 / 312"
+          }
+        },
+        {
+          "tool_call_id": "call_d59cf41a97cb4c55b149d4f6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2588.872 / 282"
+          }
+        },
+        {
+          "tool_call_id": "call_01c9ecb73d3d4f6a95d9b494",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1963.464 / 205"
+          }
+        },
+        {
+          "tool_call_id": "call_64267ebcc2444d22bd817f5c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "157 / 165 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b225cdd3fbc64a6689a04811",
+            "content": "8.250576923076922"
+          },
+          {
+            "source_call_id": "call_d59cf41a97cb4c55b149d4f6",
+            "content": "9.180397163120567"
+          },
+          {
+            "source_call_id": "call_01c9ecb73d3d4f6a95d9b494",
+            "content": "9.577873170731706"
+          },
+          {
+            "source_call_id": "call_64267ebcc2444d22bd817f5c",
+            "content": "95.15151515151516"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14763,
+        "completion_tokens": 1047,
+        "cached_tokens": 11904,
+        "cost_usd": 0.0324975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-09T19:22:54.090414+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also check if there's any additional context about Rocket Lab's Electron payload capacity to make the comparison more complete.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5487c7d50aba482a8c61c2fc",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Electron's payload capacity to LEO and SSO? What is the mass to orbit per launch for Electron? Find any discussion of payload capacity or kilograms to orbit in {{rocketlab_10k_2025}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_5487c7d50aba482a8c61c2fc",
+            "content": "Based on the provided text from the business overview, here are the details regarding Electron's payload capacity and mass-to-orbit performance:\n\n**Payload Capacity to LEO (Low Earth Orbit)**\n* **Up to 300 kg:** The text explicitly states that Electron is \"capable of deploying spacecraft of up to 300 kg to low Earth orbit\" across a wide range of orbital inclinations (38 to 120 degrees from New Zealand, and 38 to 60 degrees from Virginia).\n\n**Payload Capacity to SSO (Sun-Synchronous Orbit)**\n* **Not Mentioned:** The provided text does not contain any information or specific payload capacity metrics for Sun-Synchronous Orbit (SSO). \n\n**Mass to Orbit per Launch & Discussion of Payload Capacity**\nWhile the text does not provide a specific numerical breakdown of \"kilograms to orbit\" per launch beyond the 300 kg LEO maximum, it does discuss the factors contributing to Electron's **mass-to-orbit performance**:\n* **Carbon-Composite Structure:** The text highlights that Electron's advanced carbon-composite construction \"decreases mass by as much as 40 percent relative to other materials, contributing to Electron\u2019s mass-to-orbit performance.\"\n* **Lift-off Mass:** The rocket has a stated lift-off mass of approximately **14,000 kg**.\n* **Kick Stage Efficiency:** The innovative third kick stage allows for precise orbit insertion and engine restarts to deliver multiple payloads to a range of orbits, maximizing the efficiency of the mass delivered to space. \n\n*(Note: The text also mentions the upcoming Neutron rocket, which will have a payload capacity of approximately 13,000 kg to LEO, but for Electron, 300 kg to LEO is the only specific orbital payload metric provided).*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15907,
+        "completion_tokens": 103,
+        "cached_tokens": 14080,
+        "cost_usd": 0.023197500000000003
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-09T19:23:43.245435+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed to construct a comprehensive comparison. Let me compile the analysis.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me compile the final comprehensive answer.\n\nLet me also calculate the revenue per kg to orbit for both companies to make a more apples-to-apples comparison:\n\n**SpaceX (customer launches, Launch Services revenue only):**\n- 2025: $2,574M / 312,000 kg = $8,251 per kg\n- 2024: $2,589M / 282,000 kg = $9,180 per kg\n- 2023: $1,963M / 205,000 kg = $9,578 per kg\n\n**Rocket Lab (Electron):**\n- If we assume average payload of ~150 kg (rough estimate, since max is 300 kg):\n  - 2025: $199M / (21 \u00d7 150 kg) = $199M / 3,150 kg = $63,175 per kg\n  - But this is very rough since we don't know actual payload masses\n\nActually, Rocket Lab doesn't disclose mass to orbit, so I can't make this comparison precisely. Let me note this as another missing data point.\n\nLet me now write the final answer.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d983b3e8d9ec4694a7432ab0",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Implied Revenue-Per-Launch: SpaceX vs. Rocket Lab \u2014 Directional Comparison\n\n---\n\n### 1. Rocket Lab's Explicitly Disclosed Per-Launch Economics (Electron)\n\nRocket Lab's FY2025 10-K (filed February 26, 2026) provides an unusually granular set of per-launch operating KPIs for its Electron vehicle:\n\n| Metric | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Launch Services Revenue | $71.9M | $125.4M | $199.0M |\n| Electron Launches Completed | 10 | 16 | 21 |\n| **Revenue per Launch (disclosed KPI)** | **$7.1M** | **$7.8M** | **$8.5M** |\n| Cost per Launch (disclosed KPI) | $7.0M | $5.7M | $4.8M |\n| Implied Gross Margin per Launch | $0.1M | $2.1M | $3.7M |\n\nRocket Lab defines \"revenue per launch\" as *\"the average transaction price attributable to launch contract performance obligations during the period in which the launch occurs, regardless of whether the revenue is recognized as point-in-time or over-time.\"* This is a directly disclosed, audited metric \u2014 not an analyst construct.\n\n---\n\n### 2. SpaceX's Implied Revenue-Per-Launch Proxy (Space Segment)\n\nSpaceX's S-1 does **not** disclose a per-launch revenue or cost metric. However, two critical facts enable construction of a proxy:\n\n- **Space segment revenue reflects only external customer launches.** Internal Starlink launches generate no inter-segment revenue; their costs are capitalized as PP&E within the Connectivity segment.\n- **Customer launch counts are disclosed separately** from internal launches.\n\nThis allows the following calculation:\n\n| Metric | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Total Space Segment Revenue | $3,557M | $3,796M | $4,086M |\n| Customer Launches | 33 | 45 | 43 |\n| **Implied Revenue per Customer Launch (Total Space)** | **$107.8M** | **$84.4M** | **$95.0M** |\n\nHowever, total Space segment revenue includes two sub-categories with different recognition patterns:\n\n| Sub-Category | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Launch Services (point-in-time) | 55.2% | 68.2% | 63.0% |\n| Launch & Development (over-time) | 44.8% | 31.8% | 37.0% |\n\nIsolating only the **Launch Services** component (recognized at point-in-time, most directly analogous to Rocket Lab's per-launch metric):\n\n| Metric | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Launch Services Revenue (est.) | $1,963M | $2,589M | $2,574M |\n| Customer Launches | 33 | 45 | 43 |\n| **Implied Launch Services Rev per Customer Launch** | **$59.5M** | **$57.5M** | **$59.9M** |\n\nThis is consistent with the S-1's qualitative statement that *\"Space customer launches and average price per launch remained relatively flat year over year\"* between 2024 and 2025.\n\n---\n\n### 3. Directional Comparison\n\n| | Rocket Lab (Electron) | SpaceX (Falcon, implied) | Ratio |\n|---|---|---|---|\n| **Revenue per Launch (2025)** | **$8.5M** (disclosed) | **~$59.9M** (Launch Services only) or **~$95.0M** (total Space) | **~7x to ~11x** |\n| Payload Capacity to LEO | 300 kg | ~23,000 kg (Falcon 9) / ~64,000 kg (Falcon Heavy) | ~77x to ~213x |\n| Avg. Mass per Customer Launch (2025) | Not disclosed | ~7.3 metric tons | \u2014 |\n| Vehicle Reusability | Expendable (no recovery) | 95.2% flight-proven boosters (157 of 165 Falcon launches in 2025) | \u2014 |\n| Cost per Launch (2025) | $4.8M (disclosed) | Not disclosed | \u2014 |\n\n**On a per-kilogram basis** (using SpaceX customer mass-to-orbit data):\n- SpaceX Launch Services revenue per kg to orbit (2025): ~$8,251/kg\n- SpaceX total Space revenue per kg to orbit (2025): ~$13,100/kg\n- Rocket Lab: Not calculable (mass-to-orbit per launch not disclosed), but at max 300 kg capacity and $8.5M revenue per launch, the theoretical ceiling is ~$28,333/kg \u2014 likely significantly higher in practice given typical sub-max payloads.\n\n---\n\n### 4. What the Comparison Reveals About Vertical Integration and Reusability\n\n**a) Reusability compresses cost but not necessarily price.** SpaceX's 95%+ flight-proven booster rate (with boosters reflown up to 34 times) dramatically reduces marginal launch cost. The S-1 emphasizes that Falcon 9 reduced cost-to-orbit to ~$2,700/kg vs. the historical industry average of ~$18,500/kg (an ~85% reduction). However, SpaceX's implied revenue per customer launch (~$60M for Launch Services) suggests it captures substantial value \u2014 the cost savings from reusability flow disproportionately to margin, not just to lower prices. Rocket Lab, by contrast, operates an expendable vehicle but has reduced cost per launch from $7.0M to $4.8M through manufacturing scale, achieving a ~44% gross margin in 2025.\n\n**b) Vertical integration enables capture of the full mission value chain.** SpaceX's Space segment revenue includes not just the launch itself but mission integration, payload handling, and potentially rideshare aggregation. The S-1 notes that SpaceX designs mission parameters around customer requirements. This vertical integration allows SpaceX to charge a premium per launch that reflects end-to-end mission value rather than just the rocket's marginal cost. Rocket Lab's Launch Services revenue similarly includes mission integration and rideshare services, but at a much smaller absolute scale.\n\n**c) The revenue-per-launch gap is primarily a function of vehicle class, not pricing power.** Falcon 9's ~23-ton LEO capacity vs. Electron's 300 kg capacity means SpaceX serves fundamentally different markets (GEO commsats, national security payloads, ISS resupply, interplanetary probes) at inherently higher price points. The ~7x revenue-per-launch differential is actually *smaller* than the ~77x payload capacity differential, suggesting SpaceX's reusability-driven cost structure allows it to offer more competitive per-kg pricing than an expendable vehicle of equivalent class could.\n\n**d) Internal demand absorption is unique to SpaceX.** SpaceX allocated 122 of 165 Falcon launches (74%) to internal Starlink deployment in 2025, generating zero Space segment revenue. This vertical integration of launch *demand* (not just supply) is a structural advantage no pure-play launch provider possesses. It guarantees high flight rates that amortize fixed costs and accelerate the reusability learning curve \u2014 a flywheel Rocket Lab cannot replicate.\n\n---\n\n### 5. The Missing Disclosure: What Would Make This Comparison Precise\n\nThe specific disclosure **present in Rocket Lab's 10-K but absent from SpaceX's S-1** is a **directly reported \"average revenue per launch\" (or \"average selling price per launch\") KPI**, accompanied by a **\"cost per launch\" KPI**.\n\nRocket Lab explicitly discloses both:\n- **Revenue per launch** (average transaction price): $8.5M (2025)\n- **Cost per launch**: $4.8M (2025)\n\nThese are defined, audited, period-over-period comparable metrics that isolate the unit economics of each launch event.\n\nSpaceX's S-1 would need to disclose the following to make the comparison precise rather than approximate:\n\n1. **Average revenue per customer launch** \u2014 broken out between Launch Services (point-in-time) and Launch & Development (over-time), since the latter includes multi-year government development contracts that are not per-launch transactions.\n\n2. **Customer launch count by vehicle type** (Falcon 9 vs. Falcon Heavy) \u2014 Falcon Heavy missions (e.g., NASA Europa Clipper, NSSL missions) command significantly higher prices and would skew the average upward. Without this breakdown, the implied ~$60M per launch conflates ~$50-55M Falcon 9 missions with potentially $100M+ Falcon Heavy missions.\n\n3. **Cost per customer launch** \u2014 to enable margin comparison. SpaceX's S-1 discloses Space segment cost of revenue in aggregate but does not normalize it to a per-launch basis.\n\n4. **Mass-to-orbit per customer launch** \u2014 to enable per-kg pricing comparison. While the S-1 discloses aggregate customer mass-to-orbit (312 metric tons in 2025), it does not disclose the distribution across missions.\n\nWithout these four disclosures, any SpaceX per-launch figure remains an **aggregate proxy** that blends vehicle types, mission profiles, contract structures (fixed-price launch services vs. over-time development contracts), and customer mix \u2014 making it directionally useful but not precisely comparable to Rocket Lab's cleanly isolated Electron unit economics.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1819994/000181999426000013/rklb-20251231.htm\",\n      \"name\": \"Rocket Lab Corp 10-K for FY2025 (filed February 26, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d983b3e8d9ec4694a7432ab0",
+            "content": "## Implied Revenue-Per-Launch: SpaceX vs. Rocket Lab \u2014 Directional Comparison\n\n---\n\n### 1. Rocket Lab's Explicitly Disclosed Per-Launch Economics (Electron)\n\nRocket Lab's FY2025 10-K (filed February 26, 2026) provides an unusually granular set of per-launch operating KPIs for its Electron vehicle:\n\n| Metric | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Launch Services Revenue | $71.9M | $125.4M | $199.0M |\n| Electron Launches Completed | 10 | 16 | 21 |\n| **Revenue per Launch (disclosed KPI)** | **$7.1M** | **$7.8M** | **$8.5M** |\n| Cost per Launch (disclosed KPI) | $7.0M | $5.7M | $4.8M |\n| Implied Gross Margin per Launch | $0.1M | $2.1M | $3.7M |\n\nRocket Lab defines \"revenue per launch\" as *\"the average transaction price attributable to launch contract performance obligations during the period in which the launch occurs, regardless of whether the revenue is recognized as point-in-time or over-time.\"* This is a directly disclosed, audited metric \u2014 not an analyst construct.\n\n---\n\n### 2. SpaceX's Implied Revenue-Per-Launch Proxy (Space Segment)\n\nSpaceX's S-1 does **not** disclose a per-launch revenue or cost metric. However, two critical facts enable construction of a proxy:\n\n- **Space segment revenue reflects only external customer launches.** Internal Starlink launches generate no inter-segment revenue; their costs are capitalized as PP&E within the Connectivity segment.\n- **Customer launch counts are disclosed separately** from internal launches.\n\nThis allows the following calculation:\n\n| Metric | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Total Space Segment Revenue | $3,557M | $3,796M | $4,086M |\n| Customer Launches | 33 | 45 | 43 |\n| **Implied Revenue per Customer Launch (Total Space)** | **$107.8M** | **$84.4M** | **$95.0M** |\n\nHowever, total Space segment revenue includes two sub-categories with different recognition patterns:\n\n| Sub-Category | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Launch Services (point-in-time) | 55.2% | 68.2% | 63.0% |\n| Launch & Development (over-time) | 44.8% | 31.8% | 37.0% |\n\nIsolating only the **Launch Services** component (recognized at point-in-time, most directly analogous to Rocket Lab's per-launch metric):\n\n| Metric | FY2023 | FY2024 | FY2025 |\n|---|---|---|---|\n| Launch Services Revenue (est.) | $1,963M | $2,589M | $2,574M |\n| Customer Launches | 33 | 45 | 43 |\n| **Implied Launch Services Rev per Customer Launch** | **$59.5M** | **$57.5M** | **$59.9M** |\n\nThis is consistent with the S-1's qualitative statement that *\"Space customer launches and average price per launch remained relatively flat year over year\"* between 2024 and 2025.\n\n---\n\n### 3. Directional Comparison\n\n| | Rocket Lab (Electron) | SpaceX (Falcon, implied) | Ratio |\n|---|---|---|---|\n| **Revenue per Launch (2025)** | **$8.5M** (disclosed) | **~$59.9M** (Launch Services only) or **~$95.0M** (total Space) | **~7x to ~11x** |\n| Payload Capacity to LEO | 300 kg | ~23,000 kg (Falcon 9) / ~64,000 kg (Falcon Heavy) | ~77x to ~213x |\n| Avg. Mass per Customer Launch (2025) | Not disclosed | ~7.3 metric tons | \u2014 |\n| Vehicle Reusability | Expendable (no recovery) | 95.2% flight-proven boosters (157 of 165 Falcon launches in 2025) | \u2014 |\n| Cost per Launch (2025) | $4.8M (disclosed) | Not disclosed | \u2014 |\n\n**On a per-kilogram basis** (using SpaceX customer mass-to-orbit data):\n- SpaceX Launch Services revenue per kg to orbit (2025): ~$8,251/kg\n- SpaceX total Space revenue per kg to orbit (2025): ~$13,100/kg\n- Rocket Lab: Not calculable (mass-to-orbit per launch not disclosed), but at max 300 kg capacity and $8.5M revenue per launch, the theoretical ceiling is ~$28,333/kg \u2014 likely significantly higher in practice given typical sub-max payloads.\n\n---\n\n### 4. What the Comparison Reveals About Vertical Integration and Reusability\n\n**a) Reusability compresses cost but not necessarily price.** SpaceX's 95%+ flight-proven booster rate (with boosters reflown up to 34 times) dramatically reduces marginal launch cost. The S-1 emphasizes that Falcon 9 reduced cost-to-orbit to ~$2,700/kg vs. the historical industry average of ~$18,500/kg (an ~85% reduction). However, SpaceX's implied revenue per customer launch (~$60M for Launch Services) suggests it captures substantial value \u2014 the cost savings from reusability flow disproportionately to margin, not just to lower prices. Rocket Lab, by contrast, operates an expendable vehicle but has reduced cost per launch from $7.0M to $4.8M through manufacturing scale, achieving a ~44% gross margin in 2025.\n\n**b) Vertical integration enables capture of the full mission value chain.** SpaceX's Space segment revenue includes not just the launch itself but mission integration, payload handling, and potentially rideshare aggregation. The S-1 notes that SpaceX designs mission parameters around customer requirements. This vertical integration allows SpaceX to charge a premium per launch that reflects end-to-end mission value rather than just the rocket's marginal cost. Rocket Lab's Launch Services revenue similarly includes mission integration and rideshare services, but at a much smaller absolute scale.\n\n**c) The revenue-per-launch gap is primarily a function of vehicle class, not pricing power.** Falcon 9's ~23-ton LEO capacity vs. Electron's 300 kg capacity means SpaceX serves fundamentally different markets (GEO commsats, national security payloads, ISS resupply, interplanetary probes) at inherently higher price points. The ~7x revenue-per-launch differential is actually *smaller* than the ~77x payload capacity differential, suggesting SpaceX's reusability-driven cost structure allows it to offer more competitive per-kg pricing than an expendable vehicle of equivalent class could.\n\n**d) Internal demand absorption is unique to SpaceX.** SpaceX allocated 122 of 165 Falcon launches (74%) to internal Starlink deployment in 2025, generating zero Space segment revenue. This vertical integration of launch *demand* (not just supply) is a structural advantage no pure-play launch provider possesses. It guarantees high flight rates that amortize fixed costs and accelerate the reusability learning curve \u2014 a flywheel Rocket Lab cannot replicate.\n\n---\n\n### 5. The Missing Disclosure: What Would Make This Comparison Precise\n\nThe specific disclosure **present in Rocket Lab's 10-K but absent from SpaceX's S-1** is a **directly reported \"average revenue per launch\" (or \"average selling price per launch\") KPI**, accompanied by a **\"cost per launch\" KPI**.\n\nRocket Lab explicitly discloses both:\n- **Revenue per launch** (average transaction price): $8.5M (2025)\n- **Cost per launch**: $4.8M (2025)\n\nThese are defined, audited, period-over-period comparable metrics that isolate the unit economics of each launch event.\n\nSpaceX's S-1 would need to disclose the following to make the comparison precise rather than approximate:\n\n1. **Average revenue per customer launch** \u2014 broken out between Launch Services (point-in-time) and Launch & Development (over-time), since the latter includes multi-year government development contracts that are not per-launch transactions.\n\n2. **Customer launch count by vehicle type** (Falcon 9 vs. Falcon Heavy) \u2014 Falcon Heavy missions (e.g., NASA Europa Clipper, NSSL missions) command significantly higher prices and would skew the average upward. Without this breakdown, the implied ~$60M per launch conflates ~$50-55M Falcon 9 missions with potentially $100M+ Falcon Heavy missions.\n\n3. **Cost per customer launch** \u2014 to enable margin comparison. SpaceX's S-1 discloses Space segment cost of revenue in aggregate but does not normalize it to a per-launch basis.\n\n4. **Mass-to-orbit per customer launch** \u2014 to enable per-kg pricing comparison. While the S-1 discloses aggregate customer mass-to-orbit (312 metric tons in 2025), it does not disclose the distribution across missions.\n\nWithout these four disclosures, any SpaceX per-launch figure remains an **aggregate proxy** that blends vehicle types, mission profiles, contract structures (fixed-price launch services vs. over-time development contracts), and customer mix \u2014 making it directionally useful but not precisely comparable to Rocket Lab's cleanly isolated Electron unit economics.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1819994/000181999426000013/rklb-20251231.htm\",\n      \"name\": \"Rocket Lab Corp 10-K for FY2025 (filed February 26, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16404,
+        "completion_tokens": 2789,
+        "cached_tokens": 0,
+        "cost_usd": 0.0689
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 116914,
+    "total_completion_tokens": 7558,
+    "total_cached_tokens": 78976,
+    "total_cost_usd": 0.269145,
+    "total_steps": 13
+  }
+}

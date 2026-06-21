@@ -1,0 +1,953 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "d4b457c6-ad0e-43bd-a254-c0f7985468ab",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T21:01:48.784564+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T21:01:48.784564+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nEutelsat completed a \u20ac1.5 billion capital raise in H1 FY2025\u201326 and has ordered 440 additional LEO satellites at a combined cost of approximately \u20ac2.56 billion including launch, while carrying a total debt load that required credit rating upgrades following the raise. Using SpaceX's disclosed FY2025 Connectivity Segment Adjusted EBITDA and capex, assess whether Starlink's internal cash generation profile would render an equivalent constellation-refresh program self-fundable at current run-rates. What does the contrast between the two operators' funding structures reveal about the competitive moat created by Starlink's scale and Falcon 9 launch cost advantage?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T21:01:48.784564+00:00",
+      "source": "agent",
+      "message": "I'll start by parsing the SpaceX S-1 filing and searching for Eutelsat's capital raise details in parallel.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "This is a complex question that requires me to:\n\n1. Find SpaceX's FY2025 Connectivity Segment Adjusted EBITDA and capex from the S-1 filing\n2. Understand Eutelsat's capital raise and satellite ordering situation\n3. Compare the two operators' funding structures\n4. Assess whether Starlink's internal cash generation could self-fund an equivalent constellation-refresh program\n\nLet me start by:\n1. Parsing the SpaceX S-1 filing to get the Connectivity Segment financials\n2. Searching for Eutelsat's capital raise and satellite ordering information\n\nLet me begin with both tasks in parallel.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3095f48eff014aac8c0470e9",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        },
+        {
+          "tool_call_id": "call_18d4a39bcd974a8badfb2650",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Eutelsat \u20ac1.5 billion capital raise H1 FY2025-26 LEO satellites 440 order",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3095f48eff014aac8c0470e9",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          },
+          {
+            "source_call_id": "call_18d4a39bcd974a8badfb2650",
+            "content": "[{\"url\": \"https://www.eutelsat.com/system/files/2026-02/DOC_Investors_H1-FY-2025-26-PR_EN_130226_0.pdf\", \"title\": \"[PDF] SECOND QUARTER AND FIRST HALF 2025-26 RESULTS - Eutelsat\", \"content\": \"like-for-like \\u2022 LEO revenues up nearly 60%1, reflecting ongoing commercial dynamic, driving rise in revenues in all three Connectivity verticals \\u2022 Full Year 2025-26 Revenue and Adjusted EBITDA margin objectives confirmed \\u2022 Successful completion of \\u20ac1.5 billion capital raise leading to credit rating upgrades from Moody\\u2019s and Fitch \\u2022 Almost \\u20ac1bn in Export Credit Agency financing obtained \\u2022 Procurement of 440 LEO satellites securing operational continuity with technology enhancements for the\", \"score\": 0.94956195, \"raw_content\": null}, {\"url\": \"https://www.theglobeandmail.com/investing/markets/stocks/EUTLF/pressreleases/220864/eutelsat-boosts-leo-push-as-capital-raise-halves-debt-and-ratings-improve\", \"title\": \"Eutelsat boosts LEO push as capital raise halves debt and ratings improve - The Globe and Mail\", \"content\": \"sanctions-related video revenue losses and the product mix of its ramping LEO business. The company sharply strengthened its balance sheet via a \\u20ac1.5 billion capital increase, around \\u20ac1 billion in export credit agency financing and a halving of net debt, prompting credit rating upgrades. It also ordered 440 new LEO satellites to secure and enhance the OneWeb constellation, confirming full-year financial targets and underlining its strategic pivot toward connectivity and long-term LEO growth\", \"score\": 0.92620385, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-next-generation-satellite-fleet-with-major-airbus-order/68530641\", \"title\": \"Eutelsat Secures Next-Generation Satellite Fleet with Major Airbus Order\", \"content\": \"Funding Structure: The initiative is backed by a \\u20ac1.5 billion capital increase finalized in 2025, supplemented by a successful \\u20ac670 million rights issue completed in December 2025. This latest procurement elevates the total satellite order book to 440 units. A majority of the first-generation OneWeb satellites were launched between 2020 and 2023 and are projected to reach the end of their designed service life in 2027 and 2028. The new satellites will incorporate several technological\", \"score\": 0.9205687, \"raw_content\": null}, {\"url\": \"https://finanzwire.com/article/eutelsat-communications-epa-etl-eutelsat-communications-h1-2025-26-financial-review-7NbZ22NDWCJ\", \"title\": \"EUTELSAT COMMUNICATIONS (EPA:ETL) | Eutelsat Communications H1 2025-26 Financial Review\", \"content\": \"Adjusted EBITDA fell to \\u20ac308 million, with a margin reduction to 52.1%. Factors include sanctions impacting Video revenues and a shift in LEO revenue composition. The successful \\u20ac1.5 billion capital raise enabled credit rating enhancements and additional financing of approximately \\u20ac1 billion through Export Credit Agencies.\", \"score\": 0.8989177, \"raw_content\": null}, {\"url\": \"https://webdisclosure.fr/article/eutelsat-communications-epa-etl-eutelsat-communications-h1-2025-26-financial-review-7NbZ22NDWCJ\", \"title\": \"EUTELSAT COMMUNICATIONS (EPA:ETL) | Eutelsat Communications H1 2025-26 Financial Review\", \"content\": \"Adjusted EBITDA fell to \\u20ac308 million, with a margin reduction to 52.1%. Factors include sanctions impacting Video revenues and a shift in LEO revenue composition. The successful \\u20ac1.5 billion capital raise enabled credit rating enhancements and additional financing of approximately \\u20ac1 billion through Export Credit Agencies.\", \"score\": 0.8989177, \"raw_content\": null}, {\"url\": \"https://www.ainvest.com/news/eutelsat-1-5-billion-capital-raise-strategic-reinvention-leo-satellite-race-2512\", \"title\": \"Eutelsat's \\u20ac1.5 Billion Capital Raise and Strategic Reinvention in the LEO Satellite Race\", \"content\": \"Eutelsat's capital raise, split into a \\u20ac828 million reserved capital increase and a \\u20ac670 million rights issue, was oversubscribed by strategic investors, including the French government, Bharti Space, and private entities like CMA CGM and FSP according to financial reports. The French state alone increased its stake to 29.65%, signaling strong public-sector backing for the company's LEO ambitions. These funds will finance approximately \\u20ac4 billion in investments from 2026 to 2029, targeting the\", \"score\": 0.89166987, \"raw_content\": null}, {\"url\": \"https://www.businesstoday.in/latest/corporate/story/bharti-group-backed-eutelsat-eyes-strategic-lead-in-space-communications-with-eu135-billion-capital-raise-481218-2025-06-20\", \"title\": \"Bharti Group-backed Eutelsat eyes strategic lead in space communications with \\u20ac1.35 billion capital raise\", \"content\": \"Eutelsat in a long term \\u20ac1B contract to reserve capacity on Eutelsat\\u2019s low-Earth orbit OneWeb constellation for its mission critical needs.\\u201d. Looking ahead, Eutelsat forecasts revenue growth to reach between \\u20ac1.5 billion and \\u20ac1.7 billion by FY 2028-29, fueled by strong LEO momentum. Gross capital expenditure for FY 2025-26 is estimated at \\u20ac1.0 to \\u20ac1.1 billion, primarily directed toward LEO expansion, including procurement of new satellites and preparation for the IRIS\\u00b2 constellation deployment\", \"score\": 0.85825616, \"raw_content\": null}, {\"url\": \"https://europeanspaceflight.com/eutelsat-to-raise-e1-5-billion-to-refinance-its-debt\", \"title\": \"Eutelsat to Raise \\u20ac1.5 Billion to Refinance its Debt - European Spaceflight\", \"content\": \"Efforts to directly tackle its debt began in 2025 with a \\u20ac1.5 billion capital raise, completed by the end of the year and backed by investors including the French and UK governments. In early February 2026, the company also secured \\u20ac1 billion in French government-backed financing to support the expansion of the OneWeb constellation.\", \"score\": 0.838376, \"raw_content\": null}, {\"url\": \"https://www.telecoms.com/satellite/cash-strapped-eutelsat-in-talks-to-raise-1-5-billion\", \"title\": \"Cash-strapped Eutelsat in talks to raise \\u20ac1.5 billion\", \"content\": \"Satellite\\n   News\\n\\n# Cash-strapped Eutelsat in talks to raise \\u20ac1.5 billion\\n\\nSatellite operator Eutelsat is trying to raise more funds to plough into its low Earth orbit (LEO) constellation.\\n\\nImage 19: Picture of Nick Wood\\n\\nNick Wood,Freelance writer\\nJune 2, 2025\\n\\n2 Min Read\\n\\nImage 20\\n\\n assets, citing increased competition in the satellite connectivity market and lower demand for video services.\", \"score\": 0.78650844, \"raw_content\": null}, {\"url\": \"https://www.investing.com/news/company-news/eutelsat-plans-135-billion-capital-raise-to-fund-leo-strategy-93CH-4103048\", \"title\": \"Eutelsat plans \\u20ac1.35 billion capital raise to fund LEO strategy By Investing.com\", \"content\": \"# Eutelsat plans \\u20ac1.35 billion capital raise to fund LEO strategy. Eutelsat plans \\u20ac1.35 billion capital raise to fund LEO strategy. Eutelsat plans \\u20ac1.35 billion capital raise to fund LEO strategy. PARIS - Satellite operator Eutelsat Group announced Thursday it is planning a \\u20ac1.35 billion capital increase to strengthen its financial position and support its strategic focus on low Earth orbit (LEO) satellite connectivity. The capital raise will consist of a \\u20ac716 million reserved capital increase\", \"score\": 0.76951396, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3611,
+        "completion_tokens": 318,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0082075
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T21:03:06.343441+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve the SpaceX Connectivity Segment financials from the S-1 filing:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Good, I have initial information. Now let me retrieve the SpaceX S-1 filing data for the Connectivity Segment Adjusted EBITDA and capex for FY2025. Let me also search for more details on Eutelsat's satellite costs and debt load.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d7bbef027d9a499bb25124d4",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity Segment Adjusted EBITDA for FY2025 in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_47c155f518ad4590a9594b27",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity Segment capital expenditure capex for FY2025 in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_56573ee8a6a34a79b66cf230",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Starlink constellation size, number of satellites, and satellite replacement or refresh cycle in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d7bbef027d9a499bb25124d4",
+            "content": "Based on the provided financial analysis, the Connectivity Segment Adjusted EBITDA for the fiscal year 2025 was **$7,168 million**."
+          },
+          {
+            "source_call_id": "call_47c155f518ad4590a9594b27",
+            "content": "Based on the provided financial overview, the capital expenditure (capex) for the Connectivity segment for the fiscal year ended December 31, 2025 (FY2025), was **$4,178 million**."
+          },
+          {
+            "source_call_id": "call_56573ee8a6a34a79b66cf230",
+            "content": "Based on the provided text from the company's S-1 prospectus preamble, here are the details regarding the Starlink constellation size, satellite count, and replacement/refresh cycle:\n\n### 1. Constellation Size and Number of Satellites\nAs of **March 31, 2026**, Starlink operates the largest satellite constellation in human history, accounting for approximately 75% of all active maneuverable satellites in orbit. \n* **Total Satellites:** Approximately **9,600** Starlink broadband and mobile satellites in Low-Earth Orbit (LEO).\n* **Broadband Satellites:** Approximately **9,000** dedicated broadband satellites.\n* **Mobile Satellites:** Approximately **650** dedicated V1 Mobile satellites (providing satellite-to-mobile data, voice, and messaging).\n* **Network Capacity:** The current constellation supports over **700 Tbps** of cumulative downlink capacity.\n* **Manufacturing & Deployment Scale:** To sustain and grow this size, the Redmond manufacturing facility produces an average of **~70 satellites per week** (~3,640 per year at full rate). In 2025 alone, the company launched approximately 3,100 Starlink satellites.\n* **Subscriber Scale:** The constellation serves approximately **10.3 million** broadband subscribers across 164 countries/territories, and roughly **7.4 million** monthly unique mobile devices across ~30 countries.\n\n### 2. Satellite Replacement and Refresh Cycle\nThe provided text **does not specify an exact numerical timeframe** (e.g., a strict \"5-year\" or \"7-year\" lifespan) for the satellite refresh cycle. However, it details how the company manages the lifecycle, generational refreshes, and end-of-life disposition of the constellation:\n\n* **Drivers of the Refresh Cycle:** Satellite retirements and \"useful life\" estimates are dynamically based on:\n  * Propellant life\n  * Historical on-orbit performance and engineering studies\n  * Utilization patterns\n  * Design enhancements across generations\n* **Generational Upgrades:** The constellation is in a constant state of technological refresh. The company has transitioned from **V1 Broadband** satellites to currently deploying higher-throughput **V2 Mini** satellites. \n* **Next-Generation V3 Satellites (Upcoming Refresh/Expansion):** In the second half of 2026, the company plans to begin deploying next-generation **V3 satellites** via Starship. Each V3 satellite is designed to offer **1 Tbps of downlink capacity** (a massive leap in per-satellite capacity). Starship will be able to deploy up to 60 V3 satellites per launch, representing a 20-fold increase in deployed capacity compared to Falcon 9.\n* **End-of-Life Disposition:** When satellites reach the end of their useful life or are superseded by newer technology, they undergo controlled end-of-life disposition (such as safe deorbiting or transition to graveyard orbits where appropriate) to mitigate orbital debris risks. \n* **Hardware Repurposing (AI Compute):** For future orbital AI compute satellites (which evolve from the Starlink platform), the company plans to manage the refresh cycle by shifting older hardware to lower-intensity workloads as performance characteristics evolve before eventually retiring them.\n\n**Summary:** \nRather than a fixed time-based replacement schedule, Starlink's refresh cycle is driven by **propellant depletion, technological obsolescence, and generational leaps in capacity** (such as the impending shift to V3 satellites). The massive manufacturing cadence (~3,640 satellites/year) ensures that older satellites are continuously supplemented and replaced by newer, higher-capacity models."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6132,
+        "completion_tokens": 232,
+        "cached_tokens": 3200,
+        "cost_usd": 0.013649999999999999
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T21:04:24.866982+00:00",
+      "source": "agent",
+      "message": "Let me get more details on the segment financials and Eutelsat's cost structure:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Excellent! I now have the key SpaceX data:\n- Connectivity Segment Adjusted EBITDA FY2025: $7,168 million\n- Connectivity Segment Capex FY2025: $4,178 million\n- Constellation: ~9,600 satellites\n- Manufacturing rate: ~70 satellites/week (~3,640/year)\n- Launched ~3,100 satellites in 2025\n\nNow let me get more details on:\n1. Eutelsat's total debt load and the cost of the 440 satellites\n2. SpaceX's launch cost advantage (Falcon 9)\n3. More details on the Connectivity segment's free cash flow\n\nLet me also look for the segment reconciliation table and any additional details about Starlink's cost structure.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_2ca9a329aa7945ad9f7a4ada",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity Segment Adjusted EBITDA reconciliation table showing all adjustments from net income in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_7ce5ef8cd4c04506831a1b7f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Falcon 9 launch cost per kilogram or per launch, and what is SpaceX's vertical integration cost advantage for launches in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_d1b6bf516d3445c5992f6103",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Eutelsat 440 LEO satellites cost \u20ac2.56 billion including launch OneWeb constellation refresh",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_2ca9a329aa7945ad9f7a4ada",
+            "content": "Based on the provided text, the table reconciles segment **income (loss) from operations** (not net income) to Segment Adjusted EBITDA for the three months ended March 31, 2025. \n\nHere is the reconciliation table across the Space, Connectivity, and AI segments:\n\n| | Three Months Ended March 31, 2025 | | | |\n| :--- | :--- | :--- | :--- | :--- |\n| **(in millions)** | **Space** | **Connectivity** | **AI** | **Total Reportable Segments** |\n| Income (loss) from operations | $(70) | $1,033 | $(936) | $27 |\n| **Add:** | | | | |\n| Depreciation and amortization | 162 | 510 | 771 | 1,443 |\n| Share-based compensation | 108 | 75 | 49 | 232 |\n| Restructuring charges | \u2014 | \u2014 | 4 | 4 |\n| Impairment | 24 | \u2014 | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$224** | **$1,618** | **$(112)** | **$1,730** |\n\n*(Note: While the prompt mentions adjustments from \"net income\", the segment-level reconciliation specifically starts from \"Income (loss) from operations\". The consolidated reconciliation from \"Net income\" to total \"Adjusted EBITDA\" is found in a separate table later in the document).*"
+          },
+          {
+            "source_call_id": "call_7ce5ef8cd4c04506831a1b7f",
+            "content": "Based on the provided S-1 preamble text, here are the details regarding Falcon 9 launch costs and SpaceX's vertical integration cost advantage:\n\n### **Falcon 9 Launch Costs**\n*   **Cost Per Kilogram:** According to NASA data cited in the text, the first version of the Falcon 9 in 2010 had a launch cost of approximately **$2,700 per kilogram**. This represented an 85% reduction compared to the historical industry average of $18,500 per kilogram. *(Note: The text also mentions the Falcon Heavy reduced this further to $1,400/kg in 2018, and Starship aims to reduce the historical average by 99% or more).*\n*   **Cost Per Launch:** While an exact current dollar figure for a single Falcon 9 launch is not explicitly stated, the text notes that space flights which historically cost \"billions per launch now costs in the **tens of millions**.\" \n\n### **SpaceX's Vertical Integration Cost Advantage**\nSpaceX's \"extreme vertical integration\" provides a massive structural cost and speed advantage over conventional aerospace manufacturing in several key ways:\n*   **Bypassing Bloated Supply Chains:** Unlike legacy companies that rely on fragmented and outsourced supply chains, SpaceX designs and manufactures a significant portion of its components in-house (e.g., Falcon 9's Merlin engines and approximately 80% of Starship). This allows them to bypass slow, expensive sourcing channels.\n*   **Rapid Iterative Cycles:** End-to-end control over the value chain allows SpaceX to achieve hardware design, testing, and optimization cycles in **weeks, compared to years** for legacy competitors. \n*   **Compounding Cost Efficiencies:** By controlling engineering, manufacturing, and operations, SpaceX rapidly improves its systems. This integration, paired with booster reusability, minimizes hardware replacement expenses and spreads fixed production costs across repeated uses, drastically lowering the marginal cost of each launch.\n*   **Widening the Moat:** The text notes that this technological and logistical gap is \"widening meaningfully as our speed and cost advantage compound,\" allowing SpaceX to achieve unprecedented speed, quality control, precision, and cost efficiency that competitors cannot currently match."
+          },
+          {
+            "source_call_id": "call_d1b6bf516d3445c5992f6103",
+            "content": "[{\"url\": \"https://www.linkedin.com/posts/fallacher_eutelsat-procures-a-further-340-oneweb-leo-activity-7416875544878751745-JPx1\", \"title\": \"Eutelsat procures a further 340 OneWeb LEO satellites | Jean-Fran\\u00e7ois Fallacher\", \"content\": \"Eutelsat has ordered an additional 340 OneWeb replacement satellites from Airbus Defence and Space. The companies announced the order Monday, a little more than a year after Eutelsat ordered 100 OneWeb satellites from Airbus. Eutelsat did not disclose the value of the contract but had previously projected spending 2.2 billion euros ($2.6 billion) to update the OneWeb constellation. The satellites, set to be delivered starting late this year, will be used to replenish the existing OneWeb\", \"score\": 0.7730283, \"raw_content\": null}, {\"url\": \"https://www.linkedin.com/posts/robertfeierbach_eutelsat-procures-a-further-340-oneweb-low-activity-7416848510026928128-4GrK\", \"title\": \"Eutelsat orders 340 OneWeb satellites from Airbus | Robert Feierbach posted on the topic | LinkedIn\", \"content\": \"Eutelsat has ordered an additional 340 OneWeb replacement satellites from Airbus Defence and Space. The companies announced the order Monday, a little more than a year after Eutelsat ordered 100 OneWeb satellites from Airbus. Eutelsat did not disclose the value of the contract but had previously projected spending 2.2 billion euros ($2.6 billion) to update the OneWeb constellation. The satellites, set to be delivered starting late this year, will be used to replenish the existing OneWeb\", \"score\": 0.7253574, \"raw_content\": null}, {\"url\": \"https://www.spaceintelreport.com/eutelsat-continues-2-56-billion-oneweb-refurbishment-with-340-satellite-order-to-airbus-first-launches-in-2026\", \"title\": \"Eutelsat continues $2.56-billion OneWeb refurbishment with 340-satellite order to Airbus; first launches in 2026 - Space Intel Report\", \"content\": \"# Eutelsat continues $2.56-billion OneWeb refurbishment with 340-satellite order to Airbus; first launches in 2026. LA PLATA, Maryland \\u2014 Eutelsat\\u2019s follow-on contract with Airbus for 340 OneWeb satellites confirms the company\\u2019s estimated 2.2-billion-euro ($2.56 billion) commitment to maintaining OneWeb\\u2019s Gen 1 constellation into the 2030s before transitioning into the European Commission\\u2019s Iris2 secure communications network. Eutelsat ordered a first tranche of 100 OneWeb Gen 1 continuity\", \"score\": 0.7147281, \"raw_content\": null}, {\"url\": \"https://www.linkedin.com/posts/aidan-uttley-9a744a223_starlink-rival-eutelsat-orders-340-oneweb-activity-7416518570794426369-iZPr\", \"title\": \"Eutelsat Orders 340 Satellites from Airbus for OneWeb Network | Aidan Uttley posted on the topic | LinkedIn\", \"content\": \"CEO. \\ud83d\\udcb6 Financial details of the contract were not disclosed, but Eutelsat had previously said extending the #constellation until the availability of the European Union's #IRIS\\u00b2 constellation would require a further 340 satellites on top of an initial committed batch of 100. That would put the total cost of the extension programme at around \\u20ac2 billion to \\u20ac2.2 billion ($2.3 billion and $2.6 billion) between 2024 and 2029, Eutelsat said last year. #connectivity #SpaceMatters #satellites\", \"score\": 0.68420124, \"raw_content\": null}, {\"url\": \"https://www.linkedin.com/posts/satnews_eutelsat-awards-airbus-contract-for-340-additional-activity-7416850739337125888-E1TY\", \"title\": \"Eutelsat Awards Airbus Contract for OneWeb Satellites | SatNews posted on the topic | LinkedIn\", \"content\": \"Like   Comment\\n\\n  To view or add a comment, sign in\\n Robert Feierbach\\n\\n  + Report this post\\n\\n  Eutelsat procures a further 340 Eutelsat OneWeb #satellites from Airbus Defence and Space totaling 440 for #constellation refresh. Satellites to be built in new #Toulouse #France production line. \\n\\n  Eutelsat procures a further 340 OneWeb low earth orbit satellites from Airbus   mynewsdesk.com\\n\\n  13\\n\\n  Like   Comment\\n\\n  To view or add a comment, sign in\\n European Spaceflight Ltd\\n\\n  45,107 followers\", \"score\": 0.6739866, \"raw_content\": null}, {\"url\": \"https://spacenews.com/eutelsat-orders-100-leo-satellites-to-replenish-oneweb-constellation\", \"title\": \"Eutelsat orders 100 LEO satellites to replenish OneWeb constellation - SpaceNews\", \"content\": \"# Eutelsat orders 100 LEO satellites to replenish OneWeb constellation. Illustration of a Eutelsat OneWeb LEO satellite. Illustration of a Eutelsat OneWeb LEO satellite. \\u2014 Eutelsat has ordered 100 broadband satellites from Airbus Defence and Space to start replenishing its OneWeb low Earth orbit (LEO) constellation in a few years. The first batches of satellites are due to be completed before the end of 2026, the French operator said Dec. 17. Most of the 654 satellites in OneWeb\\u2019s current\", \"score\": 0.5240786, \"raw_content\": null}, {\"url\": \"https://www.telecoms.com/satellite/eutelsat-to-launch-another-100-oneweb-satellites\", \"title\": \"Eutelsat to launch another 100 OneWeb satellites\", \"content\": \"Alain Faur\\u00e9, head of space systems at Airbus Defence and Space,said: \\\"Airbus manufactured all of the current OneWeb satellite fleet. We are committed to the successful continuation of the OneWeb constellation and to keep serving the business of Eutelsat as we have done over the past decades.\\\"\\n\\nEutelsat didn't say how much these new satellites will cost, but said they won't prompt any changes to its 2025 projection for capital expenditure.\", \"score\": 0.48674685, \"raw_content\": null}, {\"url\": \"https://www.satnow.com/news/details/2463-eutelsat-successfully-launches-20-oneweb-satellites-to-expand-leo-constellation\", \"title\": \"Eutelsat Successfully Launches 20 OneWeb Satellites to Expand LEO Constellation\", \"content\": \"Eutelsat Group is pleased to announce the successful launch and deployment of 20 satellites into low Earth orbit (LEO), further strengthening the OneWeb constellation. The satellites were launched aboard SpaceX\\u2019s Falcon 9 which lifted off at 10:13 pm PT (local) on October 19 from Space Launch Complex 4 East (SLC-4E) at Vandenberg Space Force Base in California.\", \"score\": 0.46774563, \"raw_content\": null}, {\"url\": \"https://www.nasdaq.com/articles/eutelsat-boosts-oneweb-leo-constellation-20-new-satellites\", \"title\": \"Eutelsat Boosts OneWeb LEO Constellation With 20 New Satellites | Nasdaq\", \"content\": \"Eutelsat Group EUTLF has successfully launched 20 satellites into low Earth orbit (LEO) to boost the OneWeb constellation. The deployment will strengthen network services and elevate overall performance for customers, highlighted the company. These satellites were manufactured at Airbus U.S. Space & Defense, situated in Merritt Island, FL. This launch follows the anniversary of the merger between Eutelsat and OneWeb.\", \"score\": 0.46395484, \"raw_content\": null}, {\"url\": \"https://paxex.aero/eutelsat-adds-340-satellites-to-oneweb-refresh-backlog\", \"title\": \"Eutelsat Adds 340 Satellites to OneWeb Refresh Backlog | PaxEx.Aero\", \"content\": \"PaxEx.Aero\\n\\nThe Business of Passenger Experience\\n\\n# Eutelsat Adds 340 Satellites to OneWeb Refresh Backlog\\n\\n12 January 2026 By Seth Miller Leave a Comment\\n\\nRendering of a OneWeb LEO satellite\\n\\nEutelsat will acquire an additional 340 LEO satellites from Airbus to keep its OneWeb constellation in service. With the deal, Eutelsat now holds contracts for the replacement of two-thirds of the on-orbit network.\", \"score\": 0.41620392, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7248,
+        "completion_tokens": 379,
+        "cached_tokens": 5376,
+        "cost_usd": 0.01519
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T21:05:49.744772+00:00",
+      "source": "agent",
+      "message": "Let me get more details on Eutelsat's debt and SpaceX's overall financial profile:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have good data. Let me also get:\n1. Eutelsat's total debt load\n2. SpaceX's total company Adjusted EBITDA and free cash flow\n3. More details on the Connectivity segment's free cash flow generation\n\nLet me also look for Eutelsat's total debt and financial details.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_65b3c13e2f3447488cbae94c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total consolidated Adjusted EBITDA, total capital expenditure, and free cash flow for FY2025 in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_2afda96c3fa9409aafe187c0",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total long-term debt, total debt, and interest expense for FY2025 in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_cebd1a2967d84bf79683e98b",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Eutelsat total debt load 2025 2026 net debt balance sheet OneWeb",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_65b3c13e2f3447488cbae94c",
+            "content": "Based on the provided text, here are the financial metrics for the fiscal year ended December 31, 2025 (FY2025):\n\n*   **Total Consolidated Adjusted EBITDA:** **$6,584 million** \n    *(Found in the consolidated financial results summary and the Adjusted EBITDA reconciliation table).*\n*   **Total Capital Expenditures:** **$20,737 million** \n    *(Found in the capital expenditures by segment table: $3,832M Space + $4,178M Connectivity + $12,727M AI).*\n*   **Free Cash Flow:** **Not explicitly provided.** \n    *(The provided excerpts do not explicitly state Free Cash Flow. Additionally, the Consolidated Statements of Cash Flows table is truncated and cuts off before showing the total \"Net cash provided by operating activities,\" which is required to calculate Free Cash Flow [Operating Cash Flow minus Capital Expenditures]).*"
+          },
+          {
+            "source_call_id": "call_2afda96c3fa9409aafe187c0",
+            "content": "Based on the provided financial chunks for the fiscal year ended December 31, 2025 (FY2025), here are the requested metrics (all figures in millions):\n\n*   **Total Long-Term Debt:** **$21,968** \n    *(Reported on the Consolidated Balance Sheets as \"Debt and finance leases, net of current\". If excluding finance leases, the non-current portion of strictly debt is derived from the net total debt of $21,659 minus the short-term portion).*\n*   **Total Debt:** **$22,049** (Principal Amount) / **$21,659** (Net Carrying Amount) \n    *(Reported in the debt schedule. Note: Total debt AND finance leases combined is $23,286 Principal / $22,896 Net).*\n*   **Interest Expense:** **$1,945** \n    *(Reported on the Consolidated Statements of Operations. Additionally, the debt note specifies that interest expense for debt **prior to the capitalization of interest** was **$1,797**).*"
+          },
+          {
+            "source_call_id": "call_cebd1a2967d84bf79683e98b",
+            "content": "[{\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-major-debt-refinancing-with-1-5-billion-bond-issue/68606229\", \"title\": \"Eutelsat Secures Major Debt Refinancing with \\u20ac1.5 Billion Bond Issue\", \"content\": \"This refinancing initiative follows a period of significant balance sheet improvement. As of December 31, 2025, Eutelsat's net debt stood at \\u20ac1.3 billion, representing a substantial reduction of nearly \\u20ac1.4 billion from the previous year. Consequently, the company's net debt-to-EBITDA ratio improved dramatically, falling from 3.92x to 2.00x.\", \"score\": 0.9132521, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/refinancing-clears-the-path-for-eutelsat-s-oneweb-push/68582563\", \"title\": \"Refinancing Clears the Path for Eutelsat's OneWeb Push\", \"content\": \"as contributors to the margin pressure. Refinancing drives a meaningful debt reduction. The centerpiece of the interim report is the refinancing package, which funded the balance sheet refresh. s lifted Eutelsat two notches to Ba3, and Fitch increased theirs by three steps to BB with a stable outlook. The effect is visible in the balance sheet: net debt as of 31 December 2025 stood at ? 1.33 billion lower than the position at the end of June 2025. The net debt/EBITDA ratio improved to 2.0x,\", \"score\": 0.90432173, \"raw_content\": null}, {\"url\": \"https://europeanspaceflight.com?p=6150\", \"title\": \"Eutelsat to Raise \\u20ac1.5 Billion to Refinance its Debt - European Spaceflight\", \"content\": \"# Eutelsat to Raise \\u20ac1.5 Billion to Refinance its Debt. OneWeb operator Eutelsat plans to raise \\u20ac1.5 billion through new bonds to refinance debt and strengthen its balance sheet. European satellite operator Eutelsat has announced that it will raise \\u20ac1.5 billion to refinance existing debt and add cash to the company\\u2019s balance sheet. In June 2025, Eutelsat reported net debt of just over \\u20ac2.6 billion, up \\u20ac82.2 million year-on-year, with a net debt-to-EBITDA (Earnings Before Interest, Taxes,\", \"score\": 0.8752871, \"raw_content\": null}, {\"url\": \"https://europeanspaceflight.com/eutelsat-to-raise-e1-5-billion-to-refinance-its-debt\", \"title\": \"Eutelsat to Raise \\u20ac1.5 Billion to Refinance its Debt - European Spaceflight\", \"content\": \"In June 2025, Eutelsat reported net debt of just over \\u20ac2.6 billion, up \\u20ac82.2 million year-on-year, with a net debt-to-EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortisation) ratio of 3.88\\u00d7. At the same time, the company had committed more than \\u20ac2 billion to procure 440 new satellites to replenish and expand its OneWeb broadband constellation.\", \"score\": 0.85797083, \"raw_content\": null}, {\"url\": \"https://europeanspaceflight.com?p=6076\", \"title\": \"Eutelsat to Take Out Almost \\u20ac1B in State-Backed Debt for New Satellites\", \"content\": \"Eutelsat reported net debt of just over \\u20ac2.6 billion in June 2025, up \\u20ac82.2 million year-on-year, with a net debt-to-EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortisation) ratio of 3.88\\u00d7, reflecting its relatively high leverage. Depending on how the funds are used, the new financing may not immediately have a significant impact on its debt load, but it could increase the company\\u2019s borrowings over time.\\u201d\", \"score\": 0.81630427, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/news/ueberblick/eutelsat-secures-1-billion-finance-package-to-accelerate-oneweb-growth/68577977\", \"title\": \"Eutelsat Secures \\u20ac1 Billion Finance Package to Accelerate OneWeb Growth and Emphasizes LEO Connect\", \"content\": \"Capital measures ease the balance sheet  \\nA successful ?1.5 billion share issue has begun to lift the balance sheet, pushing net debt down to ?1.3 billion. The net debt to adjusted EBITDA ratio improved markedly, sliding from 3.92x to 2.00x.\", \"score\": 0.8029425, \"raw_content\": null}, {\"url\": \"https://europeanspaceflight.com/eutelsat-to-take-out-almost-e1b-in-state-backed-debt-for-new-satellites\", \"title\": \"Eutelsat to Take Out Almost \\u20ac1B in State-Backed Debt for New ...\", \"content\": \"Eutelsat reported net debt of just over \\u20ac2.6 billion in June 2025, up \\u20ac82.2 million year-on-year, with a net debt-to-EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortisation) ratio of 3.88\\u00d7, reflecting its relatively high leverage. Depending on how the funds are used, the new financing may not immediately have a significant impact on its debt load, but it could increase the company\\u2019s borrowings over time.\\u201d\", \"score\": 0.78074646, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-1-5-billion-in-new-debt-to-overhaul-financial/68616470\", \"title\": \"Eutelsat Secures \\u20ac1.5 Billion in New Debt to Overhaul Financial Structure\", \"content\": \"## Strategic Context and Future Implications\\n\\nThis refinancing operation is positioned by Eutelsat as a critical effort to optimize its debt structure and push repayment deadlines further into the next decade. The initiative follows other recent balance-sheet actions, including a capital increase undertaken in 2025 and a \\u20ac1 billion financing package secured in early February with backing from the French government to support the expansion of the OneWeb satellite constellation.\", \"score\": 0.7382357, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-major-debt-refinancing-with-1-5-billion-bond-issue/68610992\", \"title\": \"Eutelsat Secures Major Debt Refinancing with \\u20ac1.5 Billion Bond Issue\", \"content\": \"Adjusted EBITDA reached \\u20ac308 million, with a margin of 52.1%. The company's net debt position improved to \\u20ac1.3 billion, and the ratio of net debt to EBITDA strengthened considerably to 2.00x from 3.92x a year earlier.\", \"score\": 0.68723184, \"raw_content\": null}, {\"url\": \"https://www.theglobeandmail.com/investing/markets/stocks/EUTLF/pressreleases/462463/eutelsat-raises-eur1-5-billion-in-dual-tranche-bond-to-refinance-debt-and-strengthen-balance-sheet\", \"title\": \"Eutelsat Raises \\u20ac1.5 Billion in Dual-Tranche Bond to Refinance Debt and Strengthen Balance Sheet - The Globe and Mail\", \"content\": \"Eutelsat Communications has successfully priced a \\u20ac1.5 billion senior notes offering split between \\u20ac850 million notes due 2031 with a 5.75% coupon and \\u20ac650 million notes due 2033 with a 6.25% coupon, both issued at par and guaranteed by Eutelsat S.A. and OneWeb Holdings Limited. The placement, aimed at institutional investors in and outside the United States, is expected to close on March 5, 2026, subject to customary conditions.\", \"score\": 0.65940565, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10689,
+        "completion_tokens": 272,
+        "cached_tokens": 6528,
+        "cost_usd": 0.0212825
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T21:07:21.288220+00:00",
+      "source": "agent",
+      "message": "Let me get additional details on SpaceX's segment financials and Starlink's satellite costs:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also get the Connectivity segment's operating cash flow or any additional details about Starlink's cash generation. Let me also look for the Eutelsat H1 results to get their full financial picture.\n\nLet me also retrieve the SpaceX segment capex breakdown and any information about Starlink's satellite manufacturing cost.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3891ce42028145df863d03d7",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment capital expenditure breakdown, satellite manufacturing cost per unit, and Starlink hardware costs in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_1ea0927a8ef840fdb4bc720f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment revenue for FY2025 and FY2024, and what is the segment operating income in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_51a53f4939e94a47a4538335",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the consolidated operating cash flow, cash flow from operations, and depreciation and amortization for FY2025 in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3891ce42028145df863d03d7",
+            "content": "Based on the provided financial excerpts, the specific numerical details you are asking for are **not disclosed** in the text. Here is what the document does provide regarding those categories:\n\n**1. Connectivity Segment Capital Expenditure Breakdown**\n*   **Total CapEx:** The text provides the total Connectivity capital expenditures: $1,332 million for Q1 2026; $4,178 million for 2025; $3,498 million for 2024; and $2,455 million for 2023. \n*   **Breakdown:** A specific numerical breakdown (e.g., exact dollar amounts split between satellites vs. ground infrastructure) is not provided. The text only notes that the year-over-year increases were primarily driven by **\"higher satellite and ground equipment costs\"** to expand the satellite network.\n\n**2. Satellite Manufacturing Cost Per Unit**\n*   **Not Provided:** The text does not disclose the manufacturing cost per unit for Starlink satellites. It only references aggregate financial impacts, such as R&D costs for \"next-generation production development of satellites\" ($62 million in Q1 2026; $84 million in 2025) and depreciation from \"capitalized launch and satellite costs.\"\n\n**3. Starlink Hardware (Starlink Kit) Costs**\n*   **Not Provided:** The document does not state the per-unit manufacturing cost or the consumer retail price of the Starlink hardware (referred to as the \"Starlink Kit,\" which includes the terminal). \n*   **What is mentioned:** The text notes that \"Starlink Kit costs\" are a component of the Cost of Revenue and mentions a \"higher volume spend on Starlink Kits as deliveries increased.\" It also lists R&D expenses dedicated to Starlink Kits ($8 million in Q1 2026 and $22 million in 2025) and references the \"discontinuation of a Starlink Kit production line.\""
+          },
+          {
+            "source_call_id": "call_1ea0927a8ef840fdb4bc720f",
+            "content": "Based on the provided financial documents, here is the Connectivity segment's revenue and operating income for FY2025 and FY2024:\n\n**Connectivity Segment Revenue:**\n*   **FY2025:** $11,387 million\n*   **FY2024:** $7,599 million\n\n**Connectivity Segment Operating Income (Income from Operations):**\n*   **FY2025:** $4,423 million\n*   **FY2024:** $2,006 million"
+          },
+          {
+            "source_call_id": "call_51a53f4939e94a47a4538335",
+            "content": "Based on the provided text chunks, here is the information for FY2025:\n\n* **Depreciation and amortization:** $6,701 million\n* **Consolidated operating cash flow / Cash flow from operations:** The exact final total for \"Net cash provided by operating activities\" is **not explicitly provided** in the text. The table detailing the operating activities section cuts off after \"Deferred revenue\" and \"Other liabilities\" before reaching the final summed total, and the subsequent structural fragment listing the line item `Net cash provided by operating activities ........................` is missing its corresponding numerical value. \n\n*(Note: The section does show that the cash flow from operations calculation starts with a Net income (loss) of $(4,937) million and adds back the $6,701 million in depreciation and amortization, alongside other working capital and non-cash adjustments, but the final aggregate figure is omitted from these specific fragments.)*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13520,
+        "completion_tokens": 269,
+        "cached_tokens": 9728,
+        "cost_usd": 0.02433
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T21:07:52.368846+00:00",
+      "source": "agent",
+      "message": "Let me search for more specific financial data:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me try to get the operating cash flow figure from the filing, and also look for Eutelsat's H1 FY2025-26 financial details.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c7c06c9d4f194af985722c03",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the net cash provided by operating activities, cash flow from operations total for FY2025, 2024, 2023 in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_f1b4365aeec64a9ea5c098d6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment depreciation and amortization for FY2025 in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_62d9c28017eb4fbfba6cb5c5",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Eutelsat H1 FY2025-26 results adjusted EBITDA revenue total debt gross debt balance sheet December 2025",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c7c06c9d4f194af985722c03",
+            "content": "Based on the provided consolidated statements of cash flows and the Management's Discussion and Analysis (MD&A), the net cash provided by operating activities for the fiscal years ended December 31 are as follows:\n\n* **FY2025:** $6,785 million\n* **FY2024:** $5,776 million\n* **FY2023:** $4,520 million"
+          },
+          {
+            "source_call_id": "call_f1b4365aeec64a9ea5c098d6",
+            "content": "Based on the provided MD&A section, the depreciation and amortization for the Connectivity segment for the fiscal year ended December 31, 2025, was **$2,376 million**."
+          },
+          {
+            "source_call_id": "call_62d9c28017eb4fbfba6cb5c5",
+            "content": "[{\"url\": \"https://www.centralcharts.com/en/2095-eutelsat-communications/news/5467845-eutelsat-communications-second-quarter-and-first-half-2025-26-results\", \"title\": \"Eutelsat Communications: Second Quarter and First Half 2025-26 Results\", \"content\": \"On 31 December 2025, net debt stood at \\u20ac1,300.9 million, down \\u20ac1,325.7 million versus end of June 2025, mainly reflecting the net proceeds from the capital increase of \\u20ac1,475.8 million.\\n\\nAs a result, the net debt to Adjusted EBITDA ratio stood at 2.00 times, compared to 3.88 times at end\\u2011June 2025 and 3.92 times at end-December 2024.\", \"score\": 0.9470345, \"raw_content\": null}, {\"url\": \"https://www.morningstar.com/news/business-wire/20260212006312/eutelsat-communications-second-quarter-and-first-half-2025-26-results\", \"title\": \"Eutelsat Communications: Second Quarter and First Half 2025-26 Results | Morningstar\", \"content\": \"million, up 8.5% year-on-year, notably reflecting the activation of contracts with aero mobility customers. Adjusted EBITDA stood at \\u20ac308.2 million for the Half-Year ended 31 December 2025 compared with \\u20ac334.9 million a year earlier, down by 8.0%. Following the successful completion of the \\u20ac1.5 billion capital increases in December 2025, Net Debt/EBITDA is estimated at c.2.7x5 by year-end FY\\u20192025-26, reflecting a robust and self-funded financing structure. Eutelsat demonstrates some of the most\", \"score\": 0.9446333, \"raw_content\": null}, {\"url\": \"https://markets.ft.com/data/announce/detail?dockey=600-202602130130BIZWIRE_USPRX____20260212_BW006312-1\", \"title\": \"Eutelsat Communications: Second Quarter and First Half 2025-26 Results \\u2013 Company Announcement - FT.com\", \"content\": \"million, up 8.5% year-on-year, notably reflecting the activation of contracts with aero mobility customers. This impact was even more visible in the Second Quarter where revenues stood at \\u20ac42 million, up 34.5% year-on-year and up by 21.1% quarter-on-quarter. Adjusted EBITDA stood at \\u20ac308.2 million for the Half-Year ended 31 December 2025 compared with \\u20ac334.9 million a year earlier, down by 8.0%. On 31 December 2025, net debt stood at \\u20ac1,300.9 million, down \\u20ac1,325.7 million versus end of June\", \"score\": 0.9438932, \"raw_content\": null}, {\"url\": \"https://www.finanznachrichten.de/nachrichten-2026-02/67693589-eutelsat-communications-second-quarter-and-first-half-2025-26-results-004.htm\", \"title\": \"Eutelsat Communications: Second Quarter and First Half 2025-26 Results\", \"content\": \"stood at \\u20ac308.2 million for the Half-Year ended 31 December 2025 compared with \\u20ac334.9 million a year earlier, down by 8.0%. Following the successful completion of the \\u20ac1.5 billion capital increases in December 2025, Net Debt/EBITDA is estimated at c.2.7x5 by year-end FY'2025-26, reflecting a robust and self-funded financing structure. Eutelsat demonstrates some of the most attractive growth and profitability prospects in the sector, with revenue expected in a range between \\u20ac1.5 and \\u20ac1.7\", \"score\": 0.93885136, \"raw_content\": null}, {\"url\": \"https://finanzwire.com/article/eutelsat-communications-epa-etl-eutelsat-communications-h1-2025-26-financial-review-7NbZ22NDWCJ\", \"title\": \"EUTELSAT COMMUNICATIONS (EPA:ETL) | Eutelsat Communications H1 2025-26 Financial Review\", \"content\": \"The financial results for H1 2025-26 of Eutelsat Communications have been revealed, indicating alignment with expectations to achieve full-year objectives. Total revenues reached \\u20ac591.6 million, a slight decline of 2.4% on a reported basis but stable when adjusted for like-for-like changes. Revenues from the four operating verticals stood at \\u20ac573.8 million. Notably, LEO revenues surged 59.7%, now comprising roughly 20% of total revenues.\", \"score\": 0.90810597, \"raw_content\": null}, {\"url\": \"https://www.investegate.co.uk/announcement/bzw/eutelsat-communications-s-a-cdi---etl/eutelsat-communications-second-quarter-and-f-/9428992\", \"title\": \"Eutelsat Communications: Second Quarter and First Half 2025-26 Results | Company Announcement | Investegate\", \"content\": \"The First Half performance was in line with expectations, enabling us to confirm our FY 2025-26 objectives:\\n\\nFollowing the successful completion of the \\u20ac1.5 billion capital increases in December 2025, Net Debt/EBITDA is estimated at c.2.7x5 by year-end FY\\u20192025-26, reflecting a robust and self-funded financing structure.\", \"score\": 0.8989177, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-major-debt-refinancing-with-1-5-billion-bond-issue/68610992\", \"title\": \"Eutelsat Secures Major Debt Refinancing with \\u20ac1.5 Billion Bond Issue\", \"content\": \"## Operational Performance Supports Financial Strategy\\n\\nThe company's recent operational results provide a solid backdrop for its refinancing activities. For the first half of the 2025-26 fiscal year (July to December), Eutelsat reported revenue of \\u20ac592 million, representing stable performance on a comparable basis. Its Low Earth Orbit (LEO) business segment showed strong growth, advancing nearly 60% to \\u20ac111 million and now accounting for roughly 20% of total revenue.\", \"score\": 0.8679453, \"raw_content\": null}, {\"url\": \"https://verbrec.com/wp-content/uploads/H1-FY2025-Half-Year-Results-Presentation.pdf\", \"title\": \"[PDF] H1 FY2025 | Verbrec\", \"content\": \"Work in Hand at $40 million, $3.4 million higher than published at October 2024.\\nThird sequential profitable period. Foundations established for profitable growth.\\nIncreased proportion of revenues from Energy and Gas Market Transition (Decarbonisation) sectors and multi-year repeatable revenue contracts.\\nOwners Equity increased from $19.2 million to $20.6 million.\\nLoan debt reduced from $6.6 million to $6.1 million.\\nCash reserves remain stable.\", \"score\": 0.41748574, \"raw_content\": null}, {\"url\": \"https://www.monexa.ai/blog/the-estee-lauder-companies-inc-earnings-shock-and--EL-2025-08-25\", \"title\": \"Est\\u00e9e Lauder (EL) FY2025 Results: Revenue Drop, Net Loss and Balance\\u2011Sheet Implications | Monexa\", \"content\": \"A crucial arithmetic check: net debt stands at $6.52B (total debt $9.44B minus cash $2.92B). Using the company\\u2019s reported FY2025 EBITDA of $193MM, net debt over reported EBITDA is roughly 6.52 / 0.193 = 33.8x \\u2014 an extreme multiple if measured against the single\\u2011year GAAP EBITDA. The dataset\\u2019s TTM netDebtToEBITDA metric is 6.47x, implying the provider used an adjusted or trailing\\u201112\\u2011month EBITDA figure materially larger than the FY2025 GAAP EBITDA line in the filing. This is an important\", \"score\": 0.24580437, \"raw_content\": null}, {\"url\": \"https://uk.finance.yahoo.com/news/smcp-2025-h1-results-153900892.html\", \"title\": \"SMCP - 2025 H1 Results\", \"content\": \"2025 H1 CONSOLIDATED RESULTS\\n\\nAdjusted EBITDA reaches \\u20ac112m in H1 2025 (Adjusted EBITDA margin of 19% of sales), compared with \\u20ac98m in H1 2024 (17% of sales).\", \"score\": 0.17647314, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14545,
+        "completion_tokens": 241,
+        "cached_tokens": 13056,
+        "cost_usd": 0.0224525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T21:08:27.560212+00:00",
+      "source": "agent",
+      "message": "Let me get Eutelsat's gross debt and full-year financials:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also get Eutelsat's gross debt figure and the full year EBITDA estimate. Let me also look for the Eutelsat total gross debt.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_cf1331e52ef94d76badf5614",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Eutelsat gross debt total December 2025 balance sheet \u20ac3 billion bonds",
+            "number_of_results": 10
+          }
+        },
+        {
+          "tool_call_id": "call_88156ac0464746f8a53e4d6f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment quarterly Adjusted EBITDA for Q4 2025 and Q1 2026, and what is the annual run rate in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_cf1331e52ef94d76badf5614",
+            "content": "[{\"url\": \"https://simplywall.st/stocks/gb/media/bats-chixe-etlp/eutelsat-communications-shares/health\", \"title\": \"Eutelsat Communications (ETLP)  Balance Sheet & Financial Health Metrics - Simply Wall St\", \"content\": \"# Eutelsat Communications Balance Sheet Health. Eutelsat Communications has a total shareholder equity of \\u20ac3.9B and total debt of \\u20ac2.6B, which brings its debt-to-equity ratio to 67.1%. ### Eutelsat Communications S.A. to Report Fiscal Year 2026 Results on Aug 07, 2026. ### Eutelsat Communications S.A. announced that it has received \\u20ac1.497775133 billion in funding from CMA CGM S.A., Bharti Space Limited, Agence des participations de l'Etat, Fonds Strat\\u00e9gique de Participation (FSP) Compartiment.\", \"score\": 0.85538095, \"raw_content\": null}, {\"url\": \"https://europeanspaceflight.com/eutelsat-to-raise-e1-5-billion-to-refinance-its-debt\", \"title\": \"Eutelsat to Raise \\u20ac1.5 Billion to Refinance its Debt - European Spaceflight\", \"content\": \"In June 2025, Eutelsat reported net debt of just over \\u20ac2.6 billion, up \\u20ac82.2 million year-on-year, with a net debt-to-EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortisation) ratio of 3.88\\u00d7. At the same time, the company had committed more than \\u20ac2 billion to procure 440 new satellites to replenish and expand its OneWeb broadband constellation.\", \"score\": 0.6246834, \"raw_content\": null}, {\"url\": \"https://europeanspaceflight.com?p=6150\", \"title\": \"Eutelsat to Raise \\u20ac1.5 Billion to Refinance its Debt - European Spaceflight\", \"content\": \"In June 2025, Eutelsat reported net debt of just over \\u20ac2.6 billion, up \\u20ac82.2 million year-on-year, with a net debt-to-EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortisation) ratio of 3.88\\u00d7. At the same time, the company had committed more than \\u20ac2 billion to procure 440 new satellites to replenish and expand its OneWeb broadband constellation.\", \"score\": 0.6246834, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-major-debt-refinancing-with-1-5-billion-bond-issue/68606229\", \"title\": \"Eutelsat Secures Major Debt Refinancing with \\u20ac1.5 Billion Bond Issue\", \"content\": \"This refinancing initiative follows a period of significant balance sheet improvement. As of December 31, 2025, Eutelsat's net debt stood at \\u20ac1.3 billion, representing a substantial reduction of nearly \\u20ac1.4 billion from the previous year. Consequently, the company's net debt-to-EBITDA ratio improved dramatically, falling from 3.92x to 2.00x.\", \"score\": 0.62330866, \"raw_content\": null}, {\"url\": \"https://www.theglobeandmail.com/investing/markets/stocks/EUTLF/pressreleases/462463/eutelsat-raises-eur1-5-billion-in-dual-tranche-bond-to-refinance-debt-and-strengthen-balance-sheet\", \"title\": \"Eutelsat Raises \\u20ac1.5 Billion in Dual-Tranche Bond to Refinance Debt and Strengthen Balance Sheet - The Globe and Mail\", \"content\": \"All market data (will open in new tab) is provided by Barchart Solutions. Copyright \\u00a9 2026.\\n\\nInformation is provided 'as is' and solely for informational purposes, not for trading purposes or advice. For exchange delays and terms of use, please read disclaimer (will open in new tab).\\n\\n## Subscribe\\n\\n## Business services\\n\\n## Contact us\\n\\n## Reader services\\n\\n## About us\\n\\n\\u00a9 Copyright 2026 The Globe and Mail Inc. All rights reserved.\\n\\nAndrew Saunders, President and CEO\", \"score\": 0.542161, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-major-debt-refinancing-with-1-5-billion-bond-issue/68610992\", \"title\": \"Eutelsat Secures Major Debt Refinancing with \\u20ac1.5 Billion Bond Issue\", \"content\": \"This bond issuance follows a series of other financial maneuvers. In December 2025, Eutelsat completed a \\u20ac1.5 billion capital increase, which prompted rating upgrades from Moody's and Fitch. Earlier in February, the group secured approximately \\u20ac1 billion in government-guaranteed export credit financing dedicated to new LEO satellites.\\n\\nShould investors sell immediately? Or is it worth buying Eutelsat?\\n\\nShould investors sell immediately? Or is it worth buying Eutelsat?\", \"score\": 0.51193684, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/news/ueberblick/eutelsat-strengthens-financial-footing-with-strategic-debt-refinancing/68613815\", \"title\": \"Eutelsat Strengthens Financial Footing with Strategic Debt Refinancing\", \"content\": \"The positive impact is already reflected in the company's accounts. On a year-over-year basis, net debt has been reduced by \\u20ac1.4 billion to \\u20ac1.3 billion. The leverage ratio\\u2014net debt relative to adjusted EBITDA\\u2014has improved dramatically, falling from nearly 4.0x to a more robust 2.0x. This financial stabilization is operationally supported by the rapidly expanding LEO satellite business, where revenue surged by almost 60 percent.\", \"score\": 0.4511578, \"raw_content\": null}, {\"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-1-5-billion-in-new-debt-to-overhaul-financial/68616470\", \"title\": \"Eutelsat Secures \\u20ac1.5 Billion in New Debt to Overhaul Financial Structure\", \"content\": \"B\\u00f6rsenakademie\\nad-hoc-news.de\\n\\n# B\\u00d6RSE\\n\\n# B\\u00d6RSE\\n\\nLogo ad-hoc-news.de\\n\\n# Eutelsat Secures \\u20ac1.5 Billion in New Debt to Overhaul Financial Structure\\n\\nEutelsat issues \\u20ac1.5 billion in bonds to cut interest costs and extend debt maturities, strengthening its balance sheet for hybrid satellite network development.\\n\\nEutelsat Secures \\u20ac1.5 Billion in New Debt to Overhaul Financial Structure - Bild: \\u00fcber boerse-global.de\", \"score\": 0.42491361, \"raw_content\": null}, {\"url\": \"https://www.indianchemicalnews.com/general/lite/celanese-upsizes-debt-offering-to-14-billion-to-strengthen-balance-sheet-28449\", \"title\": \"Celanese upsizes debt offering to $1.4 billion to strengthen balance sheet\", \"content\": \"### Celanese upsizes debt offering to $1.4 billion to strengthen balance sheet. Last updated : December 05, 2025 3:33 pm. The offering is expected to close around December 17, 2025. ### Related News. Moeve drives energy rransition with \\u20ac1.7B 2025 clean EBITDA and green hydrogen flagship approval. Evonik hits 2025 profit target despite sales slide, stands firm on 2026 outlook. Topsoe beats profit expectations as CEO change accelerates amid market turbulence. All pages of the Website are subject\", \"score\": 0.13401501, \"raw_content\": null}, {\"url\": \"https://wolfstreet.com/2025/01/02/fed-balance-sheet-qt-43-billion-in-december-2-11-trillion-from-peak-to-6-85-trillion-bank-panic-facility-btfp-nearly-gone\", \"title\": \"Fed Balance Sheet QT: -$43 Billion in December\", \"content\": \"has now shed 44% of that. ### QT assets by category. Treasury securities:-$24.5 billion in December, -$1.48 trillion from peak in June 2022, or -26% since the peak, to $4.29 trillion, the lowest since July 2020. In terms of the $3.27 trillion in Treasuries piled on the balance sheet during pandemic QE, the Fed has now shed 45% of it. Treasury notes (2- to 10-year) and Treasury bonds (20- & 30-year) \\u201croll off\\u201d the balance sheet mid-month and at the end of the month when they mature and the Fed\", \"score\": 0.058030207, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_88156ac0464746f8a53e4d6f",
+            "content": "Based on the provided text, here is the information regarding the Connectivity segment's Adjusted EBITDA:\n\n* **Q1 2026 (Three months ended March 31, 2026):** $2,087 million\n* **Q4 2025:** **Not provided.** The text only discloses the full-year 2025 Adjusted EBITDA ($7,168 million) and Q1 2025 ($1,618 million). Without the data for Q2 and Q3, it is impossible to isolate the Q4 2025 figure from the provided excerpts.\n* **Annual Run Rate (based on Q1 2026):** **$8,348 million** (calculated as $2,087 million \u00d7 4 quarters)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 17267,
+        "completion_tokens": 193,
+        "cached_tokens": 14080,
+        "cost_usd": 0.0274975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T21:09:33.530747+00:00",
+      "source": "agent",
+      "message": "Now let me get one more piece of data - the Connectivity segment's capex trend and Eutelsat's full-year EBITDA:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a very comprehensive picture. Let me compile all the data and do the analysis.\n\n**SpaceX Connectivity Segment (Starlink) - FY2025:**\n- Revenue: $11,387 million\n- Operating Income: $4,423 million\n- Adjusted EBITDA: $7,168 million\n- Capex: $4,178 million\n- Depreciation & Amortization: $2,376 million\n- Segment Adjusted EBITDA - Capex = $7,168M - $4,178M = $2,990 million (segment-level \"free cash flow\" proxy)\n\n**Q1 2026 Connectivity Segment:**\n- Adjusted EBITDA: $2,087 million (annualized run-rate: ~$8,348 million)\n\n**SpaceX Consolidated FY2025:**\n- Total Adjusted EBITDA: $6,584 million (note: this is lower than Connectivity alone because AI segment is loss-making)\n- Total Capex: $20,737 million (Space: $3,832M + Connectivity: $4,178M + AI: $12,727M)\n- Operating Cash Flow: $6,785 million\n- Total Debt: ~$22,049 million (principal)\n- Interest Expense: $1,945 million\n\n**Eutelsat (H1 FY2025-26, i.e., July-December 2025):**\n- Revenue: \u20ac591.6 million (H1)\n- Adjusted EBITDA: \u20ac308.2 million (H1), margin 52.1%\n- LEO Revenue: \u20ac111 million (H1), up ~60% YoY, ~20% of total\n- Net Debt (Dec 31, 2025): \u20ac1,300.9 million (down from \u20ac2,626.6 million at June 2025)\n- Net Debt/EBITDA: 2.00x (down from 3.88x/3.92x)\n- Total debt: ~\u20ac2.6 billion (from Simply Wall St)\n- Capital raise: \u20ac1.5 billion (completed December 2025)\n- Export Credit Agency financing: ~\u20ac1 billion\n- 440 LEO satellites ordered from Airbus at total cost of ~\u20ac2.2 billion (~$2.56 billion) including launch\n- New bonds: \u20ac1.5 billion (March 2026) - \u20ac850M at 5.75% due 2031, \u20ac650M at 6.25% due 2033\n- Credit rating upgrades: Moody's to Ba3, Fitch to BB (stable)\n- Full year revenue guidance: \u20ac1.5-1.7 billion by FY2028-29\n- Gross capex FY2025-26: \u20ac1.0-1.1 billion\n\nNow let me do the analysis:\n\n**Eutelsat's constellation refresh program:**\n- 440 satellites at ~\u20ac2.2 billion (~$2.56 billion) including launch\n- This is to replace the existing ~654 satellite OneWeb constellation\n- First-gen satellites reaching end of life 2027-2028\n- Funding: required \u20ac1.5B capital raise + \u20ac1B export credit + \u20ac1.5B bond issue\n\n**Starlink's equivalent constellation refresh:**\n- Starlink has ~9,600 satellites in orbit\n- Manufacturing rate: ~70/week (~3,640/year)\n- Launched ~3,100 in 2025\n- Connectivity Segment Adjusted EBITDA FY2025: $7,168 million\n- Connectivity Segment Capex FY2025: $4,178 million\n- Segment \"free cash flow\" (Adj. EBITDA - Capex): $2,990 million\n\nNow, the question asks: would Starlink's internal cash generation profile render an equivalent constellation-refresh program self-fundable at current run-rates?\n\nLet me think about what \"equivalent\" means:\n- Eutelsat is refreshing 440 satellites at \u20ac2.56B (~$2.8B at current rates)\n- Starlink has ~9,600 satellites - roughly 22x the size of OneWeb's 654-satellite constellation (or ~15x the 440 being refreshed)\n- If we scale proportionally: an equivalent full constellation refresh for Starlink would cost roughly 15x to 22x more than Eutelsat's program\n\nBut wait - Starlink's cost structure is fundamentally different:\n1. SpaceX manufactures its own satellites in-house (vertical integration)\n2. SpaceX launches on its own Falcon 9 rockets at marginal cost (vs. Eutelsat paying market rates)\n3. Starlink's FY2025 Connectivity capex of $4,178M already includes satellite manufacturing AND launch costs for ~3,100 satellites deployed\n\nSo let me think about this differently:\n\n**Starlink's annual constellation refresh capacity:**\n- FY2025 Connectivity Capex: $4,178 million\n- This funded ~3,100 satellite launches plus ground infrastructure\n- Connectivity Segment Adjusted EBITDA: $7,168 million\n- Surplus (Adj. EBITDA - Capex): $2,990 million\n\nThis means Starlink's Connectivity segment alone generates enough cash to:\n1. Fund its entire $4.2B annual capex (which already includes massive constellation expansion)\n2. AND still have ~$3B left over\n\n**Eutelsat comparison:**\n- Eutelsat's H1 Adjusted EBITDA: \u20ac308M (annualized ~\u20ac616M)\n- Eutelsat's constellation refresh: \u20ac2.2B over ~2024-2029 (roughly \u20ac440M/year)\n- Eutelsat's capex guidance FY2025-26: \u20ac1.0-1.1B\n- Eutelsat's annualized EBITDA (~\u20ac616M) is LESS than its annual capex (\u20ac1.0-1.1B)\n- This means Eutelsat cannot self-fund its constellation refresh from operations\n\nLet me calculate the key ratios:\n\n**Eutelsat:**\n- Annualized Adjusted EBITDA: ~\u20ac616M (H1 \u00d7 2)\n- Annual Capex: \u20ac1.0-1.1B\n- Capex/EBITDA ratio: ~162-179% (capex exceeds EBITDA)\n- Constellation refresh cost: \u20ac2.2B = ~3.6x annual EBITDA\n- Required external funding: \u20ac1.5B equity raise + \u20ac1B ECA + \u20ac1.5B bonds = \u20ac4.0B total\n\n**Starlink (Connectivity Segment):**\n- FY2025 Adjusted EBITDA: $7,168M\n- FY2025 Capex: $4,178M\n- Capex/EBITDA ratio: ~58% (EBITDA comfortably exceeds capex)\n- Free cash generation: $2,990M/year\n- Q1 2026 run-rate EBITDA: $8,348M annualized\n- At Q1 2026 run-rate, free cash generation would be: $8,348M - $4,178M = $4,170M (assuming capex stays flat)\n\nNow, if Starlink needed to do an \"equivalent\" constellation refresh (replacing all ~9,600 satellites):\n- Starlink's current capex already includes ongoing satellite deployment and refresh\n- The $4,178M annual capex already covers ~3,100 satellite deployments per year\n- At that rate, the entire 9,600-satellite constellation could be refreshed in ~3.1 years\n- And this is entirely self-funded from segment EBITDA\n\nThe contrast is stark:\n- Eutelsat needs \u20ac4.0B in external capital (equity + debt + ECA) to refresh 440 satellites\n- Starlink self-funds deployment of 3,100+ satellites per year from operations, with $3B+ surplus\n\n**Falcon 9 cost advantage:**\n- Falcon 9 launch cost: ~$2,700/kg (original), likely lower now with reusability\n- Industry average: $18,500/kg\n- Eutelsat must pay market launch rates (likely on SpaceX Falcon 9 or other providers)\n- SpaceX's internal launch cost is marginal (fuel + refurbishment), perhaps $15-20M per launch vs. $67M commercial price\n- This gives SpaceX an ~85% cost advantage on launch\n\nLet me also compute the per-satellite cost comparison:\n- Eutelsat: \u20ac2.2B / 440 satellites = \u20ac5.0M per satellite (including launch)\n- Starlink: $4,178M capex for ~3,100 satellites = ~$1.35M per satellite (including launch and ground equipment)\n  - Note: this includes ground infrastructure too, so the per-satellite cost is even lower\n\nActually, let me be more careful. The $4,178M Connectivity capex includes:\n- Satellite manufacturing\n- Launch costs (internal)\n- Ground equipment/infrastructure\n- Starlink Kits (user terminals)\n\nSo the per-satellite comparison isn't perfectly apples-to-apples. But the overall point stands.\n\nLet me also think about the competitive moat:\n\n1. **Scale advantage**: Starlink's 9,600 satellites vs. OneWeb's 654 = ~15x more capacity\n2. **Manufacturing advantage**: 70 satellites/week in-house vs. outsourcing to Airbus\n3. **Launch advantage**: Own rockets at marginal cost vs. paying market rates\n4. **Cash generation advantage**: $7.2B EBITDA vs. ~\u20ac616M = ~12x more cash generation\n5. **Self-funding vs. capital markets dependent**: Starlink generates surplus cash; Eutelsat needs equity dilution + government backing + bond markets\n\nLet me now write up the comprehensive analysis.\n\nActually, let me also check: the question mentions \"\u20ac2.56 billion including launch\" - this is the dollar equivalent of \u20ac2.2 billion. Let me verify the exchange rate. At roughly \u20ac1 = $1.16, \u20ac2.2B \u2248 $2.56B. That checks out.\n\nLet me also compute some additional metrics:\n\n**Eutelsat's funding gap:**\n- Annual EBITDA: ~\u20ac616M\n- Annual capex: \u20ac1.0-1.1B\n- Annual funding gap: \u20ac384-484M\n- Over 5 years (2024-2029): ~\u20ac1.9-2.4B funding gap\n- This is why they needed the \u20ac1.5B equity raise + \u20ac1B ECA + \u20ac1.5B bonds\n\n**Starlink's funding surplus:**\n- Annual EBITDA: $7,168M\n- Annual capex: $4,178M\n- Annual surplus: $2,990M\n- Over 5 years: ~$15B surplus (assuming flat)\n- At Q1 2026 run-rate: $4,170M annual surplus \u2192 ~$20.9B over 5 years\n\nThis is a massive competitive moat. Starlink can:\n1. Self-fund constellation refresh\n2. Self-fund next-gen V3 satellite development\n3. Self-fund Starship-based deployment\n4. Cross-subsidize other segments (AI: $12.7B capex in FY2025)\n\nWhile Eutelsat must:\n1. Dilute shareholders (\u20ac1.5B equity raise)\n2. Rely on government backing (French state 29.65% stake)\n3. Pay high interest rates (5.75-6.25% on bonds)\n4. Depend on export credit agencies\n5. Seek credit rating upgrades just to access capital at reasonable rates\n\nLet me now write the final analysis.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8f50e7610b32436facbd5815",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment capital expenditure for FY2023, FY2024, FY2025, and Q1 2026 in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_cb99121ef2164bd1aa2d48a5",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Eutelsat full year FY2024-25 adjusted EBITDA annual total \u20ac650 million \u20ac700 million",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8f50e7610b32436facbd5815",
+            "content": "Based on the provided MD&A section and capital expenditure tables, the Connectivity segment's capital expenditures are as follows:\n\n* **FY2023:** $2,455 million\n* **FY2024:** $3,498 million\n* **FY2025:** $4,178 million\n* **Q1 2026** (Three Months Ended March 31, 2026): $1,332 million"
+          },
+          {
+            "source_call_id": "call_cb99121ef2164bd1aa2d48a5",
+            "content": "[{\"url\": \"https://www.exterrajsc.com/p/eutelsat-announces-full-year-2024\", \"title\": \"Eutelsat Announces Full Year 2024-25 Results\", \"content\": \"Adjusted EBITDA stood at \\u20ac676.2 million (\\u2248$778 million) on June 30, 2025 stable on a like for like basis. The Adjusted EBITDA margin stood at 54.2% at constant currency (54.4% reported).\\n\\nThis was in line with the company's financial projections of Operating Vertical Revenues around the same level, and an adjusted EBITDA margin slightly below the level of the previous year.\\n\\nCreated with TradingView\", \"score\": 0.95176035, \"raw_content\": null}, {\"url\": \"https://www.businesswire.com/news/home/20250804345965/en/Eutelsat-Group-UK-Regulatory-Announcement-Eutelsat-Communications-Full-Year-2024-25-Results\", \"title\": \"Eutelsat Communications: Full Year 2024-25 Results\", \"content\": \"|  |\\n\\n| Note: The backlog represents future revenues from capacity or service agreements and can include contracts for satellites under procurement. Managed services are not included in the backlog. |\\n\\nPROFITABILITY\\n\\nReported Adjusted EBITDA stood at \\u20ac676.2 million for the year ended 30 June 2025 compared with \\u20ac718.9 million a year earlier, down by 5.9%. It was stable on a like for like basis.\", \"score\": 0.94225764, \"raw_content\": null}, {\"url\": \"https://www.businesswire.com/news/home/20250804042163/en/Eutelsat-Communications-Full-Year-2024-25-Results\", \"title\": \"Eutelsat Communications: Full Year 2024-25 Results\", \"content\": \"|  |\\n\\n| Note: The backlog represents future revenues from capacity or service agreements and can include contracts for satellites under procurement. Managed services are not included in the backlog. |\\n\\nPROFITABILITY\\n\\nReported Adjusted EBITDA stood at \\u20ac676.2 million for the year ended 30 June 2025 compared with \\u20ac718.9 million a year earlier, down by 5.9%. It was stable on a like for like basis.\", \"score\": 0.94225764, \"raw_content\": null}, {\"url\": \"https://www.nasdaq.com/press-release/eutelsat-communications-full-year-2024-25-results-2025-08-07\", \"title\": \"Eutelsat Communications: Full Year 2024-25 Results | Nasdaq\", \"content\": \"|  |\\n\\n| Note: The backlog represents future revenues from capacity or service agreements and can include contracts for satellites under procurement. Managed services are not included in the backlog. |\\n\\nPROFITABILITY\\n\\nReported Adjusted EBITDA stood at \\u20ac676.2 million for the year ended 30 June 2025 compared with \\u20ac718.9 million a year earlier, down by 5.9%. It was stable on a like for like basis.\", \"score\": 0.9387167, \"raw_content\": null}, {\"url\": \"https://finance.yahoo.com/news/eutelsat-communications-full-2024-25-060000672.html\", \"title\": \"Eutelsat Communications: Full Year 2024-25 Results - Yahoo Finance\", \"content\": \"Adjusted EBITDA stood at \\u20ac676.2 million on 30 June 2025 stable on a like for like basis. The Adjusted EBITDA margin stood at 54.2% at constant currency (54.4% reported).\\n\\nThis was in line with our financial projections of Operating Vertical Revenues around the same level, and an adjusted EBITDA margin slightly below the level of the previous year.\", \"score\": 0.9363841, \"raw_content\": null}, {\"url\": \"https://finance.yahoo.com/news/eutelsat-communications-full-2024-25-053000382.html\", \"title\": \"Eutelsat Communications: Full Year 2024-25 Results - Yahoo Finance\", \"content\": \"Adjusted EBITDA stood at \\u20ac676.2 million on 30 June 2025 stable on a like for like basis. The Adjusted EBITDA margin stood at 54.2% at constant currency (54.4% reported).\\n\\nThis was in line with our financial projections of Operating Vertical Revenues around the same level, and an adjusted EBITDA margin slightly below the level of the previous year.\", \"score\": 0.9363841, \"raw_content\": null}, {\"url\": \"https://live.euronext.com/en/products/equities/company-news/2025-08-05-eutelsat-communications-full-year-2024-25-results\", \"title\": \"Eutelsat Communications: Full Year 2024-25 Results\", \"content\": \"This mainly reflected growing demand for LEO-based solutions notably in maritime, partly offset by lower GEO revenues as well as the impact of a one-off contract in aviation of c.\\u20ac11 million of which c.\\u20ac8 million were recognized in FY 2023-24 and c.\\u20ac3 million in FY 2024-25. Fourth Quarter revenues stood at \\u20ac45 million, down 7.0% year-on-year due to the above-mentioned one-off contract and up by 19.9% quarter-on-quarter, mainly driven by LEO performances. Reported Adjusted EBITDA stood at \\u20ac676.2\", \"score\": 0.9322132, \"raw_content\": null}, {\"url\": \"https://www.morningstar.com/news/business-wire/20250804042163/eutelsat-communications-full-year-2024-25-results\", \"title\": \"Eutelsat Communications: Full Year 2024-25 Results | Morningstar\", \"content\": \"GEO revenues as well as the impact of a one-off contract in aviation of c.\\u20ac11 million of which c.\\u20ac8 million were recognized in FY 2023-24 and c.\\u20ac3 million in FY 2024-25. Fourth Quarter revenues stood at \\u20ac45 million, down 7.0% year-on-year due to the above-mentioned one-off contract and up by 19.9% quarter-on-quarter, mainly driven by LEO performances. Reported Adjusted EBITDA stood at \\u20ac676.2 million for the year ended 30 June 2025 compared with \\u20ac718.9 million a year earlier, down by 5.9%.  D&A\", \"score\": 0.92857105, \"raw_content\": null}, {\"url\": \"https://www.satellitemarkets.com/news-analysis/eutelsat-releases-full-year-2024-25-results\", \"title\": \"Global Markets | Satellite Markets Research\", \"content\": \"Satellite Markets and Research\\n\\n## Main navigation\\n\\nMenu\\n\\n#### \\n\\n## Topic Menu\\n\\nacorde-banner-2025\\nSatService Banner May 2026\\n\\n## Latest Developments\\n\\nMay-June 2026 Satellite Executive Briefing\\n\\nThe May-June 2026 issue of the Satellite Executive Briefing featuring:\\n\\nKey Takeaways from Satellite 2026by Elisabeth Tweedie\\n\\nThe End of Monetization Silos: Why the Future of Broadcasting Lies in Unified Streaming Economiesby Massimo Vimini\", \"score\": 0.16922764, \"raw_content\": null}, {\"url\": \"https://www.prnewswire.co.uk/news-releases/yidu-techs-fy2024-results-existing-business-achieves-first-full-year-profit-on-adjusted-ebitda-302185986.html\", \"title\": \"Yidu Tech's FY2024 results: existing business achieves first full-year profit on adjusted EBITDA\", \"content\": \"01 Jul, 2024, 01:05 GMT\\n\\n## Share this article\\n\\nShare this article\", \"score\": 0.09892066, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 19932,
+        "completion_tokens": 3006,
+        "cached_tokens": 16256,
+        "cost_usd": 0.059570000000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T21:09:56.316786+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed for a comprehensive analysis. Let me compile the final assessment.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me compile the comprehensive analysis.\n\n**Eutelsat Full Year FY2024-25 (ended June 30, 2025):**\n- Adjusted EBITDA: \u20ac676.2 million\n- Revenue: ~\u20ac1.24 billion (implied from EBITDA margin of 54.4%)\n- Net Debt (June 2025): \u20ac2.6 billion\n- Net Debt/EBITDA: 3.88x\n\n**Eutelsat H1 FY2025-26 (July-December 2025):**\n- Revenue: \u20ac591.6 million\n- Adjusted EBITDA: \u20ac308.2 million\n- Net Debt (Dec 2025): \u20ac1.3 billion (after \u20ac1.5B capital raise)\n- Net Debt/EBITDA: 2.00x\n\n**Eutelsat's Constellation Refresh Program:**\n- 440 LEO satellites from Airbus\n- Total cost: ~\u20ac2.2 billion (~$2.56 billion) including launch\n- Timeline: 2024-2029\n- Funding sources:\n  - \u20ac1.5 billion capital increase (Dec 2025)\n  - ~\u20ac1 billion Export Credit Agency financing (Feb 2026)\n  - \u20ac1.5 billion bond issue (March 2026): \u20ac850M at 5.75% (2031), \u20ac650M at 6.25% (2033)\n  - Total external funding: ~\u20ac4.0 billion\n\n**SpaceX Connectivity Segment (Starlink) FY2025:**\n- Revenue: $11,387 million\n- Operating Income: $4,423 million\n- Adjusted EBITDA: $7,168 million\n- Capex: $4,178 million\n- D&A: $2,376 million\n- Segment FCF proxy (Adj. EBITDA - Capex): $2,990 million\n- Satellites launched in 2025: ~3,100\n- Manufacturing rate: ~70/week (~3,640/year)\n\n**Q1 2026 Connectivity Segment:**\n- Adjusted EBITDA: $2,087 million (annualized: $8,348 million)\n- Capex: $1,332 million (annualized: $5,328 million)\n- Q1 2026 FCF proxy: $755 million (annualized: $3,020 million)\n\nNow let me do the key calculations:\n\n**1. Eutelsat's funding gap:**\n- Annual EBITDA: \u20ac676M (FY2024-25)\n- Annual capex guidance: \u20ac1.0-1.1B (FY2025-26)\n- Annual funding gap: \u20ac324-424M\n- Constellation refresh cost: \u20ac2.2B = 3.25x annual EBITDA\n- Eutelsat CANNOT self-fund: capex exceeds EBITDA by ~50%\n\n**2. Starlink's self-funding capacity:**\n- Annual EBITDA: $7,168M (FY2025)\n- Annual capex: $4,178M (FY2025)\n- Annual surplus: $2,990M\n- Capex/EBITDA ratio: 58.3%\n- Starlink CAN self-fund: EBITDA exceeds capex by 71%\n\n**3. Equivalent constellation refresh comparison:**\n- Eutelsat: 440 satellites at \u20ac2.2B = \u20ac5.0M per satellite (including launch)\n- Starlink: ~3,100 satellites deployed in 2025 at $4,178M total Connectivity capex\n  - But this includes ground infrastructure and user terminals\n  - If we assume ~70% of capex is satellite+launch: ~$2,925M for 3,100 satellites = ~$0.94M per satellite\n  - Even if 100% of capex were satellite+launch: $4,178M / 3,100 = $1.35M per satellite\n- Starlink's per-satellite cost is roughly 3.7x to 5.3x lower than Eutelsat's\n\n**4. Scale comparison:**\n- Starlink constellation: ~9,600 satellites\n- OneWeb constellation: ~654 satellites\n- Ratio: ~14.7x\n- If Starlink needed to replace all 9,600 satellites at Eutelsat's per-unit cost: 9,600 \u00d7 \u20ac5.0M = \u20ac48B\n- If Starlink replaces at its own cost: already doing ~3,100/year within $4.2B capex = full refresh in ~3.1 years\n\n**5. The competitive moat:**\n- Starlink generates $2,990M surplus annually from Connectivity alone\n- This surplus could fund an Eutelsat-equivalent 440-satellite refresh program in less than 1 year\n- Or fund the entire \u20ac2.2B ($2.56B) Eutelsat program with ~$430M to spare\n- Meanwhile, Eutelsat needed:\n  - \u20ac1.5B equity dilution (French state now 29.65% owner)\n  - \u20ac1B government-backed export credit\n  - \u20ac1.5B high-yield bonds (5.75-6.25%)\n  - Credit rating upgrades just to access capital markets\n  - Total: ~\u20ac4.0B in external funding for a program 1/22nd the scale of Starlink's constellation\n\nLet me now write the final comprehensive analysis.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3ad6278f48804c9db9048ea6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - 4178"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3ad6278f48804c9db9048ea6",
+            "content": "2990"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25104,
+        "completion_tokens": 1421,
+        "cached_tokens": 19584,
+        "cost_usd": 0.052489999999999995
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-09T21:10:00.321412+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me do a few more calculations.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_354977f894f044a89eebc3dd",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4178 / 7168"
+          }
+        },
+        {
+          "tool_call_id": "call_12ad302c9b6a4fee9ea83f69",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2087 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_7c2a5165fcb146a18ccb5e79",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1332 * 4"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_354977f894f044a89eebc3dd",
+            "content": "0.5828683035714286"
+          },
+          {
+            "source_call_id": "call_12ad302c9b6a4fee9ea83f69",
+            "content": "8348"
+          },
+          {
+            "source_call_id": "call_7c2a5165fcb146a18ccb5e79",
+            "content": "5328"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26543,
+        "completion_tokens": 111,
+        "cached_tokens": 24960,
+        "cost_usd": 0.0362675
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-09T21:10:04.942288+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me do a few more calculations for the analysis.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_fda2f2b04ba742ef98cc7153",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "8348 - 5328"
+          }
+        },
+        {
+          "tool_call_id": "call_2a7c234175ad4b5682ee5ca2",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2200 / 676.2"
+          }
+        },
+        {
+          "tool_call_id": "call_05e9cf9b822d4d809f621b22",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 / 676.2 * 1.08"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_fda2f2b04ba742ef98cc7153",
+            "content": "3020"
+          },
+          {
+            "source_call_id": "call_2a7c234175ad4b5682ee5ca2",
+            "content": "3.253475303164744"
+          },
+          {
+            "source_call_id": "call_05e9cf9b822d4d809f621b22",
+            "content": "11.448447204968945"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26704,
+        "completion_tokens": 128,
+        "cached_tokens": 26112,
+        "cost_usd": 0.0354
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-06-09T21:10:09.241138+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me also calculate the per-satellite cost comparison and the Eutelsat funding gap.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_93acacd200a643c8a5bc15ff",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2200 / 440"
+          }
+        },
+        {
+          "tool_call_id": "call_58b39791e4f649a6989b0adb",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4178 / 3100"
+          }
+        },
+        {
+          "tool_call_id": "call_4091bca03a1942a6949750ef",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "9600 / 654"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_93acacd200a643c8a5bc15ff",
+            "content": "5.0"
+          },
+          {
+            "source_call_id": "call_58b39791e4f649a6989b0adb",
+            "content": "1.347741935483871"
+          },
+          {
+            "source_call_id": "call_4091bca03a1942a6949750ef",
+            "content": "14.678899082568808"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26895,
+        "completion_tokens": 127,
+        "cached_tokens": 26112,
+        "cost_usd": 0.035867500000000004
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-06-09T21:10:12.454988+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also calculate the Eutelsat capex-to-EBITDA ratio and the funding gap.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b4c8efc5564548bfba8ddeef",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1050 / 676.2"
+          }
+        },
+        {
+          "tool_call_id": "call_5664ce85e5174b27a78bc53f",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2560 / 2990"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b4c8efc5564548bfba8ddeef",
+            "content": "1.5527950310559004"
+          },
+          {
+            "source_call_id": "call_5664ce85e5174b27a78bc53f",
+            "content": "0.8561872909698997"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 27084,
+        "completion_tokens": 98,
+        "cached_tokens": 26112,
+        "cost_usd": 0.036050000000000006
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 16,
+      "timestamp": "2026-06-09T21:11:15.899724+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed. Let me submit the comprehensive analysis.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the calculations. Let me write the comprehensive final analysis.\n\nKey findings:\n1. Eutelsat's capex/EBITDA ratio: ~155% (capex exceeds EBITDA by 55%)\n2. Starlink's capex/EBITDA ratio: ~58% (EBITDA exceeds capex by 71%)\n3. Eutelsat's constellation refresh cost: \u20ac2.2B = 3.25x annual EBITDA\n4. Starlink's annual surplus ($2,990M) could fund Eutelsat's entire \u20ac2.2B ($2.56B) program in ~10 months\n5. Per-satellite cost: Eutelsat \u20ac5.0M vs. Starlink ~$1.35M (all-in including ground)\n6. Constellation scale: Starlink 9,600 vs. OneWeb 654 = 14.7x\n7. Eutelsat needed \u20ac4.0B in external funding (equity + ECA + bonds) for a program 1/22nd the scale\n\nLet me now write the final submission.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c47cb0a2dfb64a8998167a94",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Starlink vs. Eutelsat: Constellation-Refresh Self-Fundability & Competitive Moat Analysis\n\n---\n\n### 1. SpaceX Connectivity Segment (Starlink) \u2014 FY2025 Financial Profile\n\nAll figures below are from the SpaceX S-1 filed May 20, 2026. The consolidated financial statements have been retrospectively recast under common-control accounting to include xAI (merged February 2, 2026) and X Holdings (merged into xAI March 28, 2025) for all historical periods. The Connectivity segment figures below reflect Starlink operations within the recast consolidated entity.\n\n| Metric | FY2023 | FY2024 | FY2025 | Q1 2026 | Q1 2026 Annualized |\n|---|---|---|---|---|---|\n| **Revenue** | \u2014 | $7,599M | $11,387M | \u2014 | \u2014 |\n| **Operating Income** | \u2014 | $2,006M | $4,423M | \u2014 | \u2014 |\n| **Adjusted EBITDA** | \u2014 | \u2014 | $7,168M | $2,087M | $8,348M |\n| **Capex** | $2,455M | $3,498M | $4,178M | $1,332M | $5,328M |\n| **D&A** | \u2014 | \u2014 | $2,376M | \u2014 | \u2014 |\n| **Adj. EBITDA \u2212 Capex** | \u2014 | \u2014 | **$2,990M** | $755M | **$3,020M** |\n| **Capex / EBITDA** | \u2014 | \u2014 | **58.3%** | 63.8% | 63.8% |\n\n**Key operational data:**\n- Constellation size: ~9,600 satellites (as of March 31, 2026)\n- Satellites launched in 2025: ~3,100\n- Manufacturing rate: ~70 satellites/week (~3,640/year at full rate)\n- Subscribers: ~10.3 million broadband + ~7.4 million monthly mobile devices\n\n---\n\n### 2. Eutelsat \u2014 FY2024-25 / H1 FY2025-26 Financial Profile\n\n| Metric | FY2024-25 (YE June 2025) | H1 FY2025-26 (Jul\u2013Dec 2025) |\n|---|---|---|\n| **Revenue** | ~\u20ac1.24B | \u20ac591.6M |\n| **Adjusted EBITDA** | \u20ac676.2M | \u20ac308.2M |\n| **EBITDA Margin** | 54.4% | 52.1% |\n| **Net Debt** | \u20ac2,627M (June 2025) | \u20ac1,301M (Dec 2025) |\n| **Net Debt / EBITDA** | 3.88x | 2.00x |\n| **Gross Capex Guidance** | \u2014 | \u20ac1.0\u20131.1B (FY2025-26) |\n| **Capex / EBITDA** | \u2014 | **~155%** |\n\n**Constellation Refresh Program:**\n- 440 LEO satellites ordered from Airbus Defence and Space (100 initial + 340 follow-on)\n- Total program cost: ~\u20ac2.2 billion (~$2.56 billion) including launch, spread over 2024\u20132029\n- Per-satellite all-in cost: **\u20ac5.0 million** (~$5.8M)\n- Purpose: Replace first-generation OneWeb satellites (654 in orbit) reaching end-of-life in 2027\u20132028\n- Program cost = **3.25\u00d7 Eutelsat's annual EBITDA**\n\n**External Funding Required:**\n| Source | Amount |\n|---|---|\n| \u20ac1.5B capital increase (Dec 2025) | \u20ac828M reserved + \u20ac670M rights issue; French state stake \u2192 29.65% |\n| Export Credit Agency financing (Feb 2026) | ~\u20ac1.0B (French government-backed) |\n| Senior bonds (March 2026) | \u20ac850M at 5.75% (2031) + \u20ac650M at 6.25% (2033) |\n| **Total external capital raised** | **~\u20ac4.0 billion** |\n\nCredit rating upgrades followed: Moody's \u2192 Ba3, Fitch \u2192 BB (stable outlook).\n\n---\n\n### 3. Self-Fundability Assessment: Could Starlink Self-Fund an Equivalent Program?\n\n**The answer is unambiguously yes \u2014 and with substantial surplus.**\n\n| Metric | Eutelsat (OneWeb Refresh) | Starlink (FY2025 Run-Rate) |\n|---|---|---|\n| Constellation size | 654 satellites | ~9,600 satellites (14.7\u00d7 larger) |\n| Satellites being refreshed/added | 440 | ~3,100 launched in FY2025 alone |\n| Program cost | \u20ac2.2B ($2.56B) | $4,178M annual capex (already self-funded) |\n| Annual Adj. EBITDA | \u20ac676M (~$784M) | $7,168M (9.1\u00d7 Eutelsat) |\n| Capex / EBITDA ratio | ~155% (deficit) | 58.3% (surplus) |\n| Annual free cash generation | **Negative** (capex exceeds EBITDA by ~\u20ac374M) | **$2,990M surplus** |\n| Years of EBITDA to fund refresh | 3.25\u00d7 | 0.36\u00d7 (i.e., ~4.3 months of EBITDA) |\n\n**Critical finding:** Starlink's FY2025 Connectivity segment surplus of **$2,990 million** could have funded Eutelsat's entire \u20ac2.2 billion ($2.56 billion) constellation-refresh program in a single year with approximately **$430 million remaining** \u2014 while simultaneously continuing to deploy ~3,100 of its own satellites.\n\nAt the Q1 2026 annualized run-rate (Adj. EBITDA of $8,348M, capex of $5,328M), the surplus grows to **$3,020 million**, further widening the gap.\n\n---\n\n### 4. Per-Satellite Cost Comparison & Falcon 9 Launch Cost Advantage\n\n| Metric | Eutelsat / OneWeb | Starlink |\n|---|---|---|\n| Per-satellite all-in cost | \u20ac5.0M (~$5.8M) | ~$1.35M (upper bound, all-in Connectivity capex \u00f7 satellites launched) |\n| Satellite manufacturer | Airbus Defence and Space (third-party) | SpaceX Redmond facility (in-house) |\n| Launch provider | SpaceX Falcon 9 (market rate) or Soyuz | Falcon 9 (internal marginal cost) |\n| Launch cost per kg | Market rate (~$2,700/kg commercial) | Marginal cost (fuel + refurbishment; estimated 85%+ discount to industry average of $18,500/kg) |\n| Manufacturing rate | Airbus production line (ramping) | ~70 satellites/week (~3,640/year) |\n\n**The Falcon 9 cost advantage is structural and compounding:**\n- SpaceX's extreme vertical integration means it manufactures ~80% of components in-house\n- Booster reusability spreads fixed production costs across repeated flights\n- Internal launch cost is marginal (tens of millions vs. $67M commercial price)\n- Eutelsat must pay market launch rates \u2014 often to SpaceX itself \u2014 creating a direct cost transfer from competitor to SpaceX's revenue line\n- The S-1 notes this gap is \"widening meaningfully as our speed and cost advantage compound\"\n\nEven using the most conservative assumption (100% of Connectivity capex attributed to satellite + launch, which overstates the comparison since capex also includes ground infrastructure and Starlink Kits), Starlink's all-in per-satellite cost of **~$1.35M** is approximately **4.3\u00d7 lower** than Eutelsat's **\u20ac5.0M (~$5.8M)**.\n\n---\n\n### 5. What the Funding-Structure Contrast Reveals About the Competitive Moat\n\nThe contrast between the two operators' funding structures reveals **five interlocking layers** of Starlink's competitive moat:\n\n#### Layer 1: Scale-Driven Cash Generation\nStarlink's FY2025 Connectivity EBITDA of $7,168M is approximately **11.4\u00d7 Eutelsat's total company EBITDA** of \u20ac676M (on an FX-adjusted basis). This is not merely a size advantage \u2014 it is a *cash-generation* advantage that converts directly into self-funding capacity for next-generation investment.\n\n#### Layer 2: Vertical Integration Eliminates Capital-Market Dependency\nEutelsat required **\u20ac4.0 billion in external capital** (equity dilution, government-backed export credits, and high-yield bonds at 5.75\u20136.25%) to fund a 440-satellite refresh representing just **67% of its existing constellation**. Starlink deploys **3,100+ satellites per year** \u2014 a full constellation replacement every ~3.1 years \u2014 entirely from operating cash flow, with ~$3 billion annual surplus remaining.\n\n#### Layer 3: Launch Cost Asymmetry Creates a Structural Cost Floor\nEutelsat pays market-rate launch costs (often to SpaceX itself), while SpaceX launches at marginal internal cost. This means:\n- Every euro Eutelsat spends on launch is partially captured as SpaceX revenue\n- SpaceX's effective launch cost is 85%+ below industry benchmarks\n- No competitor can match this without owning a reusable launch vehicle at scale\n\n#### Layer 4: Manufacturing Cadence as a Barrier to Entry\nStarlink's Redmond facility produces ~70 satellites/week. Eutelsat's 440-satellite order to Airbus will take years to deliver. This cadence differential means:\n- Starlink can iterate through generational upgrades (V1 \u2192 V2 Mini \u2192 V3) continuously\n- Competitors face multi-year procurement cycles with fixed-technology snapshots\n- By the time Eutelsat's 440 satellites are deployed (2026\u20132029), Starlink will have deployed an additional ~10,000+ satellites, likely on the vastly more capable V3 platform (1 Tbps per satellite via Starship)\n\n#### Layer 5: Cross-Segment Capital Allocation Flexibility\nSpaceX's consolidated FY2025 capex was $20,737M (Space: $3,832M + Connectivity: $4,178M + AI: $12,727M). The Connectivity segment's $2,990M surplus effectively subsidizes a portion of the AI segment's massive buildout. Eutelsat has no such cross-subsidy capacity \u2014 its entire EBITDA is consumed by its single constellation refresh, leaving no room for diversification.\n\n---\n\n### 6. Conclusion\n\n**Starlink's internal cash generation profile renders an equivalent constellation-refresh program trivially self-fundable.** The Connectivity segment's FY2025 surplus of $2,990M could fund Eutelsat's entire \u20ac2.2B ($2.56B) 440-satellite program in under one year, while Starlink simultaneously deploys ~3,100 of its own satellites and generates additional surplus.\n\nThe funding-structure contrast reveals that Starlink's competitive moat is not a single advantage but a **self-reinforcing system**: vertical integration drives down unit costs \u2192 lower costs enable aggressive pricing and subscriber growth \u2192 subscriber growth drives EBITDA scale \u2192 EBITDA surplus funds next-generation R&D and deployment \u2192 next-generation capabilities widen the cost and capability gap \u2192 competitors must raise ever-larger amounts of external capital at ever-higher costs to close a gap that widens with every Falcon 9 launch.\n\nEutelsat's reliance on \u20ac4.0B in external capital (including sovereign backing from the French state at 29.65% ownership) to refresh a constellation **1/22nd the scale** of Starlink's \u2014 at 4.3\u00d7 the per-satellite cost \u2014 while paying 5.75\u20136.25% coupon rates on sub-investment-grade bonds, illustrates the structural funding disadvantage that faces any LEO constellation operator competing against a vertically integrated, self-launching incumbent at Starlink's scale.\n\n---\n\n### Sources\n\n```json\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.eutelsat.com/system/files/2026-02/DOC_Investors_H1-FY-2025-26-PR_EN_130226_0.pdf\",\n      \"name\": \"Eutelsat H1 FY2025-26 Results Press Release (February 2026)\"\n    },\n    {\n      \"url\": \"https://www.businesswire.com/news/home/20250804345965/en/Eutelsat-Communications-Full-Year-2024-25-Results\",\n      \"name\": \"Eutelsat Full Year FY2024-25 Results (August 2025)\"\n    },\n    {\n      \"url\": \"https://www.spaceintelreport.com/eutelsat-continues-2-56-billion-oneweb-refurbishment-with-340-satellite-order-to-airbus-first-launches-in-2026\",\n      \"name\": \"Space Intel Report: Eutelsat $2.56B OneWeb Refurbishment (January 2026)\"\n    },\n    {\n      \"url\": \"https://europeanspaceflight.com/eutelsat-to-raise-e1-5-billion-to-refinance-its-debt\",\n      \"name\": \"European Spaceflight: Eutelsat \u20ac1.5B Capital Raise\"\n    },\n    {\n      \"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-major-debt-refinancing-with-1-5-billion-bond-issue/68606229\",\n      \"name\": \"Eutelsat \u20ac1.5B Bond Refinancing (March 2026)\"\n    },\n    {\n      \"url\": \"https://www.ainvest.com/news/eutelsat-1-5-billion-capital-raise-strategic-reinvention-leo-satellite-race-2512\",\n      \"name\": \"Eutelsat Capital Raise Strategic Analysis\"\n    }\n  ]\n}\n```"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c47cb0a2dfb64a8998167a94",
+            "content": "## Starlink vs. Eutelsat: Constellation-Refresh Self-Fundability & Competitive Moat Analysis\n\n---\n\n### 1. SpaceX Connectivity Segment (Starlink) \u2014 FY2025 Financial Profile\n\nAll figures below are from the SpaceX S-1 filed May 20, 2026. The consolidated financial statements have been retrospectively recast under common-control accounting to include xAI (merged February 2, 2026) and X Holdings (merged into xAI March 28, 2025) for all historical periods. The Connectivity segment figures below reflect Starlink operations within the recast consolidated entity.\n\n| Metric | FY2023 | FY2024 | FY2025 | Q1 2026 | Q1 2026 Annualized |\n|---|---|---|---|---|---|\n| **Revenue** | \u2014 | $7,599M | $11,387M | \u2014 | \u2014 |\n| **Operating Income** | \u2014 | $2,006M | $4,423M | \u2014 | \u2014 |\n| **Adjusted EBITDA** | \u2014 | \u2014 | $7,168M | $2,087M | $8,348M |\n| **Capex** | $2,455M | $3,498M | $4,178M | $1,332M | $5,328M |\n| **D&A** | \u2014 | \u2014 | $2,376M | \u2014 | \u2014 |\n| **Adj. EBITDA \u2212 Capex** | \u2014 | \u2014 | **$2,990M** | $755M | **$3,020M** |\n| **Capex / EBITDA** | \u2014 | \u2014 | **58.3%** | 63.8% | 63.8% |\n\n**Key operational data:**\n- Constellation size: ~9,600 satellites (as of March 31, 2026)\n- Satellites launched in 2025: ~3,100\n- Manufacturing rate: ~70 satellites/week (~3,640/year at full rate)\n- Subscribers: ~10.3 million broadband + ~7.4 million monthly mobile devices\n\n---\n\n### 2. Eutelsat \u2014 FY2024-25 / H1 FY2025-26 Financial Profile\n\n| Metric | FY2024-25 (YE June 2025) | H1 FY2025-26 (Jul\u2013Dec 2025) |\n|---|---|---|\n| **Revenue** | ~\u20ac1.24B | \u20ac591.6M |\n| **Adjusted EBITDA** | \u20ac676.2M | \u20ac308.2M |\n| **EBITDA Margin** | 54.4% | 52.1% |\n| **Net Debt** | \u20ac2,627M (June 2025) | \u20ac1,301M (Dec 2025) |\n| **Net Debt / EBITDA** | 3.88x | 2.00x |\n| **Gross Capex Guidance** | \u2014 | \u20ac1.0\u20131.1B (FY2025-26) |\n| **Capex / EBITDA** | \u2014 | **~155%** |\n\n**Constellation Refresh Program:**\n- 440 LEO satellites ordered from Airbus Defence and Space (100 initial + 340 follow-on)\n- Total program cost: ~\u20ac2.2 billion (~$2.56 billion) including launch, spread over 2024\u20132029\n- Per-satellite all-in cost: **\u20ac5.0 million** (~$5.8M)\n- Purpose: Replace first-generation OneWeb satellites (654 in orbit) reaching end-of-life in 2027\u20132028\n- Program cost = **3.25\u00d7 Eutelsat's annual EBITDA**\n\n**External Funding Required:**\n| Source | Amount |\n|---|---|\n| \u20ac1.5B capital increase (Dec 2025) | \u20ac828M reserved + \u20ac670M rights issue; French state stake \u2192 29.65% |\n| Export Credit Agency financing (Feb 2026) | ~\u20ac1.0B (French government-backed) |\n| Senior bonds (March 2026) | \u20ac850M at 5.75% (2031) + \u20ac650M at 6.25% (2033) |\n| **Total external capital raised** | **~\u20ac4.0 billion** |\n\nCredit rating upgrades followed: Moody's \u2192 Ba3, Fitch \u2192 BB (stable outlook).\n\n---\n\n### 3. Self-Fundability Assessment: Could Starlink Self-Fund an Equivalent Program?\n\n**The answer is unambiguously yes \u2014 and with substantial surplus.**\n\n| Metric | Eutelsat (OneWeb Refresh) | Starlink (FY2025 Run-Rate) |\n|---|---|---|\n| Constellation size | 654 satellites | ~9,600 satellites (14.7\u00d7 larger) |\n| Satellites being refreshed/added | 440 | ~3,100 launched in FY2025 alone |\n| Program cost | \u20ac2.2B ($2.56B) | $4,178M annual capex (already self-funded) |\n| Annual Adj. EBITDA | \u20ac676M (~$784M) | $7,168M (9.1\u00d7 Eutelsat) |\n| Capex / EBITDA ratio | ~155% (deficit) | 58.3% (surplus) |\n| Annual free cash generation | **Negative** (capex exceeds EBITDA by ~\u20ac374M) | **$2,990M surplus** |\n| Years of EBITDA to fund refresh | 3.25\u00d7 | 0.36\u00d7 (i.e., ~4.3 months of EBITDA) |\n\n**Critical finding:** Starlink's FY2025 Connectivity segment surplus of **$2,990 million** could have funded Eutelsat's entire \u20ac2.2 billion ($2.56 billion) constellation-refresh program in a single year with approximately **$430 million remaining** \u2014 while simultaneously continuing to deploy ~3,100 of its own satellites.\n\nAt the Q1 2026 annualized run-rate (Adj. EBITDA of $8,348M, capex of $5,328M), the surplus grows to **$3,020 million**, further widening the gap.\n\n---\n\n### 4. Per-Satellite Cost Comparison & Falcon 9 Launch Cost Advantage\n\n| Metric | Eutelsat / OneWeb | Starlink |\n|---|---|---|\n| Per-satellite all-in cost | \u20ac5.0M (~$5.8M) | ~$1.35M (upper bound, all-in Connectivity capex \u00f7 satellites launched) |\n| Satellite manufacturer | Airbus Defence and Space (third-party) | SpaceX Redmond facility (in-house) |\n| Launch provider | SpaceX Falcon 9 (market rate) or Soyuz | Falcon 9 (internal marginal cost) |\n| Launch cost per kg | Market rate (~$2,700/kg commercial) | Marginal cost (fuel + refurbishment; estimated 85%+ discount to industry average of $18,500/kg) |\n| Manufacturing rate | Airbus production line (ramping) | ~70 satellites/week (~3,640/year) |\n\n**The Falcon 9 cost advantage is structural and compounding:**\n- SpaceX's extreme vertical integration means it manufactures ~80% of components in-house\n- Booster reusability spreads fixed production costs across repeated flights\n- Internal launch cost is marginal (tens of millions vs. $67M commercial price)\n- Eutelsat must pay market launch rates \u2014 often to SpaceX itself \u2014 creating a direct cost transfer from competitor to SpaceX's revenue line\n- The S-1 notes this gap is \"widening meaningfully as our speed and cost advantage compound\"\n\nEven using the most conservative assumption (100% of Connectivity capex attributed to satellite + launch, which overstates the comparison since capex also includes ground infrastructure and Starlink Kits), Starlink's all-in per-satellite cost of **~$1.35M** is approximately **4.3\u00d7 lower** than Eutelsat's **\u20ac5.0M (~$5.8M)**.\n\n---\n\n### 5. What the Funding-Structure Contrast Reveals About the Competitive Moat\n\nThe contrast between the two operators' funding structures reveals **five interlocking layers** of Starlink's competitive moat:\n\n#### Layer 1: Scale-Driven Cash Generation\nStarlink's FY2025 Connectivity EBITDA of $7,168M is approximately **11.4\u00d7 Eutelsat's total company EBITDA** of \u20ac676M (on an FX-adjusted basis). This is not merely a size advantage \u2014 it is a *cash-generation* advantage that converts directly into self-funding capacity for next-generation investment.\n\n#### Layer 2: Vertical Integration Eliminates Capital-Market Dependency\nEutelsat required **\u20ac4.0 billion in external capital** (equity dilution, government-backed export credits, and high-yield bonds at 5.75\u20136.25%) to fund a 440-satellite refresh representing just **67% of its existing constellation**. Starlink deploys **3,100+ satellites per year** \u2014 a full constellation replacement every ~3.1 years \u2014 entirely from operating cash flow, with ~$3 billion annual surplus remaining.\n\n#### Layer 3: Launch Cost Asymmetry Creates a Structural Cost Floor\nEutelsat pays market-rate launch costs (often to SpaceX itself), while SpaceX launches at marginal internal cost. This means:\n- Every euro Eutelsat spends on launch is partially captured as SpaceX revenue\n- SpaceX's effective launch cost is 85%+ below industry benchmarks\n- No competitor can match this without owning a reusable launch vehicle at scale\n\n#### Layer 4: Manufacturing Cadence as a Barrier to Entry\nStarlink's Redmond facility produces ~70 satellites/week. Eutelsat's 440-satellite order to Airbus will take years to deliver. This cadence differential means:\n- Starlink can iterate through generational upgrades (V1 \u2192 V2 Mini \u2192 V3) continuously\n- Competitors face multi-year procurement cycles with fixed-technology snapshots\n- By the time Eutelsat's 440 satellites are deployed (2026\u20132029), Starlink will have deployed an additional ~10,000+ satellites, likely on the vastly more capable V3 platform (1 Tbps per satellite via Starship)\n\n#### Layer 5: Cross-Segment Capital Allocation Flexibility\nSpaceX's consolidated FY2025 capex was $20,737M (Space: $3,832M + Connectivity: $4,178M + AI: $12,727M). The Connectivity segment's $2,990M surplus effectively subsidizes a portion of the AI segment's massive buildout. Eutelsat has no such cross-subsidy capacity \u2014 its entire EBITDA is consumed by its single constellation refresh, leaving no room for diversification.\n\n---\n\n### 6. Conclusion\n\n**Starlink's internal cash generation profile renders an equivalent constellation-refresh program trivially self-fundable.** The Connectivity segment's FY2025 surplus of $2,990M could fund Eutelsat's entire \u20ac2.2B ($2.56B) 440-satellite program in under one year, while Starlink simultaneously deploys ~3,100 of its own satellites and generates additional surplus.\n\nThe funding-structure contrast reveals that Starlink's competitive moat is not a single advantage but a **self-reinforcing system**: vertical integration drives down unit costs \u2192 lower costs enable aggressive pricing and subscriber growth \u2192 subscriber growth drives EBITDA scale \u2192 EBITDA surplus funds next-generation R&D and deployment \u2192 next-generation capabilities widen the cost and capability gap \u2192 competitors must raise ever-larger amounts of external capital at ever-higher costs to close a gap that widens with every Falcon 9 launch.\n\nEutelsat's reliance on \u20ac4.0B in external capital (including sovereign backing from the French state at 29.65% ownership) to refresh a constellation **1/22nd the scale** of Starlink's \u2014 at 4.3\u00d7 the per-satellite cost \u2014 while paying 5.75\u20136.25% coupon rates on sub-investment-grade bonds, illustrates the structural funding disadvantage that faces any LEO constellation operator competing against a vertically integrated, self-launching incumbent at Starlink's scale.\n\n---\n\n### Sources\n\n```json\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.eutelsat.com/system/files/2026-02/DOC_Investors_H1-FY-2025-26-PR_EN_130226_0.pdf\",\n      \"name\": \"Eutelsat H1 FY2025-26 Results Press Release (February 2026)\"\n    },\n    {\n      \"url\": \"https://www.businesswire.com/news/home/20250804345965/en/Eutelsat-Communications-Full-Year-2024-25-Results\",\n      \"name\": \"Eutelsat Full Year FY2024-25 Results (August 2025)\"\n    },\n    {\n      \"url\": \"https://www.spaceintelreport.com/eutelsat-continues-2-56-billion-oneweb-refurbishment-with-340-satellite-order-to-airbus-first-launches-in-2026\",\n      \"name\": \"Space Intel Report: Eutelsat $2.56B OneWeb Refurbishment (January 2026)\"\n    },\n    {\n      \"url\": \"https://europeanspaceflight.com/eutelsat-to-raise-e1-5-billion-to-refinance-its-debt\",\n      \"name\": \"European Spaceflight: Eutelsat \u20ac1.5B Capital Raise\"\n    },\n    {\n      \"url\": \"https://www.ad-hoc-news.de/boerse/ueberblick/eutelsat-secures-major-debt-refinancing-with-1-5-billion-bond-issue/68606229\",\n      \"name\": \"Eutelsat \u20ac1.5B Bond Refinancing (March 2026)\"\n    },\n    {\n      \"url\": \"https://www.ainvest.com/news/eutelsat-1-5-billion-capital-raise-strategic-reinvention-leo-satellite-race-2512\",\n      \"name\": \"Eutelsat Capital Raise Strategic Analysis\"\n    }\n  ]\n}\n```"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 27237,
+        "completion_tokens": 3849,
+        "cached_tokens": 26112,
+        "cost_usd": 0.0739425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 252511,
+    "total_completion_tokens": 10644,
+    "total_cached_tokens": 220416,
+    "total_cost_usd": 0.46219750000000004,
+    "total_steps": 16
+  }
+}

@@ -1,0 +1,1220 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "7fb7dad6-a33d-4019-b43e-cfd3e4836fba",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T16:27:31.645720+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T16:27:31.645720+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nUsing FY2025 Segment Adjusted EBITDA for Space, Connectivity, and AI, construct a sum-of-parts valuation framework using reasonable public-market comparable categories. Which segment creates the greatest comparable-selection ambiguity and why?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T16:27:31.645720+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me break down this question:\n\n1. I need to find FY2025 Segment Adjusted EBITDA for Space, Connectivity, and AI segments from the SpaceX S-1 filing\n2. Construct a sum-of-parts valuation framework using public-market comparable categories\n3. Identify which segment creates the greatest comparable-selection ambiguity and explain why\n\nLet me start by parsing the SpaceX S-1 filing and then retrieving the relevant segment information.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_22aa9eaa14dd4f7791ad5b0c",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_22aa9eaa14dd4f7791ad5b0c",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3514,
+        "completion_tokens": 181,
+        "cached_tokens": 3200,
+        "cost_usd": 0.006595
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T16:28:55.466090+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve the segment Adjusted EBITDA information from the filing.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5bf8cdefb33e4669a5192736",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the FY2025 Segment Adjusted EBITDA figures for Space, Connectivity, and AI segments in {{spacex_s1}}? Include the reconciliation table and any segment revenue figures."
+          }
+        },
+        {
+          "tool_call_id": "call_a4cfba35c8d7415c8eafd2b7",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the segment descriptions and business activities for Space, Connectivity, and AI segments in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_5bf8cdefb33e4669a5192736",
+            "content": "Based on the provided financial documents for the fiscal year ended December 31, 2025 (FY2025), here are the Segment Adjusted EBITDA figures, segment revenue figures, and the corresponding reconciliation table for the Space, Connectivity, and AI segments.\n\n### **FY2025 Segment Revenue & Adjusted EBITDA**\n*   **Space Segment:** \n    *   Revenue: $4,086 million\n    *   Segment Adjusted EBITDA: $653 million\n*   **Connectivity Segment:** \n    *   Revenue: $11,387 million\n    *   Segment Adjusted EBITDA: $7,168 million\n*   **AI Segment:** \n    *   Revenue: $3,201 million\n    *   Segment Adjusted EBITDA: $(1,237) million\n\n---\n\n### **FY2025 Segment Adjusted EBITDA Reconciliation Table**\nThe following table reconciles Income (loss) from operations (the most directly comparable GAAP measure) to Segment Adjusted EBITDA for the year ended December 31, 2025:\n\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(657)** | **$4,423** | **$(6,355)** | **$(2,589)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 757 | 2,376 | 3,568 | 6,701 |\n| Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |"
+          },
+          {
+            "source_call_id": "call_a4cfba35c8d7415c8eafd2b7",
+            "content": "Based on the provided financial and prospectus excerpts, here are the segment descriptions and business activities for the company's three operating segments: **Space**, **Connectivity**, and **AI**.\n\n### 1. Space Segment\n**Segment Description:** \nThe Space segment designs, manufactures, and launches reusable rockets to provide high-cadence, reliable, and affordable access to space at an unprecedented scale. It acts as the foundational competitive advantage for the entire company, enabling the deployment and growth of the Connectivity and AI segments. Notably, the segment's external revenue only reflects customer launches; internal launches used to deploy the company's own Starlink or AI satellites are capitalized within those respective segments and do not generate Space segment revenue.\n\n**Business Activities:**\n*   **Launch Vehicles & Spacecraft:** Designing and manufacturing the Falcon 9, Falcon Heavy, and Dragon spacecraft, alongside the development of *Starship*, a fully reusable transportation system designed for crew, cargo, satellites, and data centers.\n*   **Launch Services:** Providing commercial and government launch services (revenue recognized at a point in time).\n*   **Launch & Development:** Fulfilling long-term development contracts, primarily for government customers (revenue recognized over time).\n*   **Internal Capacity Allocation:** Dedicating a significant amount of launch capacity to deploying the company's own Starlink satellites and future orbital AI compute infrastructure.\n*   **Long-Term Exploration & Lunar Economy:** Advancing human spaceflight and working toward establishing a lunar economy (including cargo transport, manufacturing, and energy production on the Moon) and eventual passenger/cargo transport to Mars.\n\n### 2. Connectivity Segment\n**Segment Description:** \nThe Connectivity segment operates a worldwide, high-speed, low-latency broadband data and communications network powered by thousands of Starlink satellites in Low-Earth Orbit (LEO). It delivers critical internet and mobile connectivity to millions of consumer, enterprise, and government customers across 164 countries, including those in the most remote and underserved areas on Earth.\n\n**Business Activities:**\n*   **Starlink Consumer Broadband:** Operating the world\u2019s largest space-based internet service, providing fiber-like download speeds (median 225 Mbps) and low latency (~25 milliseconds) to residential and consumer users.\n*   **Starlink Mobile:** Providing satellite-to-mobile texting and over-the-top voice services to millions of monthly unique devices, effectively eliminating mobile \"dead zones.\"\n*   **Enterprise & Government Solutions:** Delivering specialized, high-capacity connectivity solutions for enterprise and government clients.\n*   **Hardware & Products:** Manufacturing and selling the necessary user terminals and networking equipment (the text notes that *all* \"Products\" revenue on the consolidated statements is attributable to this segment).\n*   **Constellation Management:** Engaging in high-volume satellite manufacturing and rapid constellation refresh cycles to expand global coverage and network efficiency.\n\n### 3. AI Segment\n**Segment Description:** \nThe AI segment operates a highly vertically integrated AI platform. Formed largely by the acquisition of xAI (completed in February 2026), this segment spans frontier AI models, consumer and enterprise AI solutions, a massive real-time social and data platform, and extensive computational infrastructure. It is currently in an earlier stage of development with a multi-year investment horizon focused on scaling compute and capturing a massive total addressable market.\n\n**Business Activities:**\n*   **Frontier AI Models:** Developing and operating *Grok*, a \"truth-seeking\" frontier Large Language Model (LLM).\n*   **Platform Operations (X):** Operating *X*, a real-time information, entertainment, and free speech platform, which serves as a massive data engine to enhance and train AI models.\n*   **Digital Advertising:** Generating revenue through digital advertising on the X platform.\n*   **AI Solutions & Infrastructure:** Providing AI software solutions and computational infrastructure to consumer and enterprise customers.\n*   **Terrestrial Compute Scaling:** Investing heavily in terrestrial power and AI compute infrastructure to support energy-intensive AI workloads.\n*   **Orbital AI Compute (Future):** Planning the deployment of \"orbital AI compute satellites\" (expected as early as 2028) into Sun-synchronous orbit to handle massive AI inference workloads more efficiently than terrestrial alternatives, linked globally via Starlink."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3721,
+        "completion_tokens": 139,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0066925000000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T16:29:08.107647+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have the key data:\n\n**FY2025 Segment Adjusted EBITDA:**\n- Space: $653 million (Revenue: $4,086M)\n- Connectivity: $7,168 million (Revenue: $11,387M)\n- AI: $(1,237) million (Revenue: $3,201M)\n\nNow I need to:\n1. Construct a sum-of-parts valuation framework using reasonable public-market comparable categories\n2. Identify which segment creates the greatest comparable-selection ambiguity\n\nLet me search for relevant public-market comparables for each segment. Let me think about what comparables would be appropriate:\n\n**Space Segment:**\n- Launch services companies: Rocket Lab (RKLB), ULA (Boeing/Lockheed), Arianespace, etc.\n- Defense/space contractors: Lockheed Martin, Northrop Grumman, L3Harris\n- Pure-play launch: Rocket Lab is the closest public comp\n\n**Connectivity Segment (Starlink):**\n- Satellite communications: Viasat, EchoStar/Hughes, Iridium, Globalstar\n- Telecom/broadband: Various telecom companies\n- LEO satellite: OneWeb (not public), Amazon Kuiper (part of AMZN)\n\n**AI Segment (xAI + X):**\n- AI companies: OpenAI (private), Anthropic (private), Google (GOOG), Microsoft (MSFT)\n- Social media: Meta (META), Snap (SNAP), Pinterest (PINS)\n- This is the most ambiguous because it combines frontier AI, social media (X), and advertising\n\nLet me search for some public comparable data to build the framework.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ad54805135474b46946c792d",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Rocket Lab RKLB EV/EBITDA 2025 valuation multiple launch services",
+            "number_of_results": 5
+          }
+        },
+        {
+          "tool_call_id": "call_b6c7d97ac6ce40b9916d9918",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Viasat Iridium Globalstar EV/EBITDA 2025 satellite communications valuation",
+            "number_of_results": 5
+          }
+        },
+        {
+          "tool_call_id": "call_0049df8c9ba140038ac0290d",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Meta Platforms Snap EV/EBITDA 2025 social media AI valuation multiples",
+            "number_of_results": 5
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ad54805135474b46946c792d",
+            "content": "[{\"url\": \"https://www.gurufocus.com/term/ev2ebitda/RKLB\", \"title\": \"RKLB (Rocket Lab)  EV-to-EBITDA\", \"content\": \"# RKLB (Rocket Lab) EV-to-EBITDA : -196.51 (As of Feb. 22, 2026). ## What is Rocket Lab EV-to-EBITDA? Rocket Lab's EBITDA for the trailing twelve months (TTM) ended in Sep. 2025 was $-190.3 Mil. Therefore, Rocket Lab's EV-to-EBITDA for today is -196.51. The historical rank and industry rank for Rocket Lab's EV-to-EBITDA or its related term are showing as below:. During the past 5 years, the highest EV-to-EBITDA of Rocket Lab was -12.09. The \\\"classic\\\" EV-to-EBITDA is much better in capturing\", \"score\": 0.8863518, \"raw_content\": null}, {\"url\": \"https://www.alphaspread.com/security/nasdaq/rklb/relative-valuation/ratio/enterprise-value-to-ebitda\", \"title\": \"RKLB EV/EBITDA - Rocket Lab USA Inc - Alpha Spread\", \"content\": \"| Current Enterprise Value |  | EBITDA |  | Forward EV/EBITDA |\\n ---  --- \\n| $62.1B | / | Mar 2026 $-181.3m | = | -342.3 Current |\\n| $62.1B | / | Dec 2026 $-48.4m | = | -1281.2 Forward |\\n| $62.1B | / | Dec 2027 $135.9m | = | 456.6 Forward |\\n| $62.1B | / | Dec 2028 $271m | = | 229 Forward |\\n| $62.1B | / | Dec 2029 $496.1m | = | 125.1 Forward |\\n| $62.1B | / | Dec 2030 $741.6m | = | 83.7 Forward |\", \"score\": 0.780947, \"raw_content\": null}, {\"url\": \"https://valueinvesting.io/RKLB/valuation/ev_ebitda-multiples\", \"title\": \"RKLB EV/EBITDA | Rocket Lab USA Inc (RKLB)\", \"content\": \"| 2026-04-02 | -212.19 |\\n| 2026-04-01 | -205.05 |\\n| 2026-03-31 | -200.85 |\\n| 2026-03-30 | -178.77 |\\n| 2026-03-27 | -190.23 |\\n| 2026-03-26 | -206.41 |\\n| 2026-03-25 | -228.81 |\\n| 2026-03-24 | -206.83 |\\n| 2026-03-23 | -213.06 |\\n| 2026-03-20 | -210.57 |\\n| 2026-03-19 | -225.74 |\", \"score\": 0.7323053, \"raw_content\": null}, {\"url\": \"https://www.macrotrends.net/stocks/charts/RKLB/rocket-lab/ebitda-margin\", \"title\": \"Rocket Lab EBITDA Margin 2021-2025 | RKLB | MacroTrends\", \"content\": \"|. | Rocket Lab Corporation is a space company which provides launch services and space systems solutions principally in the United States, Canada, Japan and internationally. Rocket Lab Corporation, formerly known as ROCKET LAB USA, is based in Long Beach, California. | Stock Name | Country | Market Cap | PE Ratio |. | Bae Systems (BAESY) | United Kingdom | $81.228B | 0.00 |. | Heico (HEI) | United States | $46.339B | 67.72 |. | Heico (HEI.A) | United States | $35.245B | 51.51 |. | Woodward\", \"score\": 0.71829855, \"raw_content\": null}, {\"url\": \"https://www.financecharts.com/stocks/RKLB/value/ev-to-ebitda\", \"title\": \"Rocket Lab (RKLB) EV to EBITDA Ratio - Current & Historical Data (Mar 2026)\", \"content\": \"| RKLB Logo | Rocket Lab (RKLB) EV to EBITDA Ratio: -217.29 |. Stocks / RKLB Stock / EV to EBITDA Ratio. Stocks / RKLB Stock / EV to EBITDA Ratio. The ev/ebitda ratio for Rocket Lab (RKLB) stock is -217.29 as of Wednesday, March 25 2026. The 5 year average ev to ebitda ratio is -95.89%. #### RKLB EV to EBITDA Ratio Chart. Bull Case for RKLB EV/EBITDA. Bear Case for RKLB EV/EBITDA. EV/EBITDA ratio of -217.29 is lower than its 3Y average of -118.32. EV/EBITDA ratio of -217.29 is lower than its 5Y\", \"score\": 0.71305263, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_b6c7d97ac6ce40b9916d9918",
+            "content": "[{\"url\": \"https://dexteragent.ai/companies/inmarsat-1771928290\", \"title\": \"Inmarsat Profile 2026: Financials, AI Strategy & Viasat, Iridium Communications Inc., Globalstar Comparison\", \"content\": \"| Global Employees | 1500 | 7000 | 873 | 350 |\\n| Revenue (Annual) | $1.5 Billion(2018) | $4.5 Billion(2025) | $614.9 Million(2024) | $245 Million(2024) |\\n| Headquarters | London, United Kingdom | Carlsbad, California, USA | McLean, Virginia, USA | Covington, Louisiana, United States |\\n| Latest Valuation | $3.3 Billion | $4.7 Billion | $0 | $0 |\", \"score\": 0.8700796, \"raw_content\": null}, {\"url\": \"https://ts2.tech/en/space-satellite-stocks-today-rocket-lab-rklb-viasat-vsat-planet-labs-pl-spire-spir-iridium-irdm-and-globalstar-gsat-news-forecasts-and-analysis-for-dec-17-2025\", \"title\": \"Space & Satellite Stocks Today: Rocket Lab (RKLB), Viasat (VSAT), Planet Labs (PL), Spire (SPIR), Iridium (IRDM) and Globalstar (GSAT) \\u2014 News, Forecasts and Analysis for Dec. 17, 2025\", \"content\": \"and that a clearer corporate structure could unlock a cleaner valuation framework. For investors looking at \\u201cdata from space\\u201d rather than bandwidth from space, Planet Labs (NYSE: PL) is a key name\\u2014and today\\u2019s coverage centers on Wall Street\\u2019s positioning after the company\\u2019s latest results. Investor takeaway: Planet\\u2019s setup remains familiar: strong top-line growth and growing relevance for commercial and government users\\u2014but the stock tends to trade on whether the company can convert scale into\", \"score\": 0.7190094, \"raw_content\": null}, {\"url\": \"https://www.zacks.com/stock/news/2634288/zacks-industry-outlook-highlights-globalstar-iridium-communications-and-gilat-satellite-networks\", \"title\": \"Zacks Industry Outlook Highlights Globalstar, Iridium Communications and Gilat Satellite Networks - July 29, 2025 - Zacks.com\", \"content\": \"let's look at the industry's recent stock market performance and valuation picture. In the past year, the Zacks Satellite and Communication industry outperformed the S&P 500 composite and the broader Zacks Computer and Technology sector. Gilat Satellite Networks: Based in Petah Tikva, Israel, Gilat is a top provider of satellite-based broadband services, including designing and manufacturing advanced equipment and innovative technology. These returns are from hypothetical portfolios consisting\", \"score\": 0.6672566, \"raw_content\": null}, {\"url\": \"https://koalagains.com/stocks/NASDAQ/GSAT/competition\", \"title\": \"Globalstar, Inc. (GSAT) Competitive Analysis & Comparison (2026)\", \"content\": \"in government, maritime, aviation, and the rapidly growing Internet of Things (IoT) sector. Winner: Iridium Communications Inc. over Globalstar, Inc. Iridium is the clear winner due to its established and diversified business model, superior network infrastructure, and consistent financial performance. Compared to Viasat's scale and broad market penetration, Globalstar is a niche player with a highly concentrated and speculative business model. The better value today is arguably Viasat, Inc.,\", \"score\": 0.33574328, \"raw_content\": null}, {\"url\": \"https://www.kratosspace.com/constellations/articles/globalstar-iridium-skylo-viasat-heres-the-hype-free-way-to-think-about-the-satellite-d2d-market\", \"title\": \"Globalstar, Iridium, Skylo, Viasat: Here's the Hype-Free Way to Think About the Satellite D2D Market\", \"content\": \"Globalstar, Iridium, Skylo, Viasat: Here's the Hype-Free Way to Think About the Satellite D2D Market\", \"score\": 0.27343783, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_0049df8c9ba140038ac0290d",
+            "content": "[{\"url\": \"https://multiples.vc/public-comps/snap-valuation-multiples\", \"title\": \"Snap - Public Comps and Valuation Multiples\", \"content\": \"multiples like growth-adjusted P/E, next 12-month EV/Revenue, EBITDA multiples by industry and many more. ### Snap Valuation Multiples. Snap's trades at 1.7x EV/Revenue multiple, and 16.0x EV/EBITDA. #### Snap Financial Valuation Multiples. Equity research analysts estimate Snap's 2025E EV/Revenue multiple at. ### Get Snap Valuation Multiples. Access all public comps and forward-looking valuation multiples like EV/Revenue in 2025, based on equity research analyst estimates. Snap's last 12 month\", \"score\": 0.73914057, \"raw_content\": null}, {\"url\": \"https://multiples.vc/public-comps/snap-on-valuation-multiples\", \"title\": \"Snap-on - Public Comps and Valuation Multiples\", \"content\": \"Snap-on reported $5.2B in total revenue. Snap-on has current market cap of $20.0B, and EV of $19.6B. Sign up to access valuation multiples like growth-adjusted P/E, next 12-month EV/Revenue, EBITDA multiples by industry and many more. ### Snap-on Valuation Multiples. Snap-on's trades at 4.1x EV/Revenue multiple, and 13.8x EV/EBITDA. See valuation multiples for Snap-on and 15K+ public comps. #### Snap-on Financial Valuation Multiples. Equity research analysts estimate Snap-on's 2025E EV/Revenue\", \"score\": 0.6030211, \"raw_content\": null}, {\"url\": \"https://tablestat.com/valuation-benchmarks/consumer-social-networking-and-dating-platforms\", \"title\": \"Consumer Social Networking and Dating Platforms Valuation Multiples \\u2013 Tablestat \\u2013 Find, analyze, and value technology companies with AI\", \"content\": \"sector? Valuing a private Consumer Social Networking and Dating Platforms company typically involves applying current. ### What are the Consumer Social Networking and Dating Platforms industry valuation multiples for 2025? For 2025, the Consumer Social Networking and Dating Platforms industry is trading at a median EV/Revenue multiple of. ### What is the difference between trading comps and transaction multiples for Consumer Social Networking and Dating Platforms? Access complete buyer lists,\", \"score\": 0.55623144, \"raw_content\": null}, {\"url\": \"https://comparables.ai/articles/unlocking-private-company-valuation-a-deep-dive-into-ev-ebitda-multiples\", \"title\": \"Unlocking Private Company Valuation: A Deep Dive into EV/EBITDA Multiples | Comparables.ai\", \"content\": \"In an environment where speed and accuracy are critical, relying on outdated or incomplete data for EV/EBITDA analysis is no longer viable. Modern financial platforms are transforming how PE and M&A professionals conduct private company valuations, moving beyond manual data aggregation to deliver unparalleled precision.\\n\\n## AI-Powered Identification & Normalization\", \"score\": 0.32015187, \"raw_content\": null}, {\"url\": \"https://www.comparables.ai/articles/unlocking-private-company-valuation-a-deep-dive-into-ev-ebitda-multiples\", \"title\": \"Unlocking Private Company Valuation: A Deep Dive into EV/EBITDA Multiples | Comparables.ai\", \"content\": \"In an environment where speed and accuracy are critical, relying on outdated or incomplete data for EV/EBITDA analysis is no longer viable. Modern financial platforms are transforming how PE and M&A professionals conduct private company valuations, moving beyond manual data aggregation to deliver unparalleled precision.\\n\\n## AI-Powered Identification & Normalization\", \"score\": 0.32015187, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5258,
+        "completion_tokens": 541,
+        "cached_tokens": 3200,
+        "cost_usd": 0.014555
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T16:29:13.979841+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me search for more specific valuation multiples for the comparable companies I need.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b8844e1da9c546d4ba78249b",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Iridium Communications IRDM EV/EBITDA 2025 market cap enterprise value"
+          }
+        },
+        {
+          "tool_call_id": "call_a1cfec9b492e43c0b26c027e",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Viasat VSAT EV/EBITDA 2025 2026 valuation satellite broadband"
+          }
+        },
+        {
+          "tool_call_id": "call_0d1617ed585147c2a09c963f",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Meta Platforms EV/EBITDA 2025 valuation multiple social media advertising"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b8844e1da9c546d4ba78249b",
+            "content": "[{\"url\": \"https://www.gurufocus.com/term/ev2rev/IRDM\", \"title\": \"IRDM (Iridium Communications)  EV-to-Revenue\", \"content\": \"current Enterprise Value is $4,095.9 Mil. Iridium Communications's Revenue for the trailing twelve months (TTM) ended in Dec. 2025 adds up the quarterly data reported by the company within the most recent 12 months, which was $871.7 Mil. Iridium Communications  (NAS:IRDM) EV-to-Revenue Explanation. Iridium Communications's share price for today is $23.17. Iridium Communications's Revenue per Share for the trailing twelve months (TTM) ended in Dec. 2025 adds up the quarterly data reported by the\", \"score\": 0.93468803, \"raw_content\": null}, {\"url\": \"https://stockviz.com/en/IRDM/ev-to-ebitda\", \"title\": \"Iridium Communications Inc. Enterprise Value to EBITDA (EV ...\", \"content\": \"Inc. NasdaqGS:IRDM Market CapitalizationShare PriceShare Price Year-To-Date (YTD) returnPrice to Earnings Ratio (P/E)Price to Book Ratio (P/B)Price to Sales Ratio (P/S)Enterprise Value to EBITDA (EV/EBITDA)Free Cash Flow YieldDividend Yield Iridium Communications Inc. Enterprise Value to EBITDA (EV/EBITDA) on August 04, 2025 Iridium Communications Inc. Enterprise Value to EBITDA (EV/EBITDA) is NA on August 04, 2025. EV/EBITDA ratio compares the enterprise value to the EBITDA; lower suggests\", \"score\": 0.9274752, \"raw_content\": null}, {\"url\": \"https://stockanalysis.com/stocks/irdm/market-cap\", \"title\": \"Iridium Communications (IRDM) Market Cap & Net Worth\", \"content\": \"| Date | Market Cap | % Change |\\n --- \\n| May 29, 2026 | 5.47B | 200.72% |\\n| Dec 31, 2025 | 1.82B | -44.90% |\\n| Dec 31, 2024 | 3.30B | -35.19% |\\n| Dec 29, 2023 | 5.10B | -21.06% |\\n| Dec 30, 2022 | 6.46B | 18.31% |\\n| Dec 31, 2021 | 5.46B | 4.13% |\\n| Dec 31, 2020 | 5.24B | 62.28% |\\n| Dec 31, 2019 | 3.23B | 57.25% |\\n| Dec 31, 2018 | 2.05B | 77.68% |\\n| Dec 29, 2017 | 1.16B | 25.75% |\\n| Dec 30, 2016 | 919.40M | 15.14% |\\n| Dec 31, 2015 | 798.50M | -12.64% |\\n| Dec 31, 2014 | 914.00M | 90.73% |\", \"score\": 0.9119436, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/IRDM\", \"title\": \"IRIDIUM COMMUNICATIONS EV-to-EBITDA: 15.23 \\u2014 Near Median\", \"content\": \"Stock Based Compensation\\n\\n       Taxes Refund Paid\\n\\n   - [x] Technical Indicator \\n       5-Day RSI\\n\\n       9-Day RSI\\n\\n       14-Day RSI\\n\\n       50-Day SMA\\n\\n       6-Month Price Index\\n\\n       3-1 Month Momentum %\\n\\n       6-1 Month Momentum %\\n\\n       12-1 Month Momentum %\\n\\n# IRDM (Iridium Communications) EV-to-EBITDA: 15.23 (As of Jun. 07, 2026)\\u2014 Near Median\", \"score\": 0.86632514, \"raw_content\": null}, {\"url\": \"https://valueinvesting.io/IRDM/valuation/ev_ebitda-multiples\", \"title\": \"IRDM EV/EBITDA | Iridium Communications Inc (IRDM)\", \"content\": \"# IRDM EV/EBITDA\\n\\nAs of 2026-06-03, the EV/EBITDA ratio of Iridium Communications Inc (IRDM) is\\n15.77.\\nEV/EBITDA ratio is calculated by dividing the enterprise value by the TTM EBITDA. IRDM's latest enterprise value\\nis 6,893.75 mil USD. IRDM's TTM EBITDA according to its financial statements is\\n437.16 mil USD. Dividing these 2\\nquantities gives us the above IRDM EV/EBITDA ratio.\", \"score\": 0.80735475, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_a1cfec9b492e43c0b26c027e",
+            "content": "[{\"url\": \"https://valueinvesting.io/VSAT/valuation/ev_ebitda-multiples\", \"title\": \"ViaSat EV/EBITDA | ViaSat Inc (VSAT)\", \"content\": \"# ViaSat EV/EBITDA. As of 2026-04-04, the EV/EBITDA ratio of ViaSat Inc (VSAT) is. EV/EBITDA ratio is calculated by dividing the enterprise value by the TTM EBITDA. ViaSat's latest enterprise value. is 12,227.06 mil USD. ViaSat's TTM EBITDA according to its financial statements is. 1,845.43 mil USD. quantities gives us the above ViaSat EV/EBITDA ratio. | Trailing P/E multiples | 11.5x - 17.4x | 14.8x |. | Forward P/E multiples | 14.3x - 19.6x | 17.4x |. | Fair Price | 94.38 - 200.07 | 143.85 |.\", \"score\": 0.91306627, \"raw_content\": null}, {\"url\": \"https://www.macrotrends.net/stocks/charts/VSAT/viasat/ebitda\", \"title\": \"Viasat EBITDA 2012-2026 | VSAT | MacroTrends\", \"content\": \"Viasat EBITDA for the quarter ending March 31, 2026 was $0.366B, a 1.99% increase year-over-year.\\n Viasat EBITDA for the twelve months ending March 31, 2026 was $1.300B, a 6.67% decline year-over-year.\\n Viasat 2025 annual EBITDA was $1.263B, a 371.89% increase from 2024.\\n Viasat 2024 annual EBITDA was $0.268B, a 22.27% decline from 2023.\\n Viasat 2023 annual EBITDA was $0.344B, a 9.91% decline from 2022.\\n\\nUnlock Macrotrends Premium\\n\\n40 years of data\\n\\nFaster, ad-free pages\", \"score\": 0.90102744, \"raw_content\": null}, {\"url\": \"https://www.macrotrends.net/stocks/charts/VSAT/viasat/ebitda-margin\", \"title\": \"Viasat EBITDA Margin 2012-2026 | VSAT | MacroTrends\", \"content\": \"| Date | TTM Revenue | TTM EBITDA | EBITDA Margin |\\n| 2025-12-31 | $4.62B | $1.30B | 28.14% |\\n| 2025-09-30 | $4.58B | $1.29B | 28.19% |\\n| 2025-06-30 | $4.56B | $1.26B | 27.61% |\\n| 2025-03-31 | $4.52B | $1.26B | 27.95% |\\n| 2024-12-31 | $4.52B | $1.39B | 30.80% |\\n| 2024-09-30 | $4.53B | $1.33B | 29.31% |\\n| 2024-06-30 | $4.63B | $0.53B | 11.36% |\\n| 2024-03-31 | $4.28B | $0.27B | 6.26% |\\n| 2023-12-31 | $3.80B | $0.01B | 0.24% |\\n| 2023-09-30 | $3.32B | $-0.19B | -5.72% |\", \"score\": 0.8266142, \"raw_content\": null}, {\"url\": \"https://www.alphaspread.com/security/nasdaq/vsat/relative-valuation/ratio/enterprise-value-to-ebitda\", \"title\": \"VSAT EV/EBITDA - Viasat Inc - Alpha Spread\", \"content\": \"| 44.7 | 52.1 |  |. | US |  | Motorola Solutions Inc NYSE:MSI | 76.6B USD | 26.6 | 36.2 |  |. | US |  | Ubiquiti Inc NYSE:UI | 43.1B USD | 45.5 | 54.8 |  |. | US |  | Ciena Corp NYSE:CIEN | 42.3B USD | 94.3 | 343.2 |  |. | EBITDA Growth | EV/EBITDA to Growth || US |  | Viasat Inc NASDAQ:VSAT | Average EV/EBITDA: 33 135  7.5 | 5% | 1.5 |  |. | Earnings Growth | PEG || US |  | Viasat Inc NASDAQ:VSAT | Average P/E: 795 751  Negative Multiple:   -19.7 | N/A | N/A |  |. VSAT intrinsic value,\", \"score\": 0.6260562, \"raw_content\": null}, {\"url\": \"https://www.financecharts.com/stocks/VSAT/all-metrics\", \"title\": \"Viasat (VSAT) All Metrics\", \"content\": \"Ratio Avg 3Y. VSAT EV/EBIT Ratio Metrics. Ev/Ebit Ratio Avg TTM. Ev/Ebit Ratio Avg 3Y. VSAT EV/EBITDA Ratio Metrics. Ev/Ebitda Ratio Avg TTM. Ev/Ebitda Ratio Avg 3Y. VSAT EV/Assets Ratio Metrics. Ev/Assets Ratio Avg TTM. Ev/Assets Ratio Avg 3Y. VSAT EV/Sales Ratio Metrics. Ev/Sales Ratio Avg TTM. Ev/Sales Ratio Avg 3Y. VSAT Return on Assets Metrics. VSAT Return on Equity Metrics. VSAT Net Profit Margin Metrics. Net Profit Margin Avg TTM. Net Profit Margin Avg 3Y. VSAT Gross Profit Margin\", \"score\": 0.52773094, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_0d1617ed585147c2a09c963f",
+            "content": "[{\"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/META\", \"title\": \"META (Meta Platforms)  EV-to-EBITDA\", \"content\": \"META (Meta Platforms) EV-to-EBITDA. GURUFOCUS.COM \\u00bb STOCK LIST \\u00bb Communication Services \\u00bb Interactive Media \\u00bb Meta Platforms Inc (NAS:META) \\u00bb Definitions \\u00bb EV-to-EBITDA. META (Meta Platforms) EV-to-EBITDA : 15.71 (As of Feb. 22, 2026). What is Meta Platforms EV-to-EBITDA? Meta Platforms's EBITDA for the trailing twelve months (TTM) ended in Dec. 2025 was $105,713 Mil. Therefore, Meta Platforms's EV-to-EBITDA for today is 15.71. The historical rank and industry rank for Meta Platforms's\", \"score\": 0.8588255, \"raw_content\": null}, {\"url\": \"https://www.stock-analysis-on.net/NASDAQ/Company/Meta-Platforms-Inc/Valuation/EV-to-EBITDA\", \"title\": \"Meta Platforms Inc. (NASDAQ:META) | EV/EBITDA\", \"content\": \"Based on:\\n10-K (reporting date: 2025-12-31),\\n10-K (reporting date: 2024-12-31),\\n10-K (reporting date: 2023-12-31),\\n10-K (reporting date: 2022-12-31),\\n10-K (reporting date: 2021-12-31).\\n\\n1 See details \\u00bb\\n\\n2 See details \\u00bb\\n\\n3 2025 Calculation  \\nEV/EBITDA = EV \\u00f7 EBITDA  \\n= 1,845,932 \\u00f7 105,713 = 17.46\\n\\n4 Click competitor name to see calculations.\", \"score\": 0.83290404, \"raw_content\": null}, {\"url\": \"https://finbox.com/NASDAQGS:META/explorer/ev_to_ebitda_ltm\", \"title\": \"EV / EBITDA For Meta Platforms Inc (META) - Finbox\", \"content\": \"valuation category include:. Measures the dollars in Enterprise Value for each dollar of EBITDA over the last twelve months. ## Definition of EV / EBITDA. EBITDA Multiple = Enterprise Value / LTM EBITDA. Applying this formula, Meta Platforms\\u2019s EV/EBITDA Ratio is calculated below:. (=) EV/EBITDA Ratio [ 19.8x ]. The tables below summarizes the trend in Meta Platforms\\u2019s EV/EBITDA Ratio over the last five years:. EBITDA Multiple, Enterprise Value / EBITDA, or EV / EBITDA measures. for each dollar\", \"score\": 0.65412235, \"raw_content\": null}, {\"url\": \"https://teodoroinvestmentresearch.substack.com/p/meta-platforms-comparable-companies\", \"title\": \"Meta Platforms: Comparable Companies Analysis\", \"content\": \"As of today, Meta's current share price stands at $527 per share. To estimate Meta's potential value based on comparable companies, I used three commonly applied valuation multiples:\\n\\n1. EV/Revenue (Enterprise Value to Revenue)\\n2. EV/EBITDA (Enterprise Value to Earnings Before Interest, Taxes, Depreciation, and Amortization)\\n3. P/E (Price to Earnings)\\n\\n### EV/Revenue Multiple\", \"score\": 0.58862966, \"raw_content\": null}, {\"url\": \"https://microcap.co/social-media-company-valuation-2024\", \"title\": \"Social Media Company Valuation [2024] - microcap.co\", \"content\": \"and increased user engagement.Looking Ahead for Social Media Companies Valuation to 2025As we move into 2025, several factors can influence the valuation landscape for social media companies:Operational Efficiency: Companies that effectively manage operational costs, particularly in areas like AI integration and content moderation, may see improvements in EBITDA margins.Regulatory Environment: Ongoing regulatory scrutiny, especially concerning data privacy and content standards, could lead to\", \"score\": 0.5155961, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9090,
+        "completion_tokens": 199,
+        "cached_tokens": 4352,
+        "cost_usd": 0.019275
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T16:29:20.563469+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me search for more specific data on defense/space primes and AI company multiples to build a comprehensive framework.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4f5c687dbf8e46dc81929491",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Lockheed Martin Northrop Grumman L3Harris EV/EBITDA 2025 defense space primes valuation"
+          }
+        },
+        {
+          "tool_call_id": "call_f3dc0a380e404811be2cdd3c",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Rocket Lab RKLB EV/Revenue 2025 2026 space launch valuation multiple enterprise value"
+          }
+        },
+        {
+          "tool_call_id": "call_200279c87a5c4ede9274615a",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Palantir PLTR EV/EBITDA EV/Revenue 2025 AI software valuation multiple"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4f5c687dbf8e46dc81929491",
+            "content": "[{\"url\": \"https://primaryignition.com/2026/02/04/defense-titans-in-2026-a-strategic-comparison-of-lockheed-martin-and-northrop-grumman\", \"title\": \"Defense Titans in 2026: A Strategic Comparison of Lockheed Martin and Northrop Grumman\", \"content\": \"Key Takeaways: Lockheed Martin provides the more attractive income profile with its yield above 2%, appealing to dividend-focused investors. In contrast, Northrop Grumman shares have demonstrated stronger price momentum, reaching fresh all-time highs in February 2026. From a valuation perspective, LMT trades at a premium P/E multiple. This reflects its status as a sector \\u201csafe haven\\u201d and the high visibility of its future cash flows, backed by a colossal $194 billion backlog.\", \"score\": 0.6932451, \"raw_content\": null}, {\"url\": \"https://www.forbes.com/sites/greatspeculations/2021/10/26/defense-industry-stocks-lockheed-martin-over-northrop-grumman\", \"title\": \"Defense Industry Stocks: Lockheed Martin Over Northrop Grumman?\", \"content\": \"LMT\\u2019s Aeronautics, Missiles & Fire Control, Rotary & Mission Systems, and Space segments reported an operating margin of 11%, 14%, 10%, and 10%, respectively. As the F-35 program contributes nearly 27% of LMT\\u2019s total revenues, the Aeronautics segment has been key to earnings expansion.\", \"score\": 0.4179133, \"raw_content\": null}, {\"url\": \"https://www.defensedaily.com/usaf-awards-contracts-for-next-phase-of-stand-in-attack-weapon-to-lockheed-martin-nothrop-grumman-and-l3harris/air-force\", \"title\": \"USAF Awards Contracts for Next Phase of Stand-in Attack Weapon to Lockheed Martin, Northrop Grumman and L3Harris - Defense Daily\", \"content\": \"$14.6 million. L-3 Communications, now part of L3Harris,\\u2026\", \"score\": 0.39543822, \"raw_content\": null}, {\"url\": \"https://medium.com/@strategycheatsheet/ai-in-defense-analyzing-the-ai-strategies-of-lockheed-martin-lmt-northrop-grumman-ng-7ec87ec53ee1\", \"title\": \"AI in Defense: Analyzing the AI Strategies of Lockheed Martin (LMT), Northrop Grumman (NG)\\u2026\", \"content\": \"If rules shift toward greater machine agency: BAE and NG gain structural tailwinds\\n   If humans remain central: LMT and LHX continue to outperform\\n\\n## Bottom Line\\n\\nThese four primes are not competing on the same AI battlefield.\\n\\nThey are colonizing different layers of the AI-enabled war stack.\\n\\n   Lockheed Martin wins by scaling first.\\n   Northrop Grumman wins by being trusted.\\n   L3Harris wins by being indispensable.\\n   BAE Systems wins by being future-proof.\", \"score\": 0.37415075, \"raw_content\": null}, {\"url\": \"https://www.marketscreener.com/news/rtx-ge-lead-defense-stocks-while-northrop-grumman-lockheed-martin-lag-ce7d5ad3d18dff2d\", \"title\": \"RTX, GE Lead Defense Stocks While Northrop Grumman, Lockheed Martin Lag | MarketScreener\", \"content\": \"## Northrop Grumman Corporation. | 680.00 USD | -3.81% | Intraday chart for Northrop Grumman Corporation | -7.32% | +19.25% |. Intraday chart for Northrop Grumman Corporation. # RTX, GE Lead Defense Stocks While Northrop Grumman, Lockheed Martin Lag. Published on 10/21/2025. Shares of RTX and GE Aerospace rose after both companies raised their full-year guidance, while defense industry peers Northrop Grumman and Lockheed Martin lagged after reporting weaker outlooks. RTX gained 8.7% and GE\", \"score\": 0.34886748, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_f3dc0a380e404811be2cdd3c",
+            "content": "[{\"url\": \"https://www.alphaspread.com/security/nasdaq/rklb/relative-valuation/ratio/enterprise-value-to-sales\", \"title\": \"RKLB EV/S - Rocket Lab USA Inc - Alpha Spread\", \"content\": \"| Current Enterprise Value |  | Revenue |  | Forward EV/S |\\n ---  --- \\n| $67.7B | / | Mar 2026 $679.6m | = | 91.6 Current |\\n| $67.7B | / | Dec 2026 $933.8m | = | 72.5 Forward |\\n| $67.7B | / | Dec 2027 $1.3B | = | 52.8 Forward |\\n| $67.7B | / | Dec 2028 $1.6B | = | 41.2 Forward |\\n| $67.7B | / | Dec 2029 $2.1B | = | 32.9 Forward |\\n| $67.7B | / | Dec 2030 $2.6B | = | 26.2 Forward |\\n| $67.7B | / | Dec 2031 $3.9B | = | 17.4 Forward |\\n| $67.7B | / | Dec 2032 $5.2B | = | 13.1 Forward |\", \"score\": 0.90593183, \"raw_content\": null}, {\"url\": \"https://www.ainvest.com/news/rocket-lab-rklb-poised-meaningful-rebound-record-revenue-strong-backlog-2512\", \"title\": \"Is Rocket Lab (RKLB) Poised for a Meaningful Rebound Amid Record Revenue and Strong Backlog?\", \"content\": \"# Is Rocket Lab (RKLB) Poised for a Meaningful Rebound Amid Record Revenue and Strong Backlog? reported $155M Q3 revenue (48% YoY), driven by $114.2M in Space Systems and a $1.1B backlog, with 17 new launches booked in Q3. - Strategic $325M Geost acquisition and Neutron rocket progress (Q1 2026 launch) strengthen defense capabilities and small satellite market positioning. - Valuation multiples (P/S 40.6x, EV/Revenue 51.3x) reflect 75% YoY revenue growth projections but face criticism against\", \"score\": 0.8925721, \"raw_content\": null}, {\"url\": \"https://valueinvesting.io/RKLB/valuation/ev_ebitda-multiples\", \"title\": \"RKLB EV/EBITDA | Rocket Lab USA Inc (RKLB)\", \"content\": \"# RKLB EV/EBITDA\\n\\nAs of 2026-05-31, the EV/EBITDA ratio of Rocket Lab USA Inc (RKLB) is\\n-456.72.\\nEV/EBITDA ratio is calculated by dividing the enterprise value by the TTM EBITDA. RKLB's latest enterprise value\\nis 81,459.13 mil USD. RKLB's TTM EBITDA according to its financial statements is\\n-178.36 mil USD. Dividing these 2\\nquantities gives us the above RKLB EV/EBITDA ratio.\\n\\nNote: valuation result may not be accurate due to the company's negative EBITDA.\", \"score\": 0.8861155, \"raw_content\": null}, {\"url\": \"https://jlgas2023.substack.com/p/rocket-lab-rklb-through-the-eyes\", \"title\": \"Rocket Lab (RKLB): Through the eyes of the coming SpaceX IPO\", \"content\": \"2026E multiple: 37.5x forward sales. If Neutron is successful and they hit $1.2B revenue with positive earnings, this multiple could easily expand to 40-50x, implying $48-60B market cap.  Space Systems hits $400M+ in 2025.  Space Systems revenue hits $500M+ run rate. My honest assessment: At $33B market cap on $560M LTM revenue (59x sales) and $879M 2026E revenue (37.5x forward sales), RKLB is pricing in successful Neutron execution plus continued Space Systems dominance. 3. \\u2705 Space Systems\", \"score\": 0.85967577, \"raw_content\": null}, {\"url\": \"https://finance.yahoo.com/news/rocket-lab-rklb-valuation-revisited-111425139.html\", \"title\": \"Rocket Lab (RKLB) Valuation Revisited Following Neutron Rocket Launch Delay to 2026\", \"content\": \"a staggering 108% over the last year and 881% in three years. With shares now trading well below analyst price targets despite robust revenue growth, the question for investors is whether Rocket Lab is a bargain at current levels or if the market is fairly accounting for both its achievements and future risks. Rocket Lab's most popular narrative assigns a fair value significantly above the last close, which implies the market may be missing key growth levers driving future upside. > \\\"Rocket\", \"score\": 0.71496695, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_200279c87a5c4ede9274615a",
+            "content": "[{\"url\": \"https://www.ainvest.com/news/palantir-pltr-ai-hype-valuation-trap-2026-2601\", \"title\": \"Palantir (PLTR): Is the AI Hype Now a Valuation Trap for 2026?\", \"content\": \"# Palantir (PLTR): Is the AI Hype Now a Valuation Trap for 2026? - Palantir's 2025 valuation (1,151.7x EV/EBITDA) defies industry norms, far exceeding peers' 20-30x multiples despite 63% YoY revenue growth. - Government contracts (70% revenue) and AI platform differentiation offer strengths, but open-source competitors and geopolitical risks threaten margins. With a forward EV/EBITDA of 1,151.7x and an EV/Revenue of 137.5x as of January 2026 according to public data, Palantir's metrics defy\", \"score\": 0.9587584, \"raw_content\": null}, {\"url\": \"https://finbox.com/WBAG:PLTR/explorer/ev_to_revenue_ltm\", \"title\": \"EV / Revenue For Palantir Technologies Inc (PLTR) - Finbox\", \"content\": \"ev / revenue peaked in June 2025 at 106.4x.  Palantir Technologies's ev / revenue hit its 5-year low in December 2022 of 6.1x.  Palantir Technologies's ev / revenue decreased in 2021 (23.9x, -39.3%) and 2022 (6.1x, -74.6%) and increased in 2023 (16.2x, +166.1%) and 2024 (63.5x, +292.4%). Revenue Multiple, EV / Revenue, Sales Multiple, or EV / Sales is defined as: EV / LTM Revenue Ratio = Enterprise Value / Revenue Applying this formula, Palantir Technologies\\u2019s EV / LTM Revenue Ratio is\", \"score\": 0.79901963, \"raw_content\": null}, {\"url\": \"https://www.alphaspread.com/security/nyse/pltr/relative-valuation/ratio/enterprise-value-to-revenue\", \"title\": \"PLTR EV/S - Palantir Technologies Inc - Alpha Spread\", \"content\": \"Value to Sales (EV/S) ratio is a valuation multiple that compares the enterprise value (EV) of a company to its revenues. The EV/S multiple gives investors a quantifiable metric of how to value a company based on its sales while taking account of both the company's equity and debt. PLTR intrinsic value, competitors valuation, and company profile. PLTR stock valuation using Discount Cash Flow valuation method. PLTR stock valuation using valuation multiples. Stock Screener Intrinsic Value\", \"score\": 0.6018984, \"raw_content\": null}, {\"url\": \"https://ca.investing.com/pro/XNGS:PLTR/explorer/ev_to_ebitda_ltm\", \"title\": \"Palantir Technologies\\u00a0Inc (PLTR) EV/EBITDA - Investing.com Canada\", \"content\": \"industry or sector. Palantir's EV/EBITDA Benchmarks. ## Metric Usage: EV/EBITDA. Metrics similar to EV/EBITDA in the popular category include:.  EV / Free Cash Flow - Measures the dollars in Enterprise Value for each dollar of free cash flow over the last twelve months. Measures the dollars in Enterprise Value for each dollar of EBITDA over the last twelve months. ## Definition of EV/EBITDA. EBITDA Multiple = Enterprise Value / LTM EBITDA. Applying this formula, Palantir Technologies\\u2019s\", \"score\": 0.5874941, \"raw_content\": null}, {\"url\": \"https://www.financecharts.com/compare/PLTR,SNOW/value/ev-to-ebitda\", \"title\": \"PLTR vs SNOW - EV to EBITDA Ratio\", \"content\": \"of 521.07 is in the bottom 10% of its industry. EV/EBITDA ratio of 521.07 is greater than its 3Y average of 423.65. EV/EBITDA ratio of 521.07 is greater than its 5Y average of 320.52. EV/EBITDA ratio of -63.41 is lower than its 5Y average of -67.59. EV/EBITDA ratio of -63.41 is lower than its 3Y average of -56.40. #### Palantir Technologies EV to EBITDA Ratio Formula. How is PLTR's ev to ebitda ratio calculated? Defining ev to ebitda ratio:. #### Snowflake EV to EBITDA Ratio Formula. How is\", \"score\": 0.50227106, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13216,
+        "completion_tokens": 218,
+        "cached_tokens": 8704,
+        "cost_usd": 0.02434
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T16:29:40.475533+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also look for more specific data on the filing to understand the segment details better, and also look for defense prime EV/EBITDA multiples.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1956853c87324b62b8a7dfcb",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Lockheed Martin LMT EV/EBITDA 2025 enterprise value EBITDA multiple"
+          }
+        },
+        {
+          "tool_call_id": "call_0c85476e138149a88189dc36",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Northrop Grumman NOC EV/EBITDA 2025 enterprise value multiple"
+          }
+        },
+        {
+          "tool_call_id": "call_8629d61d6d2745c2bd1f8652",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Segment Adjusted EBITDA definition and reconciliation methodology in {{spacex_s1}}? What adjustments are made to calculate Segment Adjusted EBITDA?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1956853c87324b62b8a7dfcb",
+            "content": "[{\"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/LMT\", \"title\": \"LMT (Lockheed Martin)  EV-to-EBITDA\", \"content\": \"# LMT (Lockheed Martin) EV-to-EBITDA : 19.22 (As of Feb. 16, 2026). ## What is Lockheed Martin EV-to-EBITDA? As of today, Lockheed Martin's enterprise value is $167,725 Mil. Lockheed Martin's EBITDA for the trailing twelve months (TTM) ended in Dec. 2025 was $8,727 Mil. Therefore, Lockheed Martin's EV-to-EBITDA for today is 19.22. The historical rank and industry rank for Lockheed Martin's EV-to-EBITDA or its related term are showing as below:. During the past 13 years, the highest EV-to-EBITDA\", \"score\": 0.9407083, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/BUE:LMT\", \"title\": \"Lockheed Martin (BUE:LMT) EV-to-EBITDA\", \"content\": \"GURUFOCUS.COM \\u00bb STOCK LIST \\u00bb Industrials \\u00bb Aerospace & Defense \\u00bb Lockheed Martin Corp (BUE:LMT) \\u00bb Definitions \\u00bb EV-to-EBITDA. # Lockheed Martin (BUE:LMT) EV-to-EBITDA : 20.96 (As of Dec. 24, 2025). ## What is Lockheed Martin EV-to-EBITDA? Lockheed Martin's EBITDA for the trailing twelve months (TTM) ended in Sep. 2025 was ARS9,029,319 Mil. Therefore, Lockheed Martin's EV-to-EBITDA for today is 20.96. The historical rank and industry rank for Lockheed Martin's EV-to-EBITDA or its related term\", \"score\": 0.9237645, \"raw_content\": null}, {\"url\": \"https://valuesense.io/ticker/lmt/ev-to-ebitda-ntm\", \"title\": \"Lockheed Martin Corporation (LMT) EV/EBITDA NTM annual & quarterly (2006\\u20132025)\", \"content\": \"As of today, Lockheed Martin Corporation's EV/EBITDA NTM is 14.6x, which is higher than industry median of 14.1x. It indicates that Lockheed Martin Corporation's EV/EBITDA NTM is Bad.\\n\\n### 3) How does Lockheed Martin Corporation's EV/EBITDA NTM compare to its peers?\\n\\nAs of today, Lockheed Martin Corporation's EV/EBITDA NTMis 14.6x, which is lowerthan peer median of 22.0x. The list of peers includesAXON, ESLT, GE, HEI, TDG, RTX, LHX, GD, NOC, BA.\", \"score\": 0.8091708, \"raw_content\": null}, {\"url\": \"https://valueinvesting.io/LMT/valuation/ev_ebitda-multiples\", \"title\": \"LMT EV/EBITDA | Lockheed Martin Corp (LMT)\", \"content\": \"# LMT EV/EBITDA\\n\\nAs of 2026-06-06, the EV/EBITDA ratio of Lockheed Martin Corp (LMT) is\\n16.41.\\nEV/EBITDA ratio is calculated by dividing the enterprise value by the TTM EBITDA. LMT's latest enterprise value\\nis 139,561.11 mil USD. LMT's TTM EBITDA according to its financial statements is\\n8,505.00 mil USD. Dividing these 2\\nquantities gives us the above LMT EV/EBITDA ratio.\", \"score\": 0.77731717, \"raw_content\": null}, {\"url\": \"https://ycharts.com/companies/LMT/ev_ebitda\", \"title\": \"Lockheed Martin EV to EBITDA Analysis | YCharts\", \"content\": \"YCharts logo\\nYCharts logo\\n\\n## Lockheed Martin Corp. (LMT)\\n\\n# Lockheed Martin EV to EBITDA\\n\\n### EV to EBITDA Chart\\n\\n### Historical Data\\n\\n### EV to EBITDA Definition\\n\\nThe EV to EBITDA measures the ratio between enterprise value and earnings before interest, taxes, depreciation, and amortization. This metric is important to analyze when looking at a company's true value based on how much they are valued at compared to how money they are earning.\\n\\nRead full definition.\", \"score\": 0.588062, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_0c85476e138149a88189dc36",
+            "content": "[{\"url\": \"https://www.stockaio.com/US/ai/FundamentalDeepDive/NOC/EVToEBITDA\", \"title\": \"EV to EBITDA analysis of Northrop Grumman Corp., FY Ratio 12.48 - Indecisive EV to EBITDA\", \"content\": \"|  |  |  |  |  |  |  |  |\\n ---  ---  ---  --- |\\n| Period | Dec-25 | Dec-24 | Dec-23 | Dec-22 | Dec-21 | Dec-20 | Dec-19 |\\n| EV to EBITDA | 12.48 | 21.15 | 22.62 | 12.36 | 9.00 | 18.13 | 25.45 |\\n| Change | -41.01 % | -6.51 % | 82.98 % | 37.41 % | -50.38 % | -28.74 % | 20.40 % |\\n\\nYou are view first 7 Records. Log in to view all 41 in Premium view\\n\\n##### FY Chart of Enterprise Value to EBITDA Multiple of Northrop Grumman Corp.\\n\\nNote : All Data Generated at the End of Trading Hours (EOD Data)\\n\\n---\", \"score\": 0.80442166, \"raw_content\": null}, {\"url\": \"https://www.investing.com/pro/NYSE:NOC/explorer/ev_to_ebitda_ltm\", \"title\": \"Northrop Grumman Corporation (NYSE:NOC)  EV / EBITDA - Investing.com\", \"content\": \"is 5.9x with a standard deviation of 13.7x. Northrop Grumman Corporation's EV / EBITDA of 14.6x ranks in the 83.0% percentile for the Sector. EV / EBITDA In The Industrials Sector. You can find companies with similar EV / EBITDA using this stock screener.\", \"score\": 0.70580584, \"raw_content\": null}, {\"url\": \"https://valueinvesting.io/NOC/valuation/intrinsic-value\", \"title\": \"NOC Intrinsic Value | Northrop Grumman Corp (NOC)\", \"content\": \"## NOC Intrinsic Value - Key Valuation Metrics\\n\\n|  |  |\\n --- |\\n| Market Cap (mil) | 77,321.13 |\\n| Beta | -0.09 |\\n| Outstanding shares (mil) | 142.03 |\\n| Enterprise Value (mil) | 90,400.13 |\\n\\n|  |  |\\n --- |\\n| Market risk premium | 4.60% |\\n| Cost of Equity | 7.67% |\\n| Cost of Debt | 5.00% |\\n| WACC | 7.07% |\", \"score\": 0.6388584, \"raw_content\": null}, {\"url\": \"https://www.growin.ai/en/my/analysis/NOC/financial-metrics/ev-ebitda\", \"title\": \"NOC Northrop grumman corporation EV/EBITDA Chart\\uff5cEnterprise Value Benchmark - Growin\", \"content\": \"Northrop grumman corporation (NOC) 2026Q1 financial report shows that the d EV/EBITDA at 13.12, higher than the past 5-year average. This means the market has a lot of confidence in the company\\u2019s future cash flow and profitability, giving it a premium valuation. Usually, this happens when people expect big growth. But let\\u2019s be real\\u2014if the company doesn\\u2019t keep delivering, that high valuation could drop fast.\", \"score\": 0.5709301, \"raw_content\": null}, {\"url\": \"https://www.alphapilot.tech/finance/noc/ev-to-ebitda\", \"title\": \"Northrop Grumman Corporation (NOC) Stock Price, Forecast, AI Analysis & News | AlphaPilot\", \"content\": \"# Northrop Grumman Corporation (NOC)\\n\\n# Northrop Grumman Corporation (NOC) Stock Price, Forecast & AI Analysis\\n\\n## NOC Stock Summary\\n\\n|  |  |\\n --- |\\n| PEG Ratio (TTM) | 0.65 |\\n| FCF Yield (TTM) | 4.27% |\\n| EV / EBITDA (TTM) | 12.32 |\\n\\n|  |  |\\n --- |\\n| ROIC (TTM) | 10.26% |\\n| Gross Margin (TTM) | 20.52% |\\n| Cash Conv. Ratio | 1.14 |\\n\\n|  |  |\\n --- |\\n| Revenue 3Y CAGR | 2.21% |\\n| FCF Growth | 26.17% |\\n\\n|  |  |\\n --- |\\n| Net Debt / EBITDA (TTM) | 2.00 |\\n| Interest Coverage (TTM) | 7.00 |\", \"score\": 0.5019781, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_8629d61d6d2745c2bd1f8652",
+            "content": "Based on the provided text, **Segment Adjusted EBITDA** is calculated by starting with segment income (loss) from operations and excluding (or adding back) the following adjustments:\n\n1. **Depreciation and amortization**\n2. **Share-based compensation**\n3. **Restructuring charges**\n4. **Impairment**"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16811,
+        "completion_tokens": 218,
+        "cached_tokens": 13056,
+        "cost_usd": 0.027887500000000003
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T16:29:46.859756+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also look for more data on the filing to understand the segment details better, and also look for telecom/broadband multiples for the Connectivity segment.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_088538a62fb3442b99f7859f",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Globalstar GSAT EV/EBITDA EV/Revenue 2025 2026 satellite direct to device valuation"
+          }
+        },
+        {
+          "tool_call_id": "call_597c67bdced246d58c39f1b1",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Starlink valuation 2025 2026 satellite broadband comparable companies analysis"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_088538a62fb3442b99f7859f",
+            "content": "[{\"url\": \"https://www.gurufocus.com/term/enterprise-value-to-revenue/GSAT\", \"title\": \"GSAT (Globalstar)  EV-to-Revenue\", \"content\": \"+ Operating Cash Flow per Share.  + 3-Year Revenue Growth Rate. # GSAT (Globalstar) EV-to-Revenue : 29.89 (As of Feb. 14, 2026). ## What is Globalstar EV-to-Revenue? Globalstar's Revenue for the trailing twelve months (TTM) ended in Sep. 2025 was $262.2 Mil. Therefore, Globalstar's EV-to-Revenue for today is 29.89. The historical rank and industry rank for Globalstar's EV-to-Revenue or its related term are showing as below:. During the past 13 years, the highest EV-to-Revenue of Globalstar was\", \"score\": 0.92392945, \"raw_content\": null}, {\"url\": \"https://finance.yahoo.com/quote/GSAT/key-statistics\", \"title\": \"Globalstar, Inc. (GSAT) Valuation Measures & Financial Statistics\", \"content\": \"Globalstar Inc's financial metrics reveal a mixed performance in Q1 2026, with valuation ratios like EV/EBITDA and Enterprise Value-to-Revenue increasing significantly, indicating rising investor expectations. However, profitability metrics show concerning trends, with operating margin improving but still low at 8.52% and ROA remaining negative at -0.43%. Overall, while valuation reflects optimism, profitability challenges persist.\\n\\nUpdated 7h ago \\u00b7 Powered by Yahoo Scout\\n\\n View more\", \"score\": 0.92005306, \"raw_content\": null}, {\"url\": \"https://stockanalysis.com/stocks/gsat/statistics\", \"title\": \"Globalstar (GSAT) Statistics & Valuation - Stock Analysis\", \"content\": \"NASDAQ: GSAT \\u00b7 Real-Time Price \\u00b7 USD At close: Sep 18, 2025, 4:00 PM EDT Pre-market: Sep 19, 2025, 8:40 AM EDT # Globalstar Statistics ## Total Valuation Globalstar has a market cap or net worth of $4.38 billion. The enterprise value is $4.61 billion. ## Important Dates The next estimated earnings date is Thursday, November 6, 2025, after market close. ## Share Statistics Globalstar has 126.67 million shares outstanding. The number of shares has increased by 1.34% in one year. ## Valuation\", \"score\": 0.6762998, \"raw_content\": null}, {\"url\": \"https://multiples.vc/public-comps/globalstar-valuation-multiples\", \"title\": \"Globalstar - Multiples.vc - Public Comps and Valuation Multiples\", \"content\": \"Financial Valuation Multiples. Equity research analysts estimate Globalstar's 2025E EV/Revenue multiple at XXX and 2025E EV/EBITDA multiple at XXX. ### Verified Globalstar Valuation Multiples. Globalstar's revenue in the last 12 month grew by 10%. Globalstar's rule of 40 is 58% (metric relevant for SaaS companies only, counted as combined revenue growth rate and EBITDA margin). #### Globalstar Operational Valuation Multiples. Globalstar acquired XXX companies to date. Globalstar acquired\", \"score\": 0.65914243, \"raw_content\": null}, {\"url\": \"https://www.macrotrends.net/stocks/charts/GSAT/globalstar/ebitda\", \"title\": \"Globalstar EBITDA 2012-2025 | GSAT | MacroTrends\", \"content\": \"## Globalstar EBITDA 2012-2025 | GSAT. Globalstar annual and quarterly EBITDA history from 2012 to 2025. EBITDA can be defined as earnings before interest, taxes, depreciation and amortization.  Globalstar EBITDA for the quarter ending September 30, 2025 was $0.032B, a 0.52% increase year-over-year.  Globalstar EBITDA for the twelve months ending September 30, 2025 was $0.093B, a 15.94% increase year-over-year.  Globalstar 2024 annual EBITDA was $0.088B, a 0.01% increase from 2023.  Globalstar\", \"score\": 0.45914948, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_597c67bdced246d58c39f1b1",
+            "content": "[{\"url\": \"https://www.webpronews.com/amazon-leo-takes-on-starlink-with-1gbps-satellite-broadband\", \"title\": \"Amazon Leo Takes on Starlink with 1Gbps Satellite Broadband\", \"content\": \"competitors like AST SpaceMobile are poised to challenge Starlink\\u2019s dominance in 2026, though questions linger about their ability to scale rapidly. Four specialists interviewed in the piece expressed cautious optimism, noting that while Amazon\\u2019s hardware innovations could carve out market share, SpaceX\\u2019s head start\\u2014with over 9 million users as of late December 2025\\u2014presents a steep climb. Amazon\\u2019s constellation is still in its infancy, with only a fraction of the planned 3,000-plus satellites\", \"score\": 0.8377398, \"raw_content\": null}, {\"url\": \"https://www.ainvest.com/news/satellite-broadband-revolution-spacex-starlink-reshaping-global-connectivity-telecom-valuations-2508\", \"title\": \"The Satellite Broadband Revolution: How SpaceX's Starlink is Reshaping Global Connectivity and Telecom Valuations\", \"content\": \"EBITDA Metrics: Unlike traditional telecoms, Starlink's recurring revenue model and high gross margins suggest a valuation multiple closer to software companies than hardware firms. At $11.8 billion in 2025 revenue and 25% margins, Starlink's $400 billion valuation implies a 34x revenue multiple\\u2014a stark contrast to AT&T's 8x. For investors, Starlink represents a rare confluence of technological leadership, financial scalability, and market disruption. - Regulatory Tailwinds: Starlink's\", \"score\": 0.82795376, \"raw_content\": null}, {\"url\": \"https://www.1950.ai/post/project-kuiper-s-launch-will-amazon-s-satellite-network-outpace-spacex-s-starlink\", \"title\": \"Project Kuiper\\u2019s Launch: Will Amazon\\u2019s Satellite Network Outpace SpaceX\\u2019s Starlink? by Dr. Julie Butenko\", \"content\": \"Satellite Constellation Starlink Project Kuiper Total Satellites Planned 12,000+ 3,236 Current Satellites ~8,000 (2025) 0 (Initial launch in 2024) Orbit Altitude 340 - 1,200 km 590 - 1,200 km Coverage Area Global (50+ countries) Planned global coverage Both companies focus on delivering fast, low-latency internet, with the ultimate goal of providing speeds comparable to or better than terrestrial broadband. Conclusion: A New Era of Satellite Internet The competition between SpaceX\\u2019s Starlink\", \"score\": 0.58721006, \"raw_content\": null}, {\"url\": \"https://www.bridge-connect.com/post/the-race-for-satellite-broadband-starlink-oneweb-and-beyond\", \"title\": \"The Race for Satellite Broadband: Starlink, OneWeb, and Beyond\", \"content\": \"### Europe\\n\\n OneWeb/Eutelsat seen as essential for strategic autonomy.\\n EU exploring IRIS\\u00b2 constellation for resilience and sovereignty.\\n Emphasis on public-private partnerships and regulated fair access.\\n\\n### Middle East\\n\\n Satellite broadband seen as strategic infrastructure for smart cities and desert connectivity.\\n Partnerships with global players, but rising interest in home-grown sovereign constellations.\\n Strong ties to space programmes (UAE Space Agency, Saudi Space Commission).\", \"score\": 0.5602773, \"raw_content\": null}, {\"url\": \"https://www.zen.co.uk/blog/posts/richardtang/2020/10/30/will-spacex-starlink-displace-fixed-broadband-in-the-uk\", \"title\": \"Will SpaceX Starlink displace fixed broadband in the UK?\", \"content\": \"# Will SpaceX Starlink displace fixed broadband in the UK? $81 billion of that valuation is based on SpaceX\\u2019s satellite broadband venture, Starlink, which Morgan Stanley believes has the potential to attract between 235 million and 364 million subscribers globally.1. The question I consider here, is what impact Starlink might have on the UK fixed broadband market, which accounts for three-quarters of Zen\\u2019s revenue. In the UK, I believe SpaceX Starlink will have a very niche target market \\u2013\", \"score\": 0.5324014, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 19446,
+        "completion_tokens": 161,
+        "cached_tokens": 16256,
+        "cost_usd": 0.029905
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T16:31:40.915691+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also retrieve more information about the filing's segment details, particularly around the AI segment and how it's described.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_98f9b27b69be4a75ac6c55fa",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the revenue breakdown details within the AI segment in {{spacex_s1}}? What are the specific revenue sources for the AI segment including X platform advertising, AI solutions, and other sources?"
+          }
+        },
+        {
+          "tool_call_id": "call_b1d617eb2ed343deb2a36f78",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total enterprise value, market capitalization, or IPO valuation discussion in {{spacex_s1}}? What is the offering price or valuation range discussed?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_98f9b27b69be4a75ac6c55fa",
+            "content": "Based on the provided financial disclosures, the AI segment's revenue is primarily divided into two main categories: **Advertising** and **AI Solutions & Infrastructure**. \n\nHere are the specific revenue sources, recognition policies, and quantitative breakdown details:\n\n### 1. Specific Revenue Sources\n**A. Advertising**\n*   **Source:** Revenue is generated from the sale of ad products displayed on the **X platform**.\n*   **Recognition Policy:** Revenue is recognized in the period the ad is delivered, evidenced by a user engaging with the ad in a manner that satisfies the advertiser\u2019s selected engagement criteria. Contracts are typically cancellable, short-term arrangements.\n*   **Principal vs. Agent:** For ads sold directly through the X platform, the company acts as a principal (controls the service, serves the ad, fulfills criteria) and recognizes revenue on a **gross basis**. The company also evaluates its principal/agent status for ads sold through Supply Side Platform (SSP) partners.\n*   **Seasonality:** Advertising revenues experience seasonality, typically peaking in the fourth quarter (due to end-of-year advertiser spending) and reaching their lowest point in the first quarter.\n\n**B. AI Solutions & Infrastructure**\nThis category encompasses digital platform services offered to both consumers and enterprise customers, specifically:\n*   **Subscription Offerings:** Premium subscriptions on **X** and **Grok**. Revenue is recognized ratably over the subscription term (ranging from month-to-month to one year).\n*   **Data Licensing Arrangements:** Revenue generated from licensing data to customers. It is generally recognized ratably over the period the customer consumes and benefits from the data (ranging from month-to-month to two years).\n*   **API Access:** Revenue from providing API access to **Grok models**. This is recognized ratably over the contract term (typically month-to-month or up to one year) for stand-ready access, or as services are consumed for usage-based arrangements.\n\n*(Note: The text mentions that in 2023 and 2024, substantially all AI segment revenue consisted of advertising, subscriptions, and data licensing generated from X, formerly known as Twitter, prior to the broader scaling of Grok API and infrastructure services).*\n\n---\n\n### 2. Quantitative Revenue Breakdown (2023 \u2013 Q1 2026)\nThe following table illustrates the disaggregated revenue for the AI segment across recent fiscal periods (in millions):\n\n| Revenue Source | Q1 2026 (3 Months) | 2025 (Full Year) | 2024 (Full Year) | 2023 (Full Year) |\n| :--- | :--- | :--- | :--- | :--- |\n| **Advertising** | $343 | $1,844 | $1,728 | $2,323 |\n| **AI Solutions & Infrastructure** | $475 | $1,357 | $892 | $638 |\n| **Total AI Segment Revenue** | **$818** | **$3,201** | **$2,620** | **$2,961** |\n\n---\n\n### 3. Key Business Trends & Drivers (MD&A Insights)\n*   **2024 Advertising Decline & AI Growth:** Total AI revenue decreased by 11.5% ($341M) in 2024. This was driven by a **$595M drop in advertising revenue** due to the loss of advertising partners on X. However, this was partially offset by a **$254M increase in AI Solutions**, driven by X subscription growth (+$157M) and data licensing (+$90M).\n*   **2025 Recovery & Expansion:** AI revenue rebounded with 22.2% growth (+$581M) in 2025. Advertising recovered (+$116M) as ad spend increased from partners on X. AI Solutions & Infrastructure surged by **$465M**, heavily driven by X and Grok subscription growth (+$365M) and increased data licensing (+$88M).\n*   **Q1 2026 Platform Overhaul:** In the first quarter of 2026, AI Solutions revenue grew by $191M (driven by $177M in Grok/X subscriptions and $12M in data licensing). Conversely, Advertising revenue temporarily decreased by $100M due to a short-term impact on ad sales caused by an **overhaul and rebuild of the Company\u2019s advertising platform**.\n*   **Strategic Outlook:** The company expects AI cost of revenue to increase in absolute dollars as revenue grows, but decrease as a percentage of revenue as products are monetized and service offerings expand. Furthermore, the company is prioritizing growth and investment in the AI segment to capture opportunities in AI applications and gigawatt-scale compute infrastructure (e.g., the COLOSSUS II facility) to support the development of its truth-seeking frontier model, Grok."
+          },
+          {
+            "source_call_id": "call_b1d617eb2ed343deb2a36f78",
+            "content": "Based on the provided text, the document discusses several massive valuation figures, market capitalization milestones, and offering structures. Here is the breakdown of the specific valuations and offering prices mentioned:\n\n**1. Proposed Maximum Offering Prices / Fee Table**\nThe text outlines a fee table with proposed maximum offering prices (likely representing aggregate total consideration or placeholder valuation caps) escalating from **$5.5 trillion to $7.5 trillion** for a block of 66,666,670 shares. The specific tiers listed are:\n* $5,500,000,000,000\n* $6,000,000,000,000\n* $6,500,000,000,000\n* $7,000,000,000,000\n* $7,500,000,000,000\n\n**2. CEO Equity Award Market Capitalization Milestones**\nThe vesting of the CEO's restricted stock tranches is tied to adjusted market capitalization milestones ranging from **$500 billion to $5.5 trillion** (escalating in $500 billion increments).\n\n**3. Cursor Acquisition Valuation**\nThe company has an option agreement to acquire Cursor, with the stock-based consideration tied to an implied equity value of **$60.0 billion**. \n\n**4. \"Qualified IPO\" Threshold**\nFor the purposes of preferred stock conversion and rights, a \"Qualified IPO\" is defined as an offering where the pre-public offering market capitalization of the Company is at least **$6.0 billion** (and results in aggregate cash proceeds of not less than $250 million).\n\n**5. Per-Share IPO Price Range**\nThe exact per-share Initial Public Offering (IPO) price and the specific price range are **left blank/redacted** in the provided text snippets (e.g., *\"an assumed initial public offering price of $ [blank] per share (which is the midpoint of the price range set forth on the cover page)\"*). The text does, however, include standard sensitivity analyses detailing how each $1.00 increase or decrease in the assumed IPO price would affect dilution, total consideration, and net proceeds.\n\n***Note:** The multi-trillion dollar figures for the \"offering prices\" and \"market capitalizations\" indicate that this text is likely from a synthetic, hypothetical, or highly speculative draft S-1 (potentially modeling a combined mega-entity of SpaceX, xAI, Starlink, and Cursor) where astronomical aggregate valuation placeholders have been inserted into standard SEC filing templates.*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21729,
+        "completion_tokens": 156,
+        "cached_tokens": 18432,
+        "cost_usd": 0.032842500000000004
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T16:32:26.537419+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also get some more data on the Connectivity segment's revenue details and look for telecom/broadband comparable multiples.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_185547b2f27f4ab39cb7db7b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment revenue breakdown in {{spacex_s1}}? What are the specific revenue sources for Starlink including subscriptions, enterprise, government, and hardware?"
+          }
+        },
+        {
+          "tool_call_id": "call_f399aa54b743470fb78bd5d4",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Eutelsat OneWeb EV/EBITDA 2025 satellite broadband valuation multiple"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_185547b2f27f4ab39cb7db7b",
+            "content": "Based on the provided financial statements and MD&A excerpts, the specific revenue sources for Starlink (which falls under the Connectivity segment) are broken down as follows:\n\n**1. Subscriptions (Consumer Broadband & Mobile)**\n*   **Consumer Broadband:** Revenue is primarily driven by monthly subscription fees based on the geographic market and download speed. These are structured as either fixed-price services (requiring advanced or recurring monthly payments) or variable-priced services based on actual data consumption. \n*   **Starlink Mobile (MNO Partnerships):** The company provides satellite-to-mobile services (such as SMS and over-the-top voice) and earns revenue through revenue-sharing arrangements with Mobile Network Operator (MNO) partners. Starlink charges MNOs either a fixed fee or a per-mobile user fee, which the carrier typically passes on to the consumer.\n\n**2. Hardware (Starlink Kits)**\n*   **Starlink Kits:** Revenue is generated from the one-time sale of the Starlink Kit (inclusive of the terminal). \n*   **Recognition:** Hardware revenue is recorded at a point in time\u2014specifically upon delivery to the customer, or upon installation in the case of certain enterprise customers. It is reported net of sales returns and credits.\n\n**3. Enterprise**\n*   **Enterprise Connectivity:** Revenue is generated from aviation, maritime, mobility, and other enterprise businesses. \n*   **Contract Structures:** Enterprise contracts are customized to the customer's needs and are structured as a combination of subscriptions, data consumption, and capacity, or on a percentage-of-completion basis.\n*   *Note:* The financial footprints specify that \"Enterprise & Government\" revenue categories also include revenue from Starlink Mobile service offerings.\n\n**4. Government (Starshield)**\n*   **Starshield:** Revenue is generated via long-term contracts for Starshield, a secure satellite network designed specifically for government customers and national security applications.\n*   **Recognition:** Because these are multi-year contracts, revenue is recognized over time using the **cost-to-cost input method** (recording revenue based on costs incurred to date, such as materials and labor hours, relative to the total estimated cost of the contract)."
+          },
+          {
+            "source_call_id": "call_f399aa54b743470fb78bd5d4",
+            "content": "[{\"url\": \"https://www.spaceintelreport.com/eutelsat-oneweb-backlog-growth-slower-than-expected-but-ebitda-break-even-still-seen-in-fy-2025\", \"title\": \"Eutelsat: OneWeb backlog growth slower than expected, but EBITDA break-even still seen in FY 2025 - Space Intel Report\", \"content\": \"# Eutelsat: OneWeb backlog growth slower than expected, but EBITDA break-even still seen in FY 2025. LA PLATA, Maryland \\u2014 Committed backlog for the OneWeb constellation of broadband satellites has stagnated in recent months, but OneWeb owner Eutelsat Group still expects the service to reach EBITDA break-even by mid-2025. Eutelsat remains in discussions with prospective contractors for OneWeb\\u2019s Gen 2 constellation, to be in orbit in 2027, and is also talking with several export-credit agencies\", \"score\": 0.78749067, \"raw_content\": null}, {\"url\": \"https://www.rcrwireless.com/20220726/5g/eutelsat-and-oneweb-to-create-satellite-broadband-behemoth-with-iot-promise\", \"title\": \"Eutelsat and OneWeb to create satellite broadband behemoth \\u2013 with IoT promise\", \"content\": \"Which is the Enterprise IoT Insights angle. The pair quoted a 2021 forecast that the satellite connectivity market, for consumers and enterprises, will grow 300-500 percent by 2030, to reach a value of around $16 billion. They are betting on \\u201cmid-teen\\u201d compound annual EBITDA growth \\u201cover the medium to long term\\u201d, outpacing sales growth. The cap-ex of the combined entity is estimated at \\u20ac725-\\u20ac875 million per annum to the end of the decade; a combined entity would be worth \\u20ac1.2 billion in\", \"score\": 0.60498303, \"raw_content\": null}, {\"url\": \"https://india.entrepreneur.com/news-and-trends/oneweb-gets-nod-for-satellite-broadband-service-in-india/465779\", \"title\": \"OneWeb Gets Nod For Satellite Broadband Service In India, Will Govt Now Decide On Satellite Spectrum Allocation?\", \"content\": \"Eutelsat OneWeb\\u2019s commerical satellite broadband services in India. Eutelsat OneWeb is ready to deploy as soon as it receives the final spectrum authorization to launch commercial services,\\u201d said Sunil Bharti Mittal, Bharti Group Chairman and Vice-President (Co-Chair) of the Board of Directors of Eutelsat Group. ### Easebuzz in Talks to Raise INR 200\\u2013300 Cr at Over USD 250 Mn Valuation. ### Easebuzz in Talks to Raise INR 200\\u2013300 Cr at Over USD 250 Mn Valuation.\", \"score\": 0.5559422, \"raw_content\": null}, {\"url\": \"https://www.reuters.com/technology/space/eutelsat-oneweb-gets-indian-go-ahead-satellite-broadband-services-2023-11-21\", \"title\": \"Eutelsat OneWeb gets Indian go-ahead for satellite broadband services | Reuters\", \"content\": \"the Economic Times newspaper reported last month. Our Standards: The Thomson Reuters Trust Principles., opens new tab. Musk denies $800 billion SpaceX valuation reports. SpaceX tells investors it is targeting late 2026 IPO, the Information reports. NASA study shows how satellite 'light pollution' hinders space telescopes. How LandSpace became SpaceX's biggest Chinese challenger.\", \"score\": 0.42205253, \"raw_content\": null}, {\"url\": \"https://telecomtalk.info/eutelsat-oneweb-dot-nod-satellite-broadband-services/989917\", \"title\": \"Eutelsat OneWeb Pushes for Early DoT Nod to Offer Satellite Broadband Services: Report\", \"content\": \"Eutelsat OneWeb Pushes for Early DoT Nod to Offer Satellite Broadband Services: Report\", \"score\": 0.26908013, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 23554,
+        "completion_tokens": 156,
+        "cached_tokens": 20608,
+        "cost_usd": 0.034685
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-09T16:34:04.204108+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have enough data to construct a comprehensive sum-of-parts valuation framework. Let me also get the Connectivity segment revenue breakdown and the Space segment revenue breakdown.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4d5a6d19df3f418fadcf7b84",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Space segment revenue breakdown in {{spacex_s1}}? What are the specific revenue sources including launch services, government contracts, and other sources?"
+          }
+        },
+        {
+          "tool_call_id": "call_80105ed6b6aa4833ae00dcda",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment revenue breakdown by type in {{spacex_s1}}? Show the disaggregated revenue table for the Connectivity segment including subscriptions, hardware, enterprise, and government."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4d5a6d19df3f418fadcf7b84",
+            "content": "Based on the provided MD&A and financial disclosures, here is the detailed breakdown of the Space segment's revenue sources, financial performance, and strategic capacity allocation.\n\n### 1. Specific Revenue Sources\nThe Space segment generates external revenue primarily through two distinct categories, utilizing vehicles such as Falcon 9, Falcon Heavy, Starship, and Dragon:\n\n*   **Launch Services:** Revenue derived from deploying payloads to their intended orbits for both commercial and government customers. These are fixed-price contracts ranging from one to five years. Revenue is recognized at a **point in time** (upon launch or deployment of the payload) due to the interchangeability of flight hardware and minimal unique engineering costs.\n*   **Launch & Development:** Revenue derived from the development of spacecraft and the provision of launch and mission services for government agency space programs. Notable examples include NASA Cargo Resupply Services (CRS) missions to the International Space Station and U.S. Department of War contracts. These are fixed-price contracts ranging from one to fourteen years. Revenue is recognized **over time** using the cost-to-cost input method, as the work creates an asset with no alternative use and includes an enforceable right to payment.\n*   **Internal Allocations (Non-Revenue):** Launches dedicated to deploying the company's own Starlink satellites (Connectivity segment) or supporting future AI infrastructure do **not** generate Space segment revenue. Instead, these inter-segment launch costs are capitalized as assets (satellites/infrastructure) and depreciated over time. The Space segment's top-line revenue strictly reflects external customer launches and activities.\n\n### 2. Revenue Breakdown: Launch Services vs. Launch & Development\nThe segment's revenue mix fluctuates based on the timing of government contracts and the cadence of commercial launches. \n\n**As a Percentage of Total Space Revenue:**\n| Period | Launch Services | Launch & Development | Total Space |\n| :--- | :--- | :--- | :--- |\n| **Q1 2026** (Three Months Ended Mar 31) | 53.3% | 46.7% | 100.0% |\n| **Q1 2025** (Three Months Ended Mar 31) | 65.4% | 34.6% | 100.0% |\n| **FY 2025** (Year Ended Dec 31) | 63.0% | 37.0% | 100.0% |\n| **FY 2024** (Year Ended Dec 31) | 68.2% | 31.8% | 100.0% |\n| **FY 2023** (Year Ended Dec 31) | 55.2% | 44.8% | 100.0% |\n\n**Absolute Revenue Figures (in Millions):**\n| Period | Launch Services | Launch & Development | Total Space Revenue |\n| :--- | :--- | :--- | :--- |\n| **Q1 2026** | $330 | $289 | **$619** |\n| **Q1 2025** | $566 | $299 | **$865** |\n| **FY 2025** | $2,576 | $1,510 | **$4,086** |\n| **FY 2024** | $2,584 | $1,212 | **$3,796** |\n| **FY 2023** | $1,964 | $1,593 | **$3,557** |\n\n### 3. Growth Expectations and Capacity Allocation\nThe company's strategic focus on internal infrastructure heavily dictates the financial trajectory of the Space segment:\n\n*   **Subordinated External Growth:** Space revenue growth is expected to continue to be **lower than total company revenue growth**. This is because the company's internal businesses are absorbing most of the growth in launch capacity.\n*   **Connectivity & AI Capacity Allocation:** The company allocates a significant amount of launch capacity to its Connectivity segment (Starlink) and expects to allocate a significant amount to its **AI segment** in the future. Because these are internal deployments, they act as a drag on Space segment top-line revenue growth but serve as the backbone for the company's broader, high-margin recurring revenue ecosystems.\n*   **Shift Toward Development Contracts:** Management expects **Launch and Development** to represent a larger portion of Space revenue in the future as the company continues to execute and serve long-term contracts for government customers. \n*   **Period-to-Period Volatility:** Space revenue will naturally vary from period to period based on the mix of launches used for external customers versus internal payload deployments, as well as the timing of customer payload arrivals and government contract milestones."
+          },
+          {
+            "source_call_id": "call_80105ed6b6aa4833ae00dcda",
+            "content": "Based on the provided financial disclosures, the company does not use the exact line items \"subscriptions\" and \"hardware\" in its primary segment tables. Instead, it disaggregates the **Connectivity segment** revenue by customer type (**Consumer** and **Enterprise & Government**) and separately reports revenue by **Products** (hardware/Starlink Kits) and **Services** (subscriptions/broadband). \n\nHere are the disaggregated revenue tables for the Connectivity segment as presented in the text:\n\n### 1. Annual Connectivity Revenue by Customer Type\n*(For the fiscal years ending December 31, 2023 through 2025)*\n\n| Revenue Type | 2025 | 2024 | 2023 |\n| :--- | :--- | :--- | :--- |\n| **Consumer** | $7,208 | $4,830 | $2,817 |\n| **Enterprise & Government** ^(1) | 4,179 | 2,769 | 1,052 |\n| **Total Connectivity** | **$11,387** | **$7,599** | **$3,869** |\n\n### 2. Quarterly Connectivity Revenue by Customer Type\n*(For the three months ended March 31, 2026 and 2025)*\n\n| Revenue Type | 2026 | 2025 |\n| :--- | :--- | :--- |\n| **Consumer** | $2,148 | $1,492 |\n| **Enterprise & Government** ^(1) | 1,109 | 983 |\n| **Total Connectivity** | **$3,257** | **$2,475** |\n\n### 3. Products vs. Services Breakdown (Hardware vs. Subscriptions)\n*(For the three months ended March 31, 2026 and 2025)*\n*Note: The text explicitly states that **all** Products revenue is attributable to the Connectivity segment (representing hardware/Starlink Kits), while Services represent the subscription and connectivity fees.*\n\n| Revenue Type | 2026 | 2025 |\n| :--- | :--- | :--- |\n| **Products** *(Hardware/Kits)* | $380 | $352 |\n| **Services** *(Subscriptions/Connectivity)* | 4,314 | 3,715 |\n| **Total Revenues** | **$4,694** | **$4,067** |\n\n***\n\n**Footnotes & Context from the Text:**\n* **(1)** Enterprise & Government revenue includes revenue from Starlink Mobile service offerings, as well as aviation, maritime, and secure government networks (Starshield).\n* **Consumer Revenue Generation:** Driven by monthly subscription fees (recognized ratably over the service period) plus the one-time sale of a Starlink Kit (hardware).\n* **Enterprise & Government Revenue Generation:** Structured as a combination of subscriptions, data consumption, capacity, or on a percentage-of-completion basis for long-term contracts. \n* **Deferred Revenue:** Relates primarily to Space agreements and Connectivity enterprise and government contracts (totaling $12,116 million as of December 31, 2025)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25193,
+        "completion_tokens": 158,
+        "cached_tokens": 22784,
+        "cost_usd": 0.036082499999999997
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-09T16:34:41.830564+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have comprehensive data to build the sum-of-parts valuation framework. Let me compile everything:\n\n**FY2025 Segment Adjusted EBITDA:**\n- Space: $653M (Revenue: $4,086M)\n- Connectivity: $7,168M (Revenue: $11,387M)\n- AI: $(1,237)M (Revenue: $3,201M)\n- Total: $6,584M\n\n**Key comparable companies and their multiples:**\n\n**Space Segment Comparables:**\n- Rocket Lab (RKLB): EV/Revenue ~72-92x (current), EV/EBITDA negative (still unprofitable). Revenue ~$680M TTM. EV ~$62-81B.\n- Lockheed Martin (LMT): EV/EBITDA ~16-19x\n- Northrop Grumman (NOC): EV/EBITDA ~12-15x\n- L3Harris (LHX): EV/EBITDA ~14-16x (typical range)\n\nThe Space segment is unique because:\n- It's a launch services provider with reusability (unlike defense primes)\n- It has much higher growth than defense primes\n- Rocket Lab is the closest pure-play comp but is still unprofitable and trades on revenue\n- The Space segment's revenue only reflects external launches; internal launches for Starlink/AI are capitalized\n\n**Connectivity Segment Comparables:**\n- Viasat (VSAT): EV/EBITDA ~6.6x (based on $12.2B EV / $1.85B EBITDA), but also ~7.5x per Alpha Spread\n- Iridium (IRDM): EV/EBITDA ~15-16x\n- Globalstar (GSAT): EV/Revenue ~30x, EBITDA ~$93M TTM, EV ~$4.6B \u2192 EV/EBITDA ~49x\n- Eutelsat OneWeb: Still near EBITDA break-even\n- Traditional telecoms: EV/EBITDA ~6-8x\n- The Connectivity segment has 63% EBITDA margin ($7,168M / $11,387M), which is extraordinary\n\n**AI Segment Comparables:**\n- Meta (META): EV/EBITDA ~16-20x (social media/advertising)\n- Snap (SNAP): EV/EBITDA ~16x, EV/Revenue ~1.7x\n- Palantir (PLTR): EV/EBITDA ~500-1150x, EV/Revenue ~100-137x (AI software)\n- The AI segment is a hybrid of:\n  - Social media/advertising (X platform): $1,844M advertising revenue\n  - AI/SaaS (Grok, subscriptions, API): $1,357M AI Solutions revenue\n  - It's currently loss-making with $(1,237)M Adjusted EBITDA\n\nNow let me construct the framework and identify the segment with greatest comparable-selection ambiguity.\n\n**Space Segment:**\n- Comparables: Rocket Lab (pure-play launch, high-growth, unprofitable \u2192 EV/Revenue), Defense primes (LMT, NOC, LHX \u2192 EV/EBITDA)\n- The ambiguity: Should we use EV/Revenue (like Rocket Lab) or EV/EBITDA (like defense primes)?\n- Rocket Lab trades at ~72-92x revenue, which would imply $295-376B for Space segment\n- Defense primes trade at ~14-19x EBITDA, which would imply $9.1-12.4B for Space segment\n- This is a massive range, but the Space segment is profitable (unlike Rocket Lab) and has much higher growth than defense primes\n\n**Connectivity Segment:**\n- Comparables: Satellite operators (Viasat, Iridium, Globalstar), Telecoms\n- Viasat: ~6.6-7.5x EV/EBITDA\n- Iridium: ~15-16x EV/EBITDA\n- Globalstar: ~49x EV/EBITDA (speculative, Apple partnership)\n- The Connectivity segment has extraordinary margins (63%) and growth (50% YoY revenue growth from $7.6B to $11.4B)\n- Using 15-25x EV/EBITDA: $107.5-179.2B\n- Using 8-12x EV/EBITDA (more traditional satcom): $57.3-86.0B\n\n**AI Segment:**\n- This is the most ambiguous because:\n  1. It's currently loss-making (negative EBITDA), so EV/EBITDA is not applicable\n  2. It combines fundamentally different business models: social media/advertising (X) and frontier AI (Grok)\n  3. Social media comps (Meta ~16-20x EBITDA, Snap ~16x EBITDA) are very different from AI comps (Palantir ~500x+ EBITDA, or EV/Revenue ~100x+)\n  4. The segment is in heavy investment mode with $3,568M D&A, $1,063M SBC, $487M restructuring\n  5. Revenue is split: $1,844M advertising (social media) + $1,357M AI Solutions (tech/AI)\n  6. Should we value it as a social media company, an AI company, or a hybrid?\n\nLet me now construct the full framework.\n\nFor the AI segment, since EBITDA is negative, we'd need to use EV/Revenue:\n- If valued as social media (Meta ~15-17x revenue, Snap ~1.7x revenue): $5.4-54.4B range\n- If valued as AI (Palantir ~100x+ revenue): $320B+\n- If valued as a hybrid: somewhere in between\n\nActually, let me be more precise about Meta's EV/Revenue. Meta has ~$164B revenue and ~$1.85T EV, so ~11.3x revenue. Snap has ~$5.4B revenue and ~$16B EV, so ~3x revenue.\n\nLet me now write up the comprehensive answer.\n\nActually, let me think more carefully about which segment creates the greatest comparable-selection ambiguity.\n\n**Space Segment Ambiguity:**\n- The key question is whether to use launch-specific comparables (Rocket Lab at extreme revenue multiples) or defense/space primes (LMT, NOC at moderate EBITDA multiples)\n- The range is wide but the reasoning is relatively clear: SpaceX's Space segment is profitable and has a unique market position, so it should command a premium over defense primes but perhaps not Rocket Lab-level revenue multiples since it's actually profitable\n- The ambiguity is moderate: you can bracket it between defense primes and Rocket Lab\n\n**Connectivity Segment Ambiguity:**\n- The key question is whether to use traditional satcom (Viasat at ~7x EBITDA), premium satcom (Iridium at ~15x EBITDA), or speculative satellite (Globalstar at ~50x EBITDA)\n- Starlink's growth rate and market dominance suggest a premium, but the multiple range is still somewhat bounded\n- The ambiguity is moderate: you can bracket it between traditional satcom and growth-premium satellite\n\n**AI Segment Ambiguity:**\n- This is the most ambiguous because:\n  1. **Negative EBITDA** eliminates the most common valuation metric\n  2. **Hybrid business model**: It's simultaneously a social media platform (X), a digital advertising business, a frontier AI lab (Grok), and a data licensing business\n  3. **Comparable categories are fundamentally different**: \n     - Social media/advertising (Meta at ~11x revenue, ~16x EBITDA; Snap at ~3x revenue, ~16x EBITDA)\n     - AI/ML platforms (Palantir at ~100x+ revenue, ~500x+ EBITDA)\n     - These categories produce valuations that differ by an order of magnitude or more\n  4. **Investment phase**: Heavy capex ($3,568M D&A), restructuring ($487M), and SBC ($1,063M) make it unclear when/if profitability will emerge\n  5. **No pure-play public comp**: There is no public company that combines a social media platform with a frontier AI lab\n  6. **Revenue quality questions**: Advertising revenue on X has been volatile (declined $595M in 2024, recovered only $116M in 2025), while AI Solutions are growing but still small\n\nThe AI segment clearly creates the greatest comparable-selection ambiguity.\n\nLet me now write the comprehensive answer with the sum-of-parts framework.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_23d563d5fb654c69b581054a",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Meta Platforms 2025 annual revenue total EV/Revenue multiple enterprise value"
+          }
+        },
+        {
+          "tool_call_id": "call_79774c64a8ae4f1097db249f",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 5,
+            "search_query": "Snap Inc 2025 annual revenue EV/Revenue enterprise value multiple"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_23d563d5fb654c69b581054a",
+            "content": "[{\"url\": \"https://www.gurufocus.com/term/enterprise-value-to-revenue/META\", \"title\": \"META PLATFORMS EV-to-Revenue: 8.09 \\u2014 Near Median\", \"content\": \"Services sector, Meta Platforms's EV-to-Revenue distribution charts can be found below:. \\\\ The bar in red indicates where Meta Platforms's EV-to-Revenue falls into. ## Meta Platforms EV-to-Revenue Calculation. Meta Platforms's EV-to-Revenue for today is calculated as:. Meta Platforms's current Enterprise Value is $1,625,432 Mil. Meta Platforms's Revenue for the trailing twelve months (TTM) ended in Dec. 2025 adds up the quarterly data reported by the company within the most recent 12 months,\", \"score\": 0.87981987, \"raw_content\": null}, {\"url\": \"https://finbox.com/NASDAQGS:META/explorer/ev_to_revenue_ltm\", \"title\": \"EV / Revenue For Meta Platforms Inc (META)\", \"content\": \"ev / revenue for fiscal years ending December 2020 to 2024 averaged 7.2x.  Meta Platforms's operated at median ev / revenue of 7.9x from fiscal years ending December 2020 to 2024.  Looking back at the last 5 years, Meta Platforms's ev / revenue peaked in June 2025 at 10.7x.  Meta Platforms's ev / revenue hit its 5-year low in December 2022 of 2.5x.  Meta Platforms's ev / revenue decreased in 2021 (7.9x, -14.6%) and 2022 (2.5x, -68.4%) and increased in 2020 (9.2x, +12.9%), 2023 (6.9x, +178.6%),\", \"score\": 0.838376, \"raw_content\": null}, {\"url\": \"https://www.klipfolio.com/resources/kpi-examples/financial/enterprise-value-to-revenue-multiple\", \"title\": \"What Is Enterprise-Value-to-Revenue Multiple (EV/R)? | Klipfolio\", \"content\": \"multiple is the most important one. In short, the value of the EV/Revenue multiple must be balanced for those looking to maximize the potential of their investments in the business world. Hence, financial analysts use EV/Revenue multiples to estimate a company's value. When it comes to valuing a company, one method that is often employed is the EV/Revenue multiple. Essentially, this metric divides the company's enterprise value (EV) by its annual revenue. Calculating the EV/Revenue multiple\", \"score\": 0.34840176, \"raw_content\": null}, {\"url\": \"https://businessquant.com/enterprise-value-to-revenue\", \"title\": \"\\u2022 Enterprise Value to Revenue (EV/Revenue) Definition - Business Quant\", \"content\": \"Ratio?. The Enterprise Value to Revenue Multiple is a valuation metric used to value a business by dividing its corporate value (equity plus debt minus cash) by its annual revenue. The Enterprise Value-to-Revenue multiple (EV/R) may measure the worth of a stock that compares a company\\u2019s enterprise value to its revenue. It\\u2019s also called the enterprise value-to-revenue multiple. EV/Revenue =Enterprise Value\\u200b/Revenue, where:. Therefore, Apple\\u2019s EV-to-Revenue on 1/1/21 is $2,248,899 Million /\", \"score\": 0.3478034, \"raw_content\": null}, {\"url\": \"https://livewell.com/finance/enterprise-value-to-revenue-multiple-ev-r-definition\", \"title\": \"Enterprise-Value-to-Revenue Multiple (EV/R): Definition | LiveWell\", \"content\": \"rely on. One such important metric is the Enterprise-Value-to-Revenue Multiple (EV/R). In this blog post, we will dive into the definition of EV/R and explore its importance in the world of finance. So, what exactly is the Enterprise-Value-to-Revenue Multiple (EV/R)? In simple terms, EV/R is a financial ratio that measures the valuation of a company relative to its revenue. It is calculated by dividing the enterprise value (EV) of a company by its total revenue. The resulting multiple indicates\", \"score\": 0.3180195, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_79774c64a8ae4f1097db249f",
+            "content": "[{\"url\": \"https://www.growin.ai/en/my/analysis/SNAP/financial-metrics/ev-sales\", \"title\": \"SNAP Snap inc. EV/Sales Chart\\uff5cRevenue & Enterprise Value Link - Growin\", \"content\": \"Back to SNAP.US Analysis. ## SNAPEV/Sales. Browsing restrictions can be lifted for a fee. (SNAP) 2025Q4 financial report shows that the EV/Sales at 6.85, lower than the past 5-year average. This means the market is more conservative about the company\\u2019s revenue growth and future outlook. It usually happens when revenue momentum slows, the industry is cooling off, or the market is uncertain about the future. But if the fundamentals and cash flow are solid, this low EV/Sales could be a good\", \"score\": 0.86080295, \"raw_content\": null}, {\"url\": \"https://www.metrichq.org/finance/enterprise-value-to-revenue-multiple\", \"title\": \"Enterprise Value to Revenue Multiple (EV/R) | MetricHQ\", \"content\": \"MetricHQ Logo\\nsearch-white icon\\nMetricHQ Logo\\nsearch-white icon\\n\\nEnterprise Value to Revenue Multiple\\n\\n# Enterprise Value to Revenue Multiple (EV/R)\\n\\nLast updated: May 02, 2025\\n\\n## What is Enterprise Value to Revenue Multiple?\\n\\nEnterprise Value to Revenue Multiple (EV/R) is a financial ratio used in company valuation that compares stock value of a company to its revenue for a given time period. EV/R is often used to evaluate a company before acquisition.\", \"score\": 0.55998856, \"raw_content\": null}, {\"url\": \"https://businessquant.com/enterprise-value-to-revenue\", \"title\": \"\\u2022 Enterprise Value to Revenue (EV/Revenue) Definition - Business Quant\", \"content\": \"The Enterprise Value to Revenue Multiple is a valuation metric used to value a business by dividing its corporate value (equity plus debt minus cash) by its annual revenue. This multiple is commonly used for early-stage or high-growth businesses that do not yet have positive earnings. The Enterprise Value-to-Revenue multiple (EV/R) may measure the worth of a stock that compares a company\\u2019s enterprise value to its revenue. EV/R is one among several fundamental indicators that investors use to\", \"score\": 0.4942147, \"raw_content\": null}, {\"url\": \"https://financefacts101.com/understanding-and-utilizing-the-enterprise-value-to-revenue-multiple-ev-r\", \"title\": \"Understanding and Utilizing the Enterprise Value-to-Revenue Multiple (EV/R) - FinanceFacts101\", \"content\": \"Alternatively, we can calculate enterprise value with a more complex formula that includes preferred shares, minority interests, and potential intangible assets:\\n\\nEnterprise Value = Market Capitalization + Debt + Preferred Shares (PSC) + Minority Interests (MI) \\u2013 Cash and cash equivalents (CC)\\n\\nOnce we have calculated the enterprise value, we divide it by the company\\u2019s revenue to find the EV/R multiple.\\n\\nEV/R = Enterprise Value / Revenue\", \"score\": 0.4485476, \"raw_content\": null}, {\"url\": \"https://www.klipfolio.com/resources/kpi-examples/financial/enterprise-value-to-revenue-multiple\", \"title\": \"What Is Enterprise-Value-to-Revenue Multiple (EV/R)? | Klipfolio\", \"content\": \"multiple is the most important one. In short, the value of the EV/Revenue multiple must be balanced for those looking to maximize the potential of their investments in the business world. Hence, financial analysts use EV/Revenue multiples to estimate a company's value. When it comes to valuing a company, one method that is often employed is the EV/Revenue multiple. Essentially, this metric divides the company's enterprise value (EV) by its annual revenue. Calculating the EV/Revenue multiple\", \"score\": 0.39810276, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 27158,
+        "completion_tokens": 2134,
+        "cached_tokens": 24960,
+        "cost_usd": 0.058034999999999996
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-06-09T16:35:06.024921+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed to construct the comprehensive sum-of-parts valuation framework. Let me compile the analysis.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have enough data. Let me compile the comprehensive sum-of-parts valuation framework.\n\nKey data points:\n- Meta: EV/Revenue ~8.1x, EV/EBITDA ~15.7-17.5x\n- Snap: EV/Revenue ~6.9x (from Growin), EV/EBITDA ~16x\n- Rocket Lab: EV/Revenue ~72-92x (current), EV/EBITDA negative\n- Lockheed Martin: EV/EBITDA ~16-19x\n- Northrop Grumman: EV/EBITDA ~12-15x\n- Viasat: EV/EBITDA ~6.6-7.5x\n- Iridium: EV/EBITDA ~15-16x\n- Globalstar: EV/Revenue ~30x, EV/EBITDA ~49x\n- Palantir: EV/Revenue ~100-137x, EV/EBITDA ~500-1150x\n\nNow let me construct the framework:\n\n**SPACE SEGMENT**\n- FY2025 Revenue: $4,086M\n- FY2025 Segment Adj. EBITDA: $653M\n- EBITDA Margin: 16.0%\n\nComparable Categories:\n1. Pure-Play Launch (Rocket Lab): EV/Revenue 72-92x \u2192 $295-376B (but RKLB is unprofitable, so EV/EBITDA not applicable)\n2. Defense/Space Primes (LMT, NOC, LHX): EV/EBITDA 12-19x \u2192 $7.8-12.4B\n3. Blended approach: Use EV/Revenue at a discount to RKLB (say 15-30x) \u2192 $61-123B\n\nThe issue: SpaceX's Space segment is the dominant global launch provider with reusability, far exceeding Rocket Lab in scale and capability. But it's also a mature, profitable business with only modest revenue growth ($3.6B \u2192 $3.8B \u2192 $4.1B over 3 years). Defense prime multiples seem too low given growth and market position, but Rocket Lab multiples seem too high given the Space segment's modest growth trajectory (constrained by internal capacity allocation).\n\n**CONNECTIVITY SEGMENT**\n- FY2025 Revenue: $11,387M\n- FY2025 Segment Adj. EBITDA: $7,168M\n- EBITDA Margin: 62.9%\n\nComparable Categories:\n1. Traditional Satcom (Viasat): EV/EBITDA ~6.6-7.5x \u2192 $47.3-53.8B\n2. Premium Satcom (Iridium): EV/EBITDA ~15-16x \u2192 $107.5-114.7B\n3. Speculative/Growth Satellite (Globalstar): EV/EBITDA ~49x \u2192 $351B (but GSAT is speculative)\n4. Telecom/Broadband: EV/EBITDA ~6-8x \u2192 $43-57B\n\nStarlink's 63% EBITDA margin, 50% YoY revenue growth, and dominant market position suggest a significant premium over traditional satcom. The question is how much of a premium.\n\n**AI SEGMENT**\n- FY2025 Revenue: $3,201M\n- FY2025 Segment Adj. EBITDA: $(1,237)M\n- EBITDA Margin: -38.6%\n\nRevenue breakdown:\n- Advertising (X): $1,844M (57.6%)\n- AI Solutions & Infrastructure: $1,357M (42.4%)\n\nComparable Categories:\n1. Social Media/Advertising (Meta, Snap):\n   - Meta: EV/Revenue ~8.1x, EV/EBITDA ~16-17x\n   - Snap: EV/Revenue ~6.9x, EV/EBITDA ~16x\n   - Applied to AI segment revenue: $3,201M \u00d7 7-8x = $22.4-25.6B\n   \n2. AI/ML Platforms (Palantir):\n   - Palantir: EV/Revenue ~100-137x, EV/EBITDA ~500x+\n   - Applied to AI Solutions revenue only: $1,357M \u00d7 100x = $135.7B\n   \n3. Hybrid approach:\n   - Value advertising at social media multiples: $1,844M \u00d7 7-8x = $12.9-14.8B\n   - Value AI Solutions at AI multiples: $1,357M \u00d7 20-50x = $27.1-67.9B\n   - Total: $40-83B\n\nThe AI segment is clearly the most ambiguous because:\n1. Negative EBITDA makes the most common valuation metric inapplicable\n2. The segment combines fundamentally different business models (social media + frontier AI)\n3. Comparable categories produce valuations that differ by an order of magnitude\n4. No public company combines these businesses\n5. Heavy investment phase with unclear path to profitability\n6. Revenue quality concerns (X advertising volatility)\n\nLet me now write the final comprehensive answer.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3c6efdc29fb947b8ab20552c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "653 / 4086 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3c6efdc29fb947b8ab20552c",
+            "content": "15.981399902104748"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 31208,
+        "completion_tokens": 1293,
+        "cached_tokens": 26112,
+        "cost_usd": 0.05831
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-06-09T16:35:14.596197+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me calculate the margins and other key metrics.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_049f50c2644a40d0bebdb90d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_02f5e589d0f34f8ea22e47e0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "-1237 / 3201 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_049f50c2644a40d0bebdb90d",
+            "content": "62.94897690348643"
+          },
+          {
+            "source_call_id": "call_02f5e589d0f34f8ea22e47e0",
+            "content": "-38.644173695720085"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 32533,
+        "completion_tokens": 96,
+        "cached_tokens": 0,
+        "cost_usd": 0.0822925
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 16,
+      "timestamp": "2026-06-09T16:35:41.674887+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me calculate the valuation ranges for each segment.\n\nSpace Segment:\n- Low (defense primes at 12x EBITDA): 653 * 12 = $7,836M\n- Mid (defense primes at 16x EBITDA): 653 * 16 = $10,448M\n- High (growth premium at 25x EBITDA): 653 * 25 = $16,325M\n- Revenue-based (15x revenue): 4086 * 15 = $61,290M\n- Revenue-based (30x revenue): 4086 * 30 = $122,580M\n\nConnectivity Segment:\n- Low (traditional satcom at 8x EBITDA): 7168 * 8 = $57,344M\n- Mid (premium satcom at 15x EBITDA): 7168 * 15 = $107,520M\n- High (growth satellite at 25x EBITDA): 7168 * 25 = $179,200M\n\nAI Segment:\n- Low (social media at 5x revenue): 3201 * 5 = $16,005M\n- Mid (hybrid at 12x revenue): 3201 * 12 = $38,412M\n- High (AI premium at 25x revenue): 3201 * 25 = $80,025M\n- Very high (Palantir-like at 50x revenue): 3201 * 50 = $160,050M\n\nLet me calculate these precisely.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_157b170933ca48f6a0289e98",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "653 * 12"
+          }
+        },
+        {
+          "tool_call_id": "call_5da7ade963ef4a6ba8cbed4c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "653 * 18"
+          }
+        },
+        {
+          "tool_call_id": "call_dd9113ef81b6426fbc233d15",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "653 * 30"
+          }
+        },
+        {
+          "tool_call_id": "call_c001398f195d408bbeebdf18",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4086 * 15"
+          }
+        },
+        {
+          "tool_call_id": "call_3cdd9571ec754310a653abf7",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4086 * 40"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_157b170933ca48f6a0289e98",
+            "content": "7836"
+          },
+          {
+            "source_call_id": "call_5da7ade963ef4a6ba8cbed4c",
+            "content": "11754"
+          },
+          {
+            "source_call_id": "call_dd9113ef81b6426fbc233d15",
+            "content": "19590"
+          },
+          {
+            "source_call_id": "call_c001398f195d408bbeebdf18",
+            "content": "61290"
+          },
+          {
+            "source_call_id": "call_3cdd9571ec754310a653abf7",
+            "content": "163440"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 32684,
+        "completion_tokens": 576,
+        "cached_tokens": 31488,
+        "cost_usd": 0.04811
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 17,
+      "timestamp": "2026-06-09T16:36:00.170264+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me calculate the Connectivity and AI segment ranges.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_f288d1a909b0471b922781d5",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 * 8"
+          }
+        },
+        {
+          "tool_call_id": "call_654476bbb4c842c4be8340ea",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 * 15"
+          }
+        },
+        {
+          "tool_call_id": "call_0591a98c101440dfaca036d3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 * 25"
+          }
+        },
+        {
+          "tool_call_id": "call_aae4c7d90ff248dc996a1abd",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3201 * 5"
+          }
+        },
+        {
+          "tool_call_id": "call_24e8fb1e9dad4554aa9d15b7",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3201 * 12"
+          }
+        },
+        {
+          "tool_call_id": "call_0ff1470923d6475cbd391b97",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3201 * 25"
+          }
+        },
+        {
+          "tool_call_id": "call_805829488ff24adba22e2da9",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3201 * 50"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_f288d1a909b0471b922781d5",
+            "content": "57344"
+          },
+          {
+            "source_call_id": "call_654476bbb4c842c4be8340ea",
+            "content": "107520"
+          },
+          {
+            "source_call_id": "call_0591a98c101440dfaca036d3",
+            "content": "179200"
+          },
+          {
+            "source_call_id": "call_aae4c7d90ff248dc996a1abd",
+            "content": "16005"
+          },
+          {
+            "source_call_id": "call_24e8fb1e9dad4554aa9d15b7",
+            "content": "38412"
+          },
+          {
+            "source_call_id": "call_0ff1470923d6475cbd391b97",
+            "content": "80025"
+          },
+          {
+            "source_call_id": "call_805829488ff24adba22e2da9",
+            "content": "160050"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 33319,
+        "completion_tokens": 244,
+        "cached_tokens": 32640,
+        "cost_usd": 0.044937500000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 18,
+      "timestamp": "2026-06-09T16:36:18.023714+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also calculate the AI segment sub-component valuations:\n- Advertising revenue: $1,844M at social media multiples\n- AI Solutions: $1,357M at AI multiples",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_816ef440b9bc4c419aa280bf",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1844 * 8"
+          }
+        },
+        {
+          "tool_call_id": "call_9ab71adb20b348628a0da41a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1844 * 12"
+          }
+        },
+        {
+          "tool_call_id": "call_8e425f4ae51b4a34a3ffefa7",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1357 * 20"
+          }
+        },
+        {
+          "tool_call_id": "call_dc218733709b4a7e815ee261",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1357 * 50"
+          }
+        },
+        {
+          "tool_call_id": "call_3c0234ad05344ccea3857203",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1357 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_816ef440b9bc4c419aa280bf",
+            "content": "14752"
+          },
+          {
+            "source_call_id": "call_9ab71adb20b348628a0da41a",
+            "content": "22128"
+          },
+          {
+            "source_call_id": "call_8e425f4ae51b4a34a3ffefa7",
+            "content": "27140"
+          },
+          {
+            "source_call_id": "call_dc218733709b4a7e815ee261",
+            "content": "67850"
+          },
+          {
+            "source_call_id": "call_3c0234ad05344ccea3857203",
+            "content": "135700"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 33645,
+        "completion_tokens": 213,
+        "cached_tokens": 32640,
+        "cost_usd": 0.045442500000000004
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 19,
+      "timestamp": "2026-06-09T16:36:29.333906+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me also calculate the revenue growth rates for context.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0c87268559be47dca21d7e89",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(11387 - 7599) / 7599 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_9debd5a4bfa94aaaa05d69c5",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(4086 - 3796) / 3796 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_2b84d96b8a05487d84af6cd6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(3201 - 2620) / 2620 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0c87268559be47dca21d7e89",
+            "content": "49.84866429793394"
+          },
+          {
+            "source_call_id": "call_9debd5a4bfa94aaaa05d69c5",
+            "content": "7.639620653319283"
+          },
+          {
+            "source_call_id": "call_2b84d96b8a05487d84af6cd6",
+            "content": "22.175572519083968"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 33918,
+        "completion_tokens": 169,
+        "cached_tokens": 32640,
+        "cost_usd": 0.045685
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 20,
+      "timestamp": "2026-06-09T16:40:48.306488+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed. Let me compile the comprehensive sum-of-parts valuation framework and submit the final result.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data. Let me write the comprehensive final answer.\n\nKey findings:\n- Space: Revenue $4,086M, Adj. EBITDA $653M, 16.0% margin, 7.6% YoY revenue growth\n- Connectivity: Revenue $11,387M, Adj. EBITDA $7,168M, 62.9% margin, 49.8% YoY revenue growth\n- AI: Revenue $3,201M, Adj. EBITDA $(1,237)M, -38.6% margin, 22.2% YoY revenue growth\n\nThe AI segment creates the greatest comparable-selection ambiguity because:\n1. Negative EBITDA eliminates the standard EV/EBITDA metric\n2. Hybrid business model (social media/advertising + frontier AI) spans two fundamentally different comparable categories\n3. Social media comps (Meta ~8x revenue, ~16x EBITDA) vs. AI comps (Palantir ~100x+ revenue) produce valuations differing by 10x or more\n4. No public company combines these businesses\n5. Heavy investment phase with $3,568M D&A, $1,063M SBC, $487M restructuring\n6. Revenue quality concerns (X advertising declined $595M in 2024, recovered only $116M in 2025)\n\nLet me now write the final comprehensive answer.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_15af1cc4a4f3442c82f6c4f6",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## SpaceX Sum-of-Parts Valuation Framework Based on FY2025 Segment Adjusted EBITDA\n\n### I. FY2025 Segment Financial Summary (Recast Consolidated Entity)\n\nAll figures reflect the retrospectively recast consolidated entity (including xAI merged February 2, 2026 and X Holdings merged into xAI March 28, 2025) for all historical periods presented.\n\n| Metric | Space | Connectivity | AI | Total |\n|---|---|---|---|---|\n| **FY2025 Revenue** | $4,086M | $11,387M | $3,201M | $18,674M |\n| **YoY Revenue Growth** | 7.6% | 49.8% | 22.2% | \u2014 |\n| **Segment Adj. EBITDA** | $653M | $7,168M | $(1,237)M | $6,584M |\n| **Adj. EBITDA Margin** | 16.0% | 62.9% | (38.6)% | 35.3% |\n\n**Segment Adjusted EBITDA Reconciliation (from S-1):**\n\n| (in millions) | Space | Connectivity | AI | Total |\n|---|---|---|---|---|\n| Income (loss) from operations | $(657) | $4,423 | $(6,355) | $(2,589) |\n| + Depreciation & amortization | 757 | 2,376 | 3,568 | 6,701 |\n| + Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| + Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| + Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |\n\n---\n\n### II. Sum-of-Parts Valuation Framework\n\n#### A. SPACE SEGMENT \u2014 Launch Services & Space Systems\n\n**Business Profile:** Designs, manufactures, and launches reusable rockets (Falcon 9, Falcon Heavy, Starship, Dragon). Revenue is 63% Launch Services (point-in-time recognition) and 37% Launch & Development (over-time, government contracts). Critically, internal launches for Starlink/AI deployment are capitalized in those segments and do not generate Space revenue, suppressing reported top-line growth.\n\n**Comparable Categories:**\n\n| Comparable Category | Companies | Key Multiple | Implied EV Range |\n|---|---|---|---|\n| **Pure-Play Launch (Growth)** | Rocket Lab (RKLB) | EV/Revenue: 72\u201392x (current); EV/EBITDA: N/A (negative EBITDA) | $295B\u2013$376B (on revenue) |\n| **Defense/Space Primes (Mature)** | Lockheed Martin (LMT), Northrop Grumman (NOC), L3Harris (LHX) | EV/EBITDA: 12\u201319x | $7.8B\u2013$12.4B (on EBITDA) |\n| **Blended (Growth-Adjusted)** | Hybrid of above | EV/EBITDA: 20\u201330x or EV/Revenue: 10\u201320x | $13B\u2013$82B |\n\n**Analytical Tension:** SpaceX's Space segment is the world's dominant launch provider with unmatched reusability and cadence, yet its external revenue growth is modest (~7.6% YoY) because internal capacity is subordinated to Starlink and AI deployment. Defense prime multiples (12\u201319x EBITDA) dramatically undervalue the segment's strategic optionality and Starship development. Rocket Lab's revenue multiples (72\u201392x) are anchored to a pre-profit, small-launch company trading on Neutron rocket expectations. Neither category cleanly maps.\n\n**Indicative Valuation Range:** $20B\u2013$80B (using 30\u2013120x EBITDA or 5\u201320x revenue, reflecting dominant market position but constrained external growth)\n\n---\n\n#### B. CONNECTIVITY SEGMENT \u2014 Starlink Satellite Broadband\n\n**Business Profile:** Operates the world's largest LEO satellite broadband network across 164 countries. Revenue is 63% Consumer ($7,208M) and 37% Enterprise & Government ($4,179M, including Starshield). Products (hardware/Starlink Kits) are sold at or below cost; the economics are driven by high-margin recurring subscription services.\n\n**Comparable Categories:**\n\n| Comparable Category | Companies | Key Multiple | Implied EV Range |\n|---|---|---|---|\n| **Traditional Satcom (Mature)** | Viasat (VSAT) | EV/EBITDA: 6.6\u20137.5x | $47.3B\u2013$53.8B |\n| **Premium Satcom** | Iridium (IRDM) | EV/EBITDA: 15\u201316x | $107.5B\u2013$114.7B |\n| **Speculative/Growth Satellite** | Globalstar (GSAT) | EV/EBITDA: ~49x; EV/Revenue: ~30x | $351B (on EBITDA) |\n| **Telecom/Broadband** | AT&T, Verizon, T-Mobile | EV/EBITDA: 6\u20138x | $43.0B\u2013$57.3B |\n\n**Analytical Tension:** Starlink's 62.9% EBITDA margin and 49.8% revenue growth are without peer in any comparable category. Viasat (GEO satellite, 28% margin, low growth) and Iridium (narrowband LEO, ~50% margin, single-digit growth) are fundamentally different businesses. Globalstar's speculative multiple is driven by Apple exclusivity, not operational scale. Traditional telecom multiples are inappropriate given Starlink's asset-light recurring revenue model and global addressable market. The segment's margin profile more closely resembles enterprise software than satellite communications.\n\n**Indicative Valuation Range:** $108B\u2013$180B (using 15\u201325x EBITDA, reflecting dominant market position, exceptional margins, and 50% growth rate)\n\n---\n\n#### C. AI SEGMENT \u2014 xAI + X Platform\n\n**Business Profile:** Vertically integrated AI platform combining: (1) X social media platform with digital advertising ($1,844M, 57.6% of segment revenue); (2) AI Solutions & Infrastructure including Grok LLM, X/Grok subscriptions, data licensing, and API access ($1,357M, 42.4% of segment revenue). Currently in heavy investment phase with $3,568M D&A, $1,063M SBC, and $487M restructuring charges.\n\n**Comparable Categories:**\n\n| Comparable Category | Companies | Key Multiple | Implied EV Range |\n|---|---|---|---|\n| **Social Media / Digital Advertising** | Meta (META), Snap (SNAP) | META: EV/Revenue 8.1x, EV/EBITDA 16\u201317x; SNAP: EV/Revenue ~6.9x, EV/EBITDA ~16x | $16B\u2013$26B (on total revenue at 5\u20138x) |\n| **AI / ML Platforms** | Palantir (PLTR) | EV/Revenue: 100\u2013137x; EV/EBITDA: 500x+ | $136B\u2013$186B (on AI Solutions revenue alone at 100\u2013137x) |\n| **Sub-Component: Advertising Only** | Meta, Snap | EV/Revenue: 7\u20138x | $12.9B\u2013$14.8B |\n| **Sub-Component: AI Solutions Only** | Palantir, high-growth AI | EV/Revenue: 20\u2013100x | $27.1B\u2013$135.7B |\n\n**Analytical Tension (see Section III below for full discussion):** The AI segment is currently loss-making ($(1,237)M Adj. EBITDA), eliminating the standard EV/EBITDA metric entirely. The segment fuses two fundamentally different business models\u2014social media/advertising and frontier AI\u2014that trade at multiples differing by an order of magnitude or more. No public company combines these businesses.\n\n**Indicative Valuation Range:** $40B\u2013$160B (extremely wide; see ambiguity discussion below)\n- Bear case (social media comp only): ~$16B\u2013$26B\n- Base case (hybrid sub-component): ~$40B\u2013$83B\n- Bull case (AI platform premium): ~$80B\u2013$160B+\n\n---\n\n### III. Consolidated Sum-of-Parts Summary\n\n| Segment | Low Estimate | Mid Estimate | High Estimate |\n|---|---|---|---|\n| **Space** | $20B | $45B | $80B |\n| **Connectivity** | $108B | $143B | $180B |\n| **AI** | $16B | $60B | $160B |\n| **Total Enterprise Value** | **$144B** | **$248B** | **$420B** |\n\n*Note: These ranges are illustrative and demonstrate the extreme sensitivity to comparable selection. The S-1 filing references proposed maximum offering prices implying aggregate valuations of $5.5T\u2013$7.5T, which would require multiples far exceeding any public-market comparable framework.*\n\n---\n\n### IV. Which Segment Creates the Greatest Comparable-Selection Ambiguity?\n\n**The AI segment creates the greatest comparable-selection ambiguity by a wide margin.** The reasons are structural, not merely quantitative:\n\n#### 1. Negative EBITDA Eliminates the Primary Valuation Metric\nAt $(1,237)M Segment Adjusted EBITDA, the standard EV/EBITDA multiple\u2014the workhorse of sum-of-parts analysis\u2014is mathematically inapplicable. This forces reliance on EV/Revenue, which is inherently less disciplined and more sensitive to growth assumptions and margin trajectory.\n\n#### 2. Irreconcilable Comparable Categories\nThe AI segment fuses two businesses that belong to entirely different valuation universes:\n- **Social media/advertising** (57.6% of revenue): Meta trades at ~8x revenue and ~16x EBITDA; Snap at ~7x revenue and ~16x EBITDA. These are mature, profitable advertising platforms.\n- **Frontier AI/ML** (42.4% of revenue): Palantir trades at ~100\u2013137x revenue and 500x+ EBITDA. These are growth-stage AI platforms priced on total addressable market narratives.\n\nApplying social media multiples to total AI revenue yields ~$16\u201326B. Applying AI platform multiples to the AI Solutions sub-component alone yields ~$136B. **The comparable-selection decision alone creates a $110B+ valuation swing**\u2014larger than the entire Space segment valuation.\n\n#### 3. No Public Company Combines These Businesses\nThere is no listed company that simultaneously operates a real-time social media platform, a digital advertising business, a frontier LLM lab, and a data licensing/API infrastructure business. Meta has AI investments but is fundamentally an advertising company. Palantir has no consumer social platform. This forces analysts to either:\n- Disaggregate the segment and value sub-components separately (introducing transfer-pricing and synergy-allocation assumptions), or\n- Select a single comparable category and accept massive misfit.\n\n#### 4. Revenue Quality and Volatility Concerns\nX platform advertising revenue declined $595M (\u201323%) in 2024 due to advertiser departures, then recovered only $116M (+7%) in 2025\u2014still $479M below 2023 levels. This volatility makes it difficult to normalize revenue for multiple application. Meanwhile, AI Solutions revenue grew rapidly (+52% YoY) but from a small base and with heavy subsidy from compute investment ($3,568M D&A).\n\n#### 5. Investment-Phase Opacity\nThe segment's $(6,355)M operating loss includes $3,568M D&A (reflecting massive compute infrastructure like COLOSSUS II), $1,063M SBC, and $487M restructuring. It is unclear when or whether the segment will achieve positive EBITDA, making forward-looking multiple application speculative. The filing describes \"orbital AI compute satellites\" expected \"as early as 2028\"\u2014a forward-looking statement with no current financial footprint.\n\n#### 6. Contrast with Other Segments\n- **Space** has ambiguity (defense primes vs. Rocket Lab), but the segment is profitable, its business model is well-understood, and the comparable range, while wide, is bounded by identifiable categories.\n- **Connectivity** has ambiguity (traditional satcom vs. growth premium), but Starlink's 63% EBITDA margin and dominant market position provide a clear directional premium over any satellite comparable. The range is narrower and the argument is more linear.\n- **AI** has ambiguity that is *categorical*\u2014not just about which multiple to apply, but about *which industry the segment belongs to*. This is a fundamentally different and more intractable form of comparable-selection ambiguity.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/LMT\",\n      \"name\": \"Lockheed Martin EV/EBITDA \u2014 GuruFocus\"\n    },\n    {\n      \"url\": \"https://valueinvesting.io/NOC/valuation/intrinsic-value\",\n      \"name\": \"Northrop Grumman Valuation \u2014 ValueInvesting.io\"\n    },\n    {\n      \"url\": \"https://www.alphaspread.com/security/nasdaq/rklb/relative-valuation/ratio/enterprise-value-to-sales\",\n      \"name\": \"Rocket Lab EV/Revenue \u2014 Alpha Spread\"\n    },\n    {\n      \"url\": \"https://valueinvesting.io/VSAT/valuation/ev_ebitda-multiples\",\n      \"name\": \"Viasat EV/EBITDA \u2014 ValueInvesting.io\"\n    },\n    {\n      \"url\": \"https://valueinvesting.io/IRDM/valuation/ev_ebitda-multiples\",\n      \"name\": \"Iridium Communications EV/EBITDA \u2014 ValueInvesting.io\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-revenue/META\",\n      \"name\": \"Meta Platforms EV/Revenue \u2014 GuruFocus\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/META\",\n      \"name\": \"Meta Platforms EV/EBITDA \u2014 GuruFocus\"\n    },\n    {\n      \"url\": \"https://www.ainvest.com/news/palantir-pltr-ai-hype-valuation-trap-2026-2601\",\n      \"name\": \"Palantir Valuation Analysis \u2014 AInvest\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-revenue/GSAT\",\n      \"name\": \"Globalstar EV/Revenue \u2014 GuruFocus\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_15af1cc4a4f3442c82f6c4f6",
+            "content": "## SpaceX Sum-of-Parts Valuation Framework Based on FY2025 Segment Adjusted EBITDA\n\n### I. FY2025 Segment Financial Summary (Recast Consolidated Entity)\n\nAll figures reflect the retrospectively recast consolidated entity (including xAI merged February 2, 2026 and X Holdings merged into xAI March 28, 2025) for all historical periods presented.\n\n| Metric | Space | Connectivity | AI | Total |\n|---|---|---|---|---|\n| **FY2025 Revenue** | $4,086M | $11,387M | $3,201M | $18,674M |\n| **YoY Revenue Growth** | 7.6% | 49.8% | 22.2% | \u2014 |\n| **Segment Adj. EBITDA** | $653M | $7,168M | $(1,237)M | $6,584M |\n| **Adj. EBITDA Margin** | 16.0% | 62.9% | (38.6)% | 35.3% |\n\n**Segment Adjusted EBITDA Reconciliation (from S-1):**\n\n| (in millions) | Space | Connectivity | AI | Total |\n|---|---|---|---|---|\n| Income (loss) from operations | $(657) | $4,423 | $(6,355) | $(2,589) |\n| + Depreciation & amortization | 757 | 2,376 | 3,568 | 6,701 |\n| + Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| + Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| + Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |\n\n---\n\n### II. Sum-of-Parts Valuation Framework\n\n#### A. SPACE SEGMENT \u2014 Launch Services & Space Systems\n\n**Business Profile:** Designs, manufactures, and launches reusable rockets (Falcon 9, Falcon Heavy, Starship, Dragon). Revenue is 63% Launch Services (point-in-time recognition) and 37% Launch & Development (over-time, government contracts). Critically, internal launches for Starlink/AI deployment are capitalized in those segments and do not generate Space revenue, suppressing reported top-line growth.\n\n**Comparable Categories:**\n\n| Comparable Category | Companies | Key Multiple | Implied EV Range |\n|---|---|---|---|\n| **Pure-Play Launch (Growth)** | Rocket Lab (RKLB) | EV/Revenue: 72\u201392x (current); EV/EBITDA: N/A (negative EBITDA) | $295B\u2013$376B (on revenue) |\n| **Defense/Space Primes (Mature)** | Lockheed Martin (LMT), Northrop Grumman (NOC), L3Harris (LHX) | EV/EBITDA: 12\u201319x | $7.8B\u2013$12.4B (on EBITDA) |\n| **Blended (Growth-Adjusted)** | Hybrid of above | EV/EBITDA: 20\u201330x or EV/Revenue: 10\u201320x | $13B\u2013$82B |\n\n**Analytical Tension:** SpaceX's Space segment is the world's dominant launch provider with unmatched reusability and cadence, yet its external revenue growth is modest (~7.6% YoY) because internal capacity is subordinated to Starlink and AI deployment. Defense prime multiples (12\u201319x EBITDA) dramatically undervalue the segment's strategic optionality and Starship development. Rocket Lab's revenue multiples (72\u201392x) are anchored to a pre-profit, small-launch company trading on Neutron rocket expectations. Neither category cleanly maps.\n\n**Indicative Valuation Range:** $20B\u2013$80B (using 30\u2013120x EBITDA or 5\u201320x revenue, reflecting dominant market position but constrained external growth)\n\n---\n\n#### B. CONNECTIVITY SEGMENT \u2014 Starlink Satellite Broadband\n\n**Business Profile:** Operates the world's largest LEO satellite broadband network across 164 countries. Revenue is 63% Consumer ($7,208M) and 37% Enterprise & Government ($4,179M, including Starshield). Products (hardware/Starlink Kits) are sold at or below cost; the economics are driven by high-margin recurring subscription services.\n\n**Comparable Categories:**\n\n| Comparable Category | Companies | Key Multiple | Implied EV Range |\n|---|---|---|---|\n| **Traditional Satcom (Mature)** | Viasat (VSAT) | EV/EBITDA: 6.6\u20137.5x | $47.3B\u2013$53.8B |\n| **Premium Satcom** | Iridium (IRDM) | EV/EBITDA: 15\u201316x | $107.5B\u2013$114.7B |\n| **Speculative/Growth Satellite** | Globalstar (GSAT) | EV/EBITDA: ~49x; EV/Revenue: ~30x | $351B (on EBITDA) |\n| **Telecom/Broadband** | AT&T, Verizon, T-Mobile | EV/EBITDA: 6\u20138x | $43.0B\u2013$57.3B |\n\n**Analytical Tension:** Starlink's 62.9% EBITDA margin and 49.8% revenue growth are without peer in any comparable category. Viasat (GEO satellite, 28% margin, low growth) and Iridium (narrowband LEO, ~50% margin, single-digit growth) are fundamentally different businesses. Globalstar's speculative multiple is driven by Apple exclusivity, not operational scale. Traditional telecom multiples are inappropriate given Starlink's asset-light recurring revenue model and global addressable market. The segment's margin profile more closely resembles enterprise software than satellite communications.\n\n**Indicative Valuation Range:** $108B\u2013$180B (using 15\u201325x EBITDA, reflecting dominant market position, exceptional margins, and 50% growth rate)\n\n---\n\n#### C. AI SEGMENT \u2014 xAI + X Platform\n\n**Business Profile:** Vertically integrated AI platform combining: (1) X social media platform with digital advertising ($1,844M, 57.6% of segment revenue); (2) AI Solutions & Infrastructure including Grok LLM, X/Grok subscriptions, data licensing, and API access ($1,357M, 42.4% of segment revenue). Currently in heavy investment phase with $3,568M D&A, $1,063M SBC, and $487M restructuring charges.\n\n**Comparable Categories:**\n\n| Comparable Category | Companies | Key Multiple | Implied EV Range |\n|---|---|---|---|\n| **Social Media / Digital Advertising** | Meta (META), Snap (SNAP) | META: EV/Revenue 8.1x, EV/EBITDA 16\u201317x; SNAP: EV/Revenue ~6.9x, EV/EBITDA ~16x | $16B\u2013$26B (on total revenue at 5\u20138x) |\n| **AI / ML Platforms** | Palantir (PLTR) | EV/Revenue: 100\u2013137x; EV/EBITDA: 500x+ | $136B\u2013$186B (on AI Solutions revenue alone at 100\u2013137x) |\n| **Sub-Component: Advertising Only** | Meta, Snap | EV/Revenue: 7\u20138x | $12.9B\u2013$14.8B |\n| **Sub-Component: AI Solutions Only** | Palantir, high-growth AI | EV/Revenue: 20\u2013100x | $27.1B\u2013$135.7B |\n\n**Analytical Tension (see Section III below for full discussion):** The AI segment is currently loss-making ($(1,237)M Adj. EBITDA), eliminating the standard EV/EBITDA metric entirely. The segment fuses two fundamentally different business models\u2014social media/advertising and frontier AI\u2014that trade at multiples differing by an order of magnitude or more. No public company combines these businesses.\n\n**Indicative Valuation Range:** $40B\u2013$160B (extremely wide; see ambiguity discussion below)\n- Bear case (social media comp only): ~$16B\u2013$26B\n- Base case (hybrid sub-component): ~$40B\u2013$83B\n- Bull case (AI platform premium): ~$80B\u2013$160B+\n\n---\n\n### III. Consolidated Sum-of-Parts Summary\n\n| Segment | Low Estimate | Mid Estimate | High Estimate |\n|---|---|---|---|\n| **Space** | $20B | $45B | $80B |\n| **Connectivity** | $108B | $143B | $180B |\n| **AI** | $16B | $60B | $160B |\n| **Total Enterprise Value** | **$144B** | **$248B** | **$420B** |\n\n*Note: These ranges are illustrative and demonstrate the extreme sensitivity to comparable selection. The S-1 filing references proposed maximum offering prices implying aggregate valuations of $5.5T\u2013$7.5T, which would require multiples far exceeding any public-market comparable framework.*\n\n---\n\n### IV. Which Segment Creates the Greatest Comparable-Selection Ambiguity?\n\n**The AI segment creates the greatest comparable-selection ambiguity by a wide margin.** The reasons are structural, not merely quantitative:\n\n#### 1. Negative EBITDA Eliminates the Primary Valuation Metric\nAt $(1,237)M Segment Adjusted EBITDA, the standard EV/EBITDA multiple\u2014the workhorse of sum-of-parts analysis\u2014is mathematically inapplicable. This forces reliance on EV/Revenue, which is inherently less disciplined and more sensitive to growth assumptions and margin trajectory.\n\n#### 2. Irreconcilable Comparable Categories\nThe AI segment fuses two businesses that belong to entirely different valuation universes:\n- **Social media/advertising** (57.6% of revenue): Meta trades at ~8x revenue and ~16x EBITDA; Snap at ~7x revenue and ~16x EBITDA. These are mature, profitable advertising platforms.\n- **Frontier AI/ML** (42.4% of revenue): Palantir trades at ~100\u2013137x revenue and 500x+ EBITDA. These are growth-stage AI platforms priced on total addressable market narratives.\n\nApplying social media multiples to total AI revenue yields ~$16\u201326B. Applying AI platform multiples to the AI Solutions sub-component alone yields ~$136B. **The comparable-selection decision alone creates a $110B+ valuation swing**\u2014larger than the entire Space segment valuation.\n\n#### 3. No Public Company Combines These Businesses\nThere is no listed company that simultaneously operates a real-time social media platform, a digital advertising business, a frontier LLM lab, and a data licensing/API infrastructure business. Meta has AI investments but is fundamentally an advertising company. Palantir has no consumer social platform. This forces analysts to either:\n- Disaggregate the segment and value sub-components separately (introducing transfer-pricing and synergy-allocation assumptions), or\n- Select a single comparable category and accept massive misfit.\n\n#### 4. Revenue Quality and Volatility Concerns\nX platform advertising revenue declined $595M (\u201323%) in 2024 due to advertiser departures, then recovered only $116M (+7%) in 2025\u2014still $479M below 2023 levels. This volatility makes it difficult to normalize revenue for multiple application. Meanwhile, AI Solutions revenue grew rapidly (+52% YoY) but from a small base and with heavy subsidy from compute investment ($3,568M D&A).\n\n#### 5. Investment-Phase Opacity\nThe segment's $(6,355)M operating loss includes $3,568M D&A (reflecting massive compute infrastructure like COLOSSUS II), $1,063M SBC, and $487M restructuring. It is unclear when or whether the segment will achieve positive EBITDA, making forward-looking multiple application speculative. The filing describes \"orbital AI compute satellites\" expected \"as early as 2028\"\u2014a forward-looking statement with no current financial footprint.\n\n#### 6. Contrast with Other Segments\n- **Space** has ambiguity (defense primes vs. Rocket Lab), but the segment is profitable, its business model is well-understood, and the comparable range, while wide, is bounded by identifiable categories.\n- **Connectivity** has ambiguity (traditional satcom vs. growth premium), but Starlink's 63% EBITDA margin and dominant market position provide a clear directional premium over any satellite comparable. The range is narrower and the argument is more linear.\n- **AI** has ambiguity that is *categorical*\u2014not just about which multiple to apply, but about *which industry the segment belongs to*. This is a fundamentally different and more intractable form of comparable-selection ambiguity.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/LMT\",\n      \"name\": \"Lockheed Martin EV/EBITDA \u2014 GuruFocus\"\n    },\n    {\n      \"url\": \"https://valueinvesting.io/NOC/valuation/intrinsic-value\",\n      \"name\": \"Northrop Grumman Valuation \u2014 ValueInvesting.io\"\n    },\n    {\n      \"url\": \"https://www.alphaspread.com/security/nasdaq/rklb/relative-valuation/ratio/enterprise-value-to-sales\",\n      \"name\": \"Rocket Lab EV/Revenue \u2014 Alpha Spread\"\n    },\n    {\n      \"url\": \"https://valueinvesting.io/VSAT/valuation/ev_ebitda-multiples\",\n      \"name\": \"Viasat EV/EBITDA \u2014 ValueInvesting.io\"\n    },\n    {\n      \"url\": \"https://valueinvesting.io/IRDM/valuation/ev_ebitda-multiples\",\n      \"name\": \"Iridium Communications EV/EBITDA \u2014 ValueInvesting.io\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-revenue/META\",\n      \"name\": \"Meta Platforms EV/Revenue \u2014 GuruFocus\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-ebitda/META\",\n      \"name\": \"Meta Platforms EV/EBITDA \u2014 GuruFocus\"\n    },\n    {\n      \"url\": \"https://www.ainvest.com/news/palantir-pltr-ai-hype-valuation-trap-2026-2601\",\n      \"name\": \"Palantir Valuation Analysis \u2014 AInvest\"\n    },\n    {\n      \"url\": \"https://www.gurufocus.com/term/enterprise-value-to-revenue/GSAT\",\n      \"name\": \"Globalstar EV/Revenue \u2014 GuruFocus\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 34163,
+        "completion_tokens": 4059,
+        "cached_tokens": 33664,
+        "cost_usd": 0.0839175
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 400160,
+    "total_completion_tokens": 10911,
+    "total_cached_tokens": 327936,
+    "total_cost_usd": 0.6995899999999999,
+    "total_steps": 20
+  }
+}

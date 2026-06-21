@@ -1,0 +1,693 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "34785966-98cb-4e5f-a5ff-095300e9fe86",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T23:17:51.061531+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T23:17:51.061531+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nUsing FY2025 Connectivity segment figures, calculate YoY growth in revenue, operating income, and Segment Adjusted EBITDA. What do the differential growth rates imply about operating leverage within Connectivity?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T23:17:51.061531+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "The user is asking me to calculate YoY growth in revenue, operating income, and Segment Adjusted EBITDA for the Connectivity segment of SpaceX for FY2025. I need to find FY2025 and FY2024 figures for these metrics from the SpaceX S-1 filing.\n\nLet me first parse the S-1 filing and then retrieve the relevant segment information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5c5e1c1d492a4d6f83cd20ff",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_5c5e1c1d492a4d6f83cd20ff",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3510,
+        "completion_tokens": 172,
+        "cached_tokens": 3200,
+        "cost_usd": 0.006495
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T23:18:20.035877+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve the Connectivity segment financial data from the filing. I need FY2025 and FY2024 figures for revenue, operating income, and Segment Adjusted EBITDA.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bfb5159910bd46f8a7c74281",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the Connectivity segment revenue, operating income, and Segment Adjusted EBITDA for FY2025 and FY2024 from {{spacex_s1}}. Look for the segment financial tables and the Adjusted EBITDA reconciliation table.",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bfb5159910bd46f8a7c74281",
+            "content": "Based on the provided financial highlights, here are the Connectivity segment's Revenue, Operating Income, and Segment Adjusted EBITDA for FY2025 and FY2024:\n\n**FY2025**\n* **Revenue:** $11,387 million\n* **Operating Income:** $4,423 million\n* **Segment Adjusted EBITDA:** $7,168 million\n\n**FY2024**\n* **Revenue:** $7,599 million\n* **Operating Income:** $2,006 million\n* **Segment Adjusted EBITDA:** $3,849 million"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3708,
+        "completion_tokens": 138,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0066500000000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T23:18:27.798815+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "I have the figures. Let me verify these by retrieving more specific information about the segment tables to make sure I have the right numbers.\n\nFY2025:\n- Revenue: $11,387 million\n- Operating Income: $4,423 million\n- Segment Adjusted EBITDA: $7,168 million\n\nFY2024:\n- Revenue: $7,599 million\n- Operating Income: $2,006 million\n- Segment Adjusted EBITDA: $3,849 million\n\nNow let me calculate YoY growth rates:\n\nRevenue growth: (11,387 - 7,599) / 7,599 = 3,788 / 7,599\nOperating Income growth: (4,423 - 2,006) / 2,006 = 2,417 / 2,006\nSegment Adjusted EBITDA growth: (7,168 - 3,849) / 3,849 = 3,319 / 3,849\n\nLet me calculate these.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c77c6a9df4dd47aca4186597",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(11387 - 7599) / 7599 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_9a6d3f6d37264305b9b0e453",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(4423 - 2006) / 2006 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_94809bf844d747ad96abf56c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(7168 - 3849) / 3849 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c77c6a9df4dd47aca4186597",
+            "content": "49.84866429793394"
+          },
+          {
+            "source_call_id": "call_9a6d3f6d37264305b9b0e453",
+            "content": "120.48853439680957"
+          },
+          {
+            "source_call_id": "call_94809bf844d747ad96abf56c",
+            "content": "86.23018965965186"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3999,
+        "completion_tokens": 409,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0100875
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T23:18:34.760398+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also calculate the margins to understand the operating leverage story better.\n\nFY2025 margins:\n- Operating margin: 4,423 / 11,387\n- Segment Adjusted EBITDA margin: 7,168 / 11,387\n\nFY2024 margins:\n- Operating margin: 2,006 / 7,599\n- Segment Adjusted EBITDA margin: 3,849 / 7,599\n\nLet me also calculate the difference between Segment Adjusted EBITDA and Operating Income to understand D&A and other adjustments.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ffc230a072164a74a9026c88",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4423 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_9a1ce366e1c343b59651577b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2006 / 7599 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_cfa241b70eae448f9063e1b7",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_9ae9cb977ba64a15a600046b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3849 / 7599 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_9b829da7737f4201999ff0e9",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - 4423"
+          }
+        },
+        {
+          "tool_call_id": "call_7738a0122f77417a8ce35165",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3849 - 2006"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ffc230a072164a74a9026c88",
+            "content": "38.84253973829806"
+          },
+          {
+            "source_call_id": "call_9a1ce366e1c343b59651577b",
+            "content": "26.39821029082774"
+          },
+          {
+            "source_call_id": "call_cfa241b70eae448f9063e1b7",
+            "content": "62.94897690348643"
+          },
+          {
+            "source_call_id": "call_9ae9cb977ba64a15a600046b",
+            "content": "50.65140150019739"
+          },
+          {
+            "source_call_id": "call_9b829da7737f4201999ff0e9",
+            "content": "2745"
+          },
+          {
+            "source_call_id": "call_7738a0122f77417a8ce35165",
+            "content": "1843"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4484,
+        "completion_tokens": 376,
+        "cached_tokens": 3200,
+        "cost_usd": 0.01097
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T23:20:44.176794+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also retrieve more details about the Connectivity segment to understand what's driving the growth and operating leverage. Let me also check if there's more detail about the segment's cost structure, D&A, etc.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_31029b30044743e4b54055df",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve details about the Connectivity segment business description, Starlink subscriber growth, and any discussion of operating leverage, cost structure, or margin expansion from {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_6cd6ca86e4384e6589baeb7d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the Segment Adjusted EBITDA reconciliation table showing the adjustments from operating income to Segment Adjusted EBITDA for the Connectivity segment from {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_31029b30044743e4b54055df",
+            "content": "Based on the provided financial and operational highlights, here are the details regarding the Connectivity segment's business description, Starlink subscriber growth, and discussions on operating leverage, cost structure, and margin expansion:\n\n### **1. Connectivity Segment Business Description**\nThe Connectivity segment is primarily driven by **Starlink**, which provides global, high-speed, low-latency internet access via a Low-Earth Orbit (LEO) constellation. As of March 31, 2026, the segment operated over 9,600 broadband and mobile satellites. The business is divided into several key offerings:\n*   **Consumer Broadband:** Operates the world\u2019s largest space-based internet service, offering fiber-like download speeds (median 225 Mbps during peak hours) and low latency (~25 milliseconds). While initially focused on rural, remote, and underserved communities, the value proposition is expanding into suburban and urban environments as network capacity grows.\n*   **Enterprise Solutions:** Provides critical primary or backup connectivity to industries such as aviation, maritime, construction, agriculture, retail, telecom, and hospitality. Major customers include United Airlines, Carnival, Maersk, and John Deere. \n*   **Mobile Connectivity:** Offers satellite-to-mobile texting and over-the-top voice services to supplement terrestrial networks and eliminate \"dead zones\" across approximately 30 countries.\n*   **Revenue Model:** Generates revenue through monthly subscription fees (varying by geography and speed), upfront terminal/kit sales, and enterprise contracts based on subscriptions, data consumption, or capacity.\n\n### **2. Starlink Subscriber Growth**\nStarlink has experienced explosive user adoption, driven by global brand awareness, expanded retail distribution, and new product offerings:\n*   **Subscriber Base:** As of March 31, 2026, Starlink reached approximately **10.3 million subscribers** across 164 countries/territories. This represents a massive **~105% year-over-year growth** from 5.0 million subscribers in Q1 2025 (and up from 2.3 million at the end of 2023).\n*   **Mobile Users:** The satellite-to-mobile service has scaled to approximately **7.4 million monthly unique devices**.\n*   **ARPU Dynamics:** Rapid subscriber growth has been accompanied by a decline in Average Revenue Per User (ARPU). ARPU fell to $66 in Q1 2026 (down 22.9% YoY) and averaged $81 for FY2025 (down 11.2% YoY). This decline is a strategic result of international expansion into emerging markets and the introduction of lower-priced, localized service plans to drive mass adoption.\n\n### **3. Operating Leverage, Cost Structure, and Margin Expansion**\nThe financial highlights demonstrate significant operating leverage and a highly scalable cost structure, though the company continues to invest heavily in next-generation capacity.\n\n**Margin Expansion & Operating Leverage:**\n*   **Outsized Profit Growth:** In FY2025, the Connectivity segment's revenue grew by **49.8%** (to $11.38 billion), but its Income from Operations surged by **120.4%** (to $4.42 billion) and Adjusted EBITDA grew by **86.2%** (to $7.16 billion). This divergence between revenue growth and profit growth highlights strong operating leverage.\n*   **Drivers of Leverage:** The company attributes this sequential EBITDA margin expansion to the \"scale and efficiency of our LEO satellite constellations and our highly verticalized supply chain.\" \n\n**Cost Structure Advantages:**\n*   **Minimal Marginal Costs:** Unlike terrestrial networks that require massive incremental capital expenditures to run cables to low-density areas, Starlink\u2019s space-based architecture enables \"economically scalable service delivery across these regions with minimal marginal cost.\"\n*   **Launch & Hardware Depreciation:** A major component of the segment's cost of revenue is the depreciation of capitalized launch and satellite costs. However, the company is actively mitigating this through the increased reusability of its Falcon launch vehicles, which has successfully lowered depreciation expenses in the Space segment.\n*   **Operating Expenses:** Cost increases are currently being driven by ground operating costs, customer support, payment processing, freight, warranty costs, and targeted marketing/international expansion costs required to onboard new users.\n\n**Future Cost & Capacity Catalysts (Starship & V3 Satellites):**\n*   The company is heavily funding R&D for the **Starship** launch vehicle and next-generation **V3 satellites** (offering 1 Tbps of downlink capacity per satellite). \n*   A single Starship launch will be capable of deploying up to 60 V3 satellites, representing a **twenty-fold increase** in downlink capacity deployed relative to a standard Falcon 9 launch. This is expected to drastically improve network efficiency, lower the cost-per-bit, and further expand margins as enterprise and urban adoption scales."
+          },
+          {
+            "source_call_id": "call_6cd6ca86e4384e6589baeb7d",
+            "content": "Based on the financial highlights provided, here is the Segment Adjusted EBITDA reconciliation table for the year ended December 31, 2025, which details the adjustments from operating income to Segment Adjusted EBITDA for the Connectivity segment (as well as the Space and AI segments):\n\n|  | Year Ended December 31, |\n|  | 2025 |\n| (in millions) | Space |  | Connectivity |  | AI |  | Total Reportable Segments |\n| Income (loss) from operations ............................ | $(657) |  | $4,423 |  | $(6,355) |  | $(2,589) |\n| Add: |  |  |  |  |  |  |  |\n| Depreciation and amortization ............................ | 757 |  | 2,376 |  | 3,568 |  | 6,701 |\n| Share-based compensation .................................. | 515 |  | 369 |  | 1,063 |  | 1,947 |\n| Restructuring charges .......................................... | \u2014 |  | \u2014 |  | 487 |  | 487 |\n| Impairment .......................................................... | 38 |  | \u2014 |  | \u2014 |  | 38 |\n| Segment Adjusted EBITDA ................................ | $653 |  | $7,168 |  | $(1,237) |  | $6,584 |"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4975,
+        "completion_tokens": 197,
+        "cached_tokens": 4352,
+        "cost_usd": 0.0089675
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T23:21:18.296299+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also retrieve the FY2024 reconciliation table to understand the D&A and SBC changes year-over-year.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1db0644f84a74eeb903d96e1",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the Segment Adjusted EBITDA reconciliation table for FY2024 (year ended December 31, 2024) showing adjustments from operating income to Segment Adjusted EBITDA for the Connectivity segment from {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1db0644f84a74eeb903d96e1",
+            "content": "Based on the provided financial documents, here is the Segment Adjusted EBITDA reconciliation table for the Connectivity segment for the fiscal year ended December 31, 2024:\n\n| (in millions) | Connectivity |\n| :--- | :--- |\n| **Income from operations** | **$2,006** |\n| **Add:** | |\n| Depreciation and amortization | 1,508 |\n| Share-based compensation | 296 |\n| Restructuring charges | \u2014 |\n| Impairment | 39 |\n| **Segment Adjusted EBITDA** | **$3,849** |"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6591,
+        "completion_tokens": 124,
+        "cached_tokens": 4352,
+        "cost_usd": 0.0122775
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T23:21:26.315954+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me compile the full analysis.\n\n**FY2025 vs FY2024 Connectivity Segment:**\n\n| Metric | FY2024 | FY2025 | YoY Growth |\n|---|---|---|---|\n| Revenue | $7,599M | $11,387M | +49.8% |\n| Operating Income | $2,006M | $4,423M | +120.5% |\n| Segment Adjusted EBITDA | $3,849M | $7,168M | +86.2% |\n\n**Margins:**\n| Metric | FY2024 | FY2025 | Change |\n|---|---|---|---|\n| Operating Margin | 26.4% | 38.8% | +1,240 bps |\n| Adj. EBITDA Margin | 50.7% | 62.9% | +1,230 bps |\n\n**Reconciliation (D&A and SBC):**\n| Component | FY2024 | FY2025 | YoY Growth |\n|---|---|---|---|\n| D&A | $1,508M | $2,376M | +57.6% |\n| SBC | $296M | $369M | +24.7% |\n| Impairment | $39M | $0M | -100% |\n\nNow let me calculate the D&A growth rate precisely.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_9b361e9def46410f95c341f7",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(2376 - 1508) / 1508 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_4f90fb47d53a499da43376a8",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(369 - 296) / 296 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_09ebd65c9e0940d982dbfea6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "38.84 - 26.40"
+          }
+        },
+        {
+          "tool_call_id": "call_39b7176321ab4ea4ac9e5c09",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "62.95 - 50.65"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_9b361e9def46410f95c341f7",
+            "content": "57.55968169761273"
+          },
+          {
+            "source_call_id": "call_4f90fb47d53a499da43376a8",
+            "content": "24.66216216216216"
+          },
+          {
+            "source_call_id": "call_09ebd65c9e0940d982dbfea6",
+            "content": "12.440000000000005"
+          },
+          {
+            "source_call_id": "call_39b7176321ab4ea4ac9e5c09",
+            "content": "12.300000000000004"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6874,
+        "completion_tokens": 540,
+        "cached_tokens": 6528,
+        "cost_usd": 0.014425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T23:21:29.780671+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need to provide a comprehensive answer. Let me also calculate the operating leverage ratio (profit growth / revenue growth) to quantify the leverage effect.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7fc4fd55f98a45258fda9e3e",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "120.49 / 49.85"
+          }
+        },
+        {
+          "tool_call_id": "call_e060af210c914bf8aefbd1ef",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "86.23 / 49.85"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7fc4fd55f98a45258fda9e3e",
+            "content": "2.417051153460381"
+          },
+          {
+            "source_call_id": "call_e060af210c914bf8aefbd1ef",
+            "content": "1.729789368104313"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7513,
+        "completion_tokens": 114,
+        "cached_tokens": 6528,
+        "cost_usd": 0.0117625
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T23:21:53.434571+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have everything I need. Let me compile the final answer.\n\nKey findings:\n1. Revenue grew 49.8% YoY\n2. Operating Income grew 120.5% YoY (2.4x revenue growth rate)\n3. Segment Adjusted EBITDA grew 86.2% YoY (1.7x revenue growth rate)\n\nThe differential growth rates imply strong operating leverage. The gap between operating income growth (120.5%) and Adj. EBITDA growth (86.2%) is explained by D&A growing faster than revenue (57.6% vs 49.8%), reflecting the capital-intensive satellite deployment cycle.\n\nLet me now write the comprehensive answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_091caa19678147799c547283",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Connectivity Segment \u2014 FY2025 YoY Growth Analysis\n\n### Summary Financial Table (Recast Consolidated Basis)\n\n| Metric | FY2024 | FY2025 | YoY Growth |\n|---|---|---|---|\n| **Revenue** | $7,599M | $11,387M | **+49.8%** |\n| **Operating Income** | $2,006M | $4,423M | **+120.5%** |\n| **Segment Adjusted EBITDA** | $3,849M | $7,168M | **+86.2%** |\n\n### Margin Expansion\n\n| Margin Metric | FY2024 | FY2025 | Change |\n|---|---|---|---|\n| Operating Margin | 26.4% | 38.8% | **+1,240 bps** |\n| Segment Adj. EBITDA Margin | 50.7% | 62.9% | **+1,230 bps** |\n\n### Segment Adjusted EBITDA Reconciliation Bridge\n\n| Component | FY2024 | FY2025 | YoY Growth |\n|---|---|---|---|\n| Operating Income | $2,006M | $4,423M | +120.5% |\n| + Depreciation & Amortization | $1,508M | $2,376M | +57.6% |\n| + Share-Based Compensation | $296M | $369M | +24.7% |\n| + Impairment | $39M | $0M | \u2014 |\n| **= Segment Adjusted EBITDA** | **$3,849M** | **$7,168M** | **+86.2%** |\n\n---\n\n### Operating Leverage Analysis\n\nThe differential growth rates reveal **powerful and multi-layered operating leverage** within the Connectivity segment:\n\n**1. Operating Income grew 2.4\u00d7 faster than revenue (120.5% vs. 49.8%).**\nThis is the clearest signal of operating leverage. As Starlink's subscriber base scaled to ~10.3 million (approximately +105% YoY), the segment's largely fixed-cost satellite network infrastructure allowed incremental revenue to flow through to operating profit at a dramatically higher rate. The ~1,240 bps operating margin expansion (from 26.4% to 38.8%) confirms that the marginal cost of serving additional subscribers is well below the segment's average cost, consistent with the filing's description of \"minimal marginal cost\" for the LEO satellite architecture.\n\n**2. Segment Adjusted EBITDA grew 1.7\u00d7 faster than revenue (86.2% vs. 49.8%), but materially slower than Operating Income.**\nThe gap between Operating Income growth (+120.5%) and Adj. EBITDA growth (+86.2%) is explained by **D&A growing at +57.6%**, outpacing revenue growth. This reflects the capital-intensive satellite deployment cycle \u2014 as SpaceX continues to launch new satellites (over 9,600 in orbit as of Q1 2026), the associated capitalized costs are depreciated, creating a growing D&A charge that partially offsets operating leverage at the EBITDA level. D&A expanded from $1,508M to $2,376M (+$868M), absorbing roughly 23% of the incremental revenue.\n\n**3. SBC grew only +24.7%, well below revenue growth.**\nShare-based compensation grew from $296M to $369M \u2014 a modest increase that further contributed to margin expansion, indicating that headcount-related equity costs are not scaling proportionally with revenue.\n\n**4. ARPU headwinds make the leverage story even more impressive.**\nThe filing discloses that FY2025 average ARPU declined ~11.2% YoY (to $81/month) as Starlink expanded into emerging markets with localized, lower-priced plans. Despite this per-unit pricing pressure, the segment still achieved massive margin expansion \u2014 indicating that volume-driven scale effects and cost efficiencies far outweighed ARPU dilution.\n\n### Implications\n\nThe differential growth rates imply that Connectivity has passed the **inflection point** typical of capital-intensive network businesses:\n\n- **Near-term:** The fixed-cost nature of the satellite constellation means each incremental subscriber contributes high-margin revenue. Operating leverage should persist as the subscriber base grows, though the rate of margin expansion may moderate as the segment scales.\n- **D&A as a headwind to EBITDA leverage:** The faster growth of D&A vs. revenue means that Operating Income will continue to exhibit greater leverage than Adj. EBITDA. This gap will narrow only when the satellite deployment cadence stabilizes or when next-generation Starship/V3 satellites (with 20\u00d7 the downlink capacity per launch) drive down cost-per-bit.\n- **Structural advantage:** The combination of a scalable space-based architecture, vertical integration, and declining launch costs (via Falcon reusability and future Starship) positions Connectivity for sustained margin expansion \u2014 a rare profile for a business still growing revenue at ~50%.\n\n---\n\n**Sources:**\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_091caa19678147799c547283",
+            "content": "## Connectivity Segment \u2014 FY2025 YoY Growth Analysis\n\n### Summary Financial Table (Recast Consolidated Basis)\n\n| Metric | FY2024 | FY2025 | YoY Growth |\n|---|---|---|---|\n| **Revenue** | $7,599M | $11,387M | **+49.8%** |\n| **Operating Income** | $2,006M | $4,423M | **+120.5%** |\n| **Segment Adjusted EBITDA** | $3,849M | $7,168M | **+86.2%** |\n\n### Margin Expansion\n\n| Margin Metric | FY2024 | FY2025 | Change |\n|---|---|---|---|\n| Operating Margin | 26.4% | 38.8% | **+1,240 bps** |\n| Segment Adj. EBITDA Margin | 50.7% | 62.9% | **+1,230 bps** |\n\n### Segment Adjusted EBITDA Reconciliation Bridge\n\n| Component | FY2024 | FY2025 | YoY Growth |\n|---|---|---|---|\n| Operating Income | $2,006M | $4,423M | +120.5% |\n| + Depreciation & Amortization | $1,508M | $2,376M | +57.6% |\n| + Share-Based Compensation | $296M | $369M | +24.7% |\n| + Impairment | $39M | $0M | \u2014 |\n| **= Segment Adjusted EBITDA** | **$3,849M** | **$7,168M** | **+86.2%** |\n\n---\n\n### Operating Leverage Analysis\n\nThe differential growth rates reveal **powerful and multi-layered operating leverage** within the Connectivity segment:\n\n**1. Operating Income grew 2.4\u00d7 faster than revenue (120.5% vs. 49.8%).**\nThis is the clearest signal of operating leverage. As Starlink's subscriber base scaled to ~10.3 million (approximately +105% YoY), the segment's largely fixed-cost satellite network infrastructure allowed incremental revenue to flow through to operating profit at a dramatically higher rate. The ~1,240 bps operating margin expansion (from 26.4% to 38.8%) confirms that the marginal cost of serving additional subscribers is well below the segment's average cost, consistent with the filing's description of \"minimal marginal cost\" for the LEO satellite architecture.\n\n**2. Segment Adjusted EBITDA grew 1.7\u00d7 faster than revenue (86.2% vs. 49.8%), but materially slower than Operating Income.**\nThe gap between Operating Income growth (+120.5%) and Adj. EBITDA growth (+86.2%) is explained by **D&A growing at +57.6%**, outpacing revenue growth. This reflects the capital-intensive satellite deployment cycle \u2014 as SpaceX continues to launch new satellites (over 9,600 in orbit as of Q1 2026), the associated capitalized costs are depreciated, creating a growing D&A charge that partially offsets operating leverage at the EBITDA level. D&A expanded from $1,508M to $2,376M (+$868M), absorbing roughly 23% of the incremental revenue.\n\n**3. SBC grew only +24.7%, well below revenue growth.**\nShare-based compensation grew from $296M to $369M \u2014 a modest increase that further contributed to margin expansion, indicating that headcount-related equity costs are not scaling proportionally with revenue.\n\n**4. ARPU headwinds make the leverage story even more impressive.**\nThe filing discloses that FY2025 average ARPU declined ~11.2% YoY (to $81/month) as Starlink expanded into emerging markets with localized, lower-priced plans. Despite this per-unit pricing pressure, the segment still achieved massive margin expansion \u2014 indicating that volume-driven scale effects and cost efficiencies far outweighed ARPU dilution.\n\n### Implications\n\nThe differential growth rates imply that Connectivity has passed the **inflection point** typical of capital-intensive network businesses:\n\n- **Near-term:** The fixed-cost nature of the satellite constellation means each incremental subscriber contributes high-margin revenue. Operating leverage should persist as the subscriber base grows, though the rate of margin expansion may moderate as the segment scales.\n- **D&A as a headwind to EBITDA leverage:** The faster growth of D&A vs. revenue means that Operating Income will continue to exhibit greater leverage than Adj. EBITDA. This gap will narrow only when the satellite deployment cadence stabilizes or when next-generation Starship/V3 satellites (with 20\u00d7 the downlink capacity per launch) drive down cost-per-bit.\n- **Structural advantage:** The combination of a scalable space-based architecture, vertical integration, and declining launch costs (via Falcon reusability and future Starship) positions Connectivity for sustained margin expansion \u2014 a rare profile for a business still growing revenue at ~50%.\n\n---\n\n**Sources:**\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7680,
+        "completion_tokens": 1462,
+        "cached_tokens": 6528,
+        "cost_usd": 0.025660000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 49334,
+    "total_completion_tokens": 3532,
+    "total_cached_tokens": 41088,
+    "total_cost_usd": 0.107295,
+    "total_steps": 11
+  }
+}

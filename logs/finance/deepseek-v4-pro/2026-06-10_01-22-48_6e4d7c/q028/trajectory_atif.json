@@ -1,0 +1,837 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "7238e417-4ec4-4e70-9c32-d34e181ded54",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "deepseek-v4-pro",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-10T01:22:53.203271+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-10T01:22:53.203271+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nIf GPU procurement costs declined 50%, what would be the implied effect on AI FCF proxy at Q1 2026 run-rates assuming all else equal? Which filing disclosures limit confidence in such an estimate?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-10T01:22:53.203271+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me analyze this question carefully. It's asking about:\n\n1. The implied effect on AI FCF proxy at Q1 2026 run-rates if GPU procurement costs declined 50%\n2. Which filing disclosures limit confidence in such an estimate\n\nFirst, I need to understand what the \"AI FCF proxy\" is in the SpaceX S-1 filing, and then find the relevant GPU procurement cost figures to model this scenario.\n\nLet me start by parsing the S-1 filing and then retrieving relevant information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_52b2e15f4eb24899b7365f05",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_52b2e15f4eb24899b7365f05",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3318,
+        "completion_tokens": 199,
+        "cached_tokens": 0,
+        "cost_usd": 0.010285
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-10T01:23:22.857083+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me first understand the context. The question is about \"AI FCF proxy\" - I need to find how this is defined in the filing, and then find GPU procurement costs. Let me search the filing for these concepts.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_dfd11b03f0ee4e8fb5926864",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the \"AI FCF proxy\" and how is it defined/calculated in {{spacex_s1}}? Show all relevant definitions, calculations, and components."
+          }
+        },
+        {
+          "tool_call_id": "call_49c4fc711425445dac82433d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are GPU procurement costs, GPU-related capital expenditures, or GPU spending disclosed in {{spacex_s1}}? Include any quarterly or run-rate figures especially Q1 2026."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_dfd11b03f0ee4e8fb5926864",
+            "content": "Based on the provided text, there is **no definition, calculation, or mention** of an \"AI FCF proxy\" anywhere in the excerpted sections. The chunks you shared contain an extensive glossary of terms (AI, tokens, orbital AI compute, etc.) and operational descriptions of Starlink, AI economics, risk factors, and financial segment data\u2014but the specific term \"AI FCF proxy\" does not appear. It may be defined elsewhere in the full S-1 filing, but it is not present in the material you provided."
+          },
+          {
+            "source_call_id": "call_49c4fc711425445dac82433d",
+            "content": "Based on the provided financial tables and MD&A excerpts, the following GPU-related costs, capital expenditures, and spending disclosures for Q1 2026 are available:\n\n**Capital Expenditures**\n*   **AI Segment Capital Expenditures (Q1 2026):** **$7,723 million**. This figure, detailed in multiple segment capital expenditure tables, represents the total capital spending for the AI segment, which is primarily directed toward the build-out of compute infrastructure, including GPUs and related data center facilities.\n\n**GPU Depreciation Expense**\n*   **Increase in R&D Due to GPU Depreciation (Q1 2026):** **$908 million**. The MD&A analysis for the three months ended March 31, 2026, states that the $1,957 million increase in total research and development expense was \"primarily due to higher GPU depreciation expense of **$908 million**, and higher cloud computing and data center infrastructure expenses of $301 million associated with the continued build out of our compute infrastructure.\"\n\n**Other Related Infrastructure Spending**\n*   **AI Cloud Computing & Data Center Infrastructure (Q1 2026):** **$301 million**. This is the specific portion of the R&D expense increase, separate from GPU depreciation, that is directly attributed to the build-out of compute infrastructure for the AI segment.\n\n**Annualized/Implied Run-Rate Context**\nThe AI segment's Q1 2026 capital expenditure of **$7,723 million** provides a quarterly run-rate that is more than half of the full-year 2025 AI capital expenditures of $12,727 million, indicating a significant acceleration in spending on AI infrastructure, including GPUs."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3542,
+        "completion_tokens": 194,
+        "cached_tokens": 0,
+        "cost_usd": 0.010795
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-10T01:24:43.293969+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "The term \"AI FCF proxy\" doesn't appear in the S-1. Let me think about what it might refer to. It could be a measure that the filing constructs, perhaps something like \"Adjusted EBITDA less Capex\" for the AI segment, or some other measure. Let me search more broadly for FCF-related concepts, and also look at the AI segment financials more carefully.\n\nLet me search for more specific concepts related to free cash flow, AI segment performance metrics, and GPU procurement.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_6e77780db80247c4ac115ee6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any references to \"free cash flow\", \"FCF\", \"cash flow\", \"operating cash flow\" or similar cash-flow based metrics in {{spacex_s1}}, particularly any that might serve as a proxy for AI segment performance or profitability."
+          }
+        },
+        {
+          "tool_call_id": "call_84ff562729fa4ad2a1c61225",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the AI segment income statement / P&L for Q1 2026 and full year 2025 in {{spacex_s1}}, including revenue, cost of revenue, R&D, SG&A, operating income, EBITDA, Adjusted EBITDA, depreciation, and any other segment-level financial metrics."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_6e77780db80247c4ac115ee6",
+            "content": "I found no mentions of \u201cfree cash flow\u201d or \u201cFCF\u201d anywhere in the provided text. However, numerous references to operating cash flow, investing/financing cash flow line items, and the general concept of cash flow appear. Here is a complete list:\n\n### Cash\u2011flow statement line items (metrics)\n\n- **\u201cNet cash provided by operating activities\u201d** (operating cash flow metric) appears multiple times:\n  - In the year\u2011end cash\u2011flow table under the chunk labeled \u201cThis chunk concludes the operating activities section\u2026\u201d:\n    ```\n    | Net cash provided by operating activities ........................ | $6,785 |  | $5,776 |  | $4,520 |\n    ```\n  - In the MD&A analysis narrative within the same structural section:\n    - \u201cNet cash provided by operating activities increased by $320 million \u2026\u201d\n    - \u201cNet cash provided by operating activities increased by $1,009 million \u2026\u201d\n    - \u201cNet cash provided by operating activities increased by $1,256 million \u2026\u201d\n  - In the pro forma cash\u2011flow statements presented in a later preamble chunk:\n    ```\n    | Net cash provided by operating activities .......................................... | $1,047 |  | $727 |  | $6,785 |  | $5,776 |  | $4,520 |\n    ```\n\n- **\u201cNet cash used in investing activities\u201d** appears:\n  - In the initial MD&A narrative:\n    \u201cNet cash used in investing activities increased by $5,929 million \u2026\u201d\n  - In the year\u2011end cash\u2011flow table and the pro forma table (e.g., `$(19,575)`, `$(10,796)`, `$(4,867)`).\n\n- **\u201cNet cash provided by financing activities\u201d** appears:\n  - In multiple MD&A analysis paragraphs (e.g., \u201cincreased by $6,771 million \u2026\u201d, \u201cincreased by $14,520 million \u2026\u201d, \u201cincreased by $11,408 million \u2026\u201d).\n  - In the year\u2011end table and the pro forma table.\n\n### Other cash\u2011flow references\n\n- **\u201ccash flows generated from operations\u201d** \u2013 used as a description of a primary liquidity source:\n  > \u201cOur primary sources of liquidity are cash flows generated from operations, our total cash and cash equivalents of $15,852 million as of March 31, 2026\u2026\u201d\n\n- **\u201ccash flow from operations\u201d** \u2013 appears in a risk factor:\n  > \u201cif we are unable to generate sufficient cash flow from operations or obtain additional financing on acceptable terms\u2026\u201d\n\n- **\u201ccash flow\u201d** (standalone, as a general business concept) \u2013 appears in the company\u2019s strategic principles:\n  > \u201c7. Generate significant cash flow and reinvest in the future.\u201d\n  > \u201cAs our businesses scale, they generate significant cash flow, which we reinvest into nascent market opportunities\u2026\u201d\n\nNo \u201cfree cash flow,\u201d \u201cFCF,\u201d or the exact phrase \u201coperating cash flow\u201d (as a standalone term) appears anywhere in the text."
+          },
+          {
+            "source_call_id": "call_84ff562729fa4ad2a1c61225",
+            "content": "Based on the provided document chunks, here is the AI segment income statement/P&L for Q1 2026 and the full year 2025.\n\n**AI Segment - Three Months Ended March 31, 2026**\n| | 2026 |\n| :--- | :--- |\n| **Revenue** | **$818** |\n| **Costs and expenses** | |\n| Cost of revenue | 456 |\n| Research and development | 2,379 |\n| Selling, general and administrative | 463 |\n| Restructuring charges | (11) |\n| **Total costs and expenses** | **3,287** |\n| **Loss from operations** | **$(2,469)** |\n\n**AI Segment - Year Ended December 31, 2025**\n| | 2025 |\n| :--- | :--- |\n| **Revenue** | **$3,201** |\n| **Costs and expenses** | |\n| Cost of revenue | 2,178 |\n| Research and development | 5,064 |\n| Selling, general, and administrative | 1,827 |\n| Restructuring charges | 487 |\n| Impairment | \u2014 |\n| **Total costs and expenses** | **9,556** |\n| **Loss from operations** | **$(6,355)** |\n\n**Additional Segment Metrics (not part of P&L but provided in the tables)**\n| | Q1 2026 | FY 2025 |\n| :--- | :--- | :--- |\n| Segment Adjusted EBITDA | $(609) | $(1,237) |\n| Capital expenditures | $7,723 | $12,727 |\n\n*Note: A reconciliation of Loss from Operations to Segment Adjusted EBITDA for Q1 2026 was not explicitly provided, though the text states to refer to the \"Non-GAAP Financial Measures\" section. The FY 2025 reconciliation was also not included in the provided chunks.*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4201,
+        "completion_tokens": 291,
+        "cached_tokens": 2944,
+        "cost_usd": 0.0097325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-10T01:25:25.171948+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I need to find:\n1. The reconciliation of Segment Adjusted EBITDA for Q1 2026 (to see what adjustments are made, particularly depreciation)\n2. Any discussion of GPU procurement costs specifically\n3. Any discussion of \"AI FCF proxy\" - even if not explicitly named, there might be some implied measure\n\nLet me search for: Adjusted EBITDA reconciliation, GPU procurement, and also look for anything about a proxy measure for AI segment cash flow.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3b007b92a2444196914665a8",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the reconciliation of Segment Adjusted EBITDA from Loss from Operations for the AI segment in Q1 2026 and FY 2025 in {{spacex_s1}}. Show all adjustments including depreciation, amortization, stock-based compensation, restructuring, impairment, and any other adjustments."
+          }
+        },
+        {
+          "tool_call_id": "call_6615be59ef8a413ca4d226fe",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any discussion or mention of GPU procurement costs specifically - how GPUs are purchased, capitalized, or expensed in {{spacex_s1}}. Also find any discussion of GPU-related capital commitments, purchase obligations, or expected future GPU spending."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3b007b92a2444196914665a8",
+            "content": "For the AI segment, the reconciliation of Loss from Operations to Segment Adjusted EBITDA is as follows:\n\n**Three Months Ended March 31, 2026 (Q1 2026)**\n| (in millions) | AI |\n|---------------|----|\n| Loss from operations | $(2,469) |\n| Add: | |\n| Depreciation and amortization | 1,493 |\n| Share-based compensation | 378 |\n| Restructuring charges (credit) | (11) |\n| Impairment | \u2014 |\n| **Segment Adjusted EBITDA** | **$(609)** |\n\n**Year Ended December 31, 2025 (FY 2025)**\n| (in millions) | AI |\n|---------------|----|\n| Loss from operations | $(6,355) |\n| Add: | |\n| Depreciation and amortization | 3,568 |\n| Share-based compensation | 1,063 |\n| Restructuring charges | 487 |\n| Impairment | \u2014 |\n| **Segment Adjusted EBITDA** | **$(1,237)** |\n\nAll adjustments\u2014depreciation and amortization, share-based compensation, restructuring charges (including a credit in Q1 2026), and impairment (none for AI in either period)\u2014are added back to the AI segment\u2019s loss from operations to arrive at Segment Adjusted EBITDA."
+          },
+          {
+            "source_call_id": "call_6615be59ef8a413ca4d226fe",
+            "content": "The provided text contains the following information regarding GPU procurement, accounting treatment, and future spending:\n\n**1. How GPUs are Purchased**\nThe text explicitly states that the company procures its GPUs on a purchase-order basis without long-term contracts.\n> \"We do not have any long-term or other material contractual arrangements with our direct chip suppliers, instead procuring all of our GPUs on a purchase-order basis.\" (Supply Chain Risk Factors)\n\n**2. How GPUs are Capitalized or Expensed**\nThe text indicates that GPUs are capitalized and subsequently depreciated, with that depreciation being a primary driver of Research and Development (R&D) expenses.\n> \"Research and development... increased... primarily due to higher GPU depreciation expense of $908 million\" (Quarterly MD&A)\n> \"Research and development... increased... primarily due to higher GPU depreciation expense of $1,673 million\" (Annual MD&A)\nThe accounting policies note confirms that R&D expenses include \"depreciation of data center assets, including processors,\" and that costs for assets are capitalized and depreciated ratably over their useful life.\n\n**3. GPU-Related Capital Commitments, Purchase Obligations, or Expected Future Spending**\n- **Expected Future Spending:** The text states the company intends to make substantial capital expenditures to obtain third-party GPUs and manufacture its own.\n    > \"we have made and intend to continue to make substantial capital expenditures to support the growth of our AI products, including costs related to obtaining third-party GPUs, manufacturing our own GPUs...\"\n- **Absence of Long-Term Purchase Obligations:** As noted above, the company explicitly states it has no long-term or material contractual arrangements with its direct chip suppliers, procuring instead on a purchase-order basis.\n- **Supply Commitments:** The document mentions a compute agreement where the company will \"provide Cursor with certain GPU cluster compute capacity,\" which represents a commitment of GPU resources rather than a procurement obligation."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5529,
+        "completion_tokens": 273,
+        "cached_tokens": 4224,
+        "cost_usd": 0.0112725
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-10T01:26:39.372035+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I need to understand the AI FCF proxy. The term doesn't explicitly appear, but it seems like the question might be referring to something like:\n\nSegment Adjusted EBITDA - Capital Expenditures\n\nThat would be a common \"FCF proxy\" for a segment. Let me verify by looking at what the filing says about this.\n\nFor Q1 2026:\n- AI Segment Adjusted EBITDA: $(609) million\n- AI Capital Expenditures: $7,723 million\n- So AI FCF proxy (Adjusted EBITDA - Capex) would be: $(609) - $7,723 = $(8,332) million\n\nBut I need to understand specifically what the question is asking. It mentions \"GPU procurement costs declined 50%\". GPU procurement costs are capitalized as capex, not expensed. So GPU procurement costs affect AI capex, which in turn affects the FCF proxy.\n\nNow, the question is: what portion of AI capex is GPU procurement? Let me look for this breakdown.\n\nAlso, let me search for any explicit discussion of an \"AI FCF proxy\" or any measure that combines segment profitability with capex.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b59ca5e59a104f02a78b87b5",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any discussion or break down of AI segment capital expenditures in {{spacex_s1}}. What components make up AI capex? Is there any breakdown of how much is GPU procurement vs. data centers vs. manufacturing vs. other?"
+          }
+        },
+        {
+          "tool_call_id": "call_07236840dbb340f7b17cdb86",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any discussion of \"GPU procurement\" costs, GPU purchase costs, or GPU capital spending specifically broken out from other AI capex in {{spacex_s1}}. Also search for any mention of NVIDIA or other GPU supplier costs."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b59ca5e59a104f02a78b87b5",
+            "content": "Based on the provided document chunks, **there is no quantitative breakdown of AI segment capital expenditures** into specific components like GPU procurement, data center construction, manufacturing, or other categories. The financial tables and narrative discussions only present total AI capex figures (e.g., $5,633 million in 2024, $12,727 million in 2025, $7,723 million in Q1 2026).\n\n### What the text does say about the composition of AI capex:\n\n- **General components are mentioned qualitatively** but not numerically allocated. For example:\n  - \u201cWe have made and intend to continue to make substantial capital expenditures to support the growth of our AI products, **including costs related to obtaining third-party GPUs, manufacturing our own GPUs, and constructing, leasing, maintaining, enhancing, and expanding our data centers**.\u201d\n  - A risk factor notes that AI capital expenditures include \u201cinvestments in **specialized computing hardware, data center infrastructure, energy procurement, and technical personnel**.\u201d\n\n- **The primary driver** of the increase in AI capex is repeatedly attributed to **data center expansion**:\n  - \u201cAI capital expenditures for the three months ended March 31, 2026 increased \u2026 primarily driven by **investments in the rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities and supporting infrastructure**.\u201d\n  - Similar language is used for the annual increases in 2025 and 2024.\n\n- A general **industry estimate from SemiAnalysis** is cited elsewhere, but it does **not** represent the company\u2019s own actual spending split:\n  - \u201cAccording to SemiAnalysis, for most AI companies without a build cost advantage, their total capital cost of building compute infrastructure derives approximately **30% from data center construction costs** \u2026 and approximately **70% from the cost of procuring processors and critical IT equipment**.\u201d\n  - This is a hypothetical industry benchmark, not a disclosure of the company\u2019s own CapEx.\n\n- The company\u2019s **property, plant, and equipment note** lists asset categories like \u201cServers and networking equipment,\u201d \u201cData center infrastructure,\u201d and \u201cConstruction-in-progress\u201d (which includes \u201cAI infrastructure that has not yet been placed in service\u201d), but **no dollar amounts or segment-level splits** are provided in the chunks you shared.\n\n**Conclusion:** No breakdown of AI capital expenditures into GPU vs. data centers vs. manufacturing vs. other is available in the supplied document fragments. The only available segmentation is by reportable segment (Space, Connectivity, AI) at a total level, not by type of asset or activity within the AI segment."
+          },
+          {
+            "source_call_id": "call_07236840dbb340f7b17cdb86",
+            "content": "The preamble includes a direct statement on GPU procurement as part of AI capital expenditures:  \n*\u201cwe have made and intend to continue to make substantial capital expenditures to support the growth of our AI products, including costs related to obtaining third-party GPUs, manufacturing our own GPUs, and constructing, leasing, maintaining, enhancing, and expanding our data centers.\u201d*  \n\nAdditionally, in the discussion of cost\u2011per\u2011token economics, it cites an industry breakdown from SemiAnalysis that frames GPU procurement as a major component of total compute infrastructure capex:  \n*\u201cfor most AI companies without a build cost advantage, their total capital cost of building compute infrastructure derives approximately 30% from data center construction costs \u2026 and approximately 70% from the cost of procuring processors and critical IT equipment.\u201d*  \n\nNo explicit mention of NVIDIA or other GPU supplier *costs* is provided. NVIDIA is referenced only in bibliographic citations (e.g., \u201cNVIDIA GTC 2025 \u2026\u201d, \u201cNVIDIA Blackwell Ultra Datasheet\u201d) and in passing when using an H100 SXM as a benchmark for power consumption; there is no disclosure of amounts paid to NVIDIA or any other specific supplier."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6481,
+        "completion_tokens": 404,
+        "cached_tokens": 5504,
+        "cost_usd": 0.0133625
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-10T01:27:24.369863+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I need to understand what the \"AI FCF proxy\" is. The filing doesn't explicitly use this term. Let me search more broadly. It could be a measure like Adjusted EBITDA less CapEx or something similar. Let me look for any measure described as a \"proxy\" or any measure combining segment profitability and capex.\n\nActually, let me think about this differently. The question asks: \"If GPU procurement costs declined 50%, what would be the implied effect on AI FCF proxy at Q1 2026 run-rates assuming all else equal?\" \n\nThis is likely a measure like:\n- AI Segment Adjusted EBITDA minus AI Capital Expenditures\n- Or some other cash-flow proxy\n\nThe GPU procurement costs would be part of AI capex. A 50% decline would reduce AI capex proportionally to the GPU procurement share.\n\nBut the key issue is: the filing does NOT break down GPU procurement from total AI capex. The best we have is the SemiAnalysis industry estimate that ~70% of compute infrastructure capex is GPU/procurement.\n\nLet me look for any explicit \"AI FCF proxy\" term once more, and also look at how the filing presents the segment data to see if there's a standard measure they compute.\n\nLet me also check if there's any specific measure discussed in the MD&A or elsewhere that combines segment-level profitability with capex.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ef449ed15c0d45a4b6a8440d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Search the entire {{spacex_s1}} filing for any mention of \"proxy\", \"FCF proxy\", \"free cash flow proxy\", \"cash flow proxy\", or any measure described as a proxy for free cash flow or cash generation at the segment level."
+          }
+        },
+        {
+          "tool_call_id": "call_453c0ab7255d4cbbb9d2136e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Search {{spacex_s1}} for any discussion that compares or combines segment Adjusted EBITDA with capital expenditures. Also look for any disclosure that discusses \"cash generation\", \"cash consumption\", or \"burn rate\" at the AI segment level."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ef449ed15c0d45a4b6a8440d",
+            "content": "After searching the entire provided filing text, I found **no mentions** of the following terms or concepts:\n\n- \"proxy\"\n- \"FCF proxy\"\n- \"free cash flow proxy\"\n- \"cash flow proxy\"\n- Any measure described as a proxy for free cash flow or cash generation at the segment level\n\nThe document does reference both \"free cash flow\" (in the context of stock option vesting conditions) and \"Segment Adjusted EBITDA\" (as a non-GAAP measure), but **never describes any metric as a \"proxy\" for free cash flow or cash generation** at the segment level."
+          },
+          {
+            "source_call_id": "call_453c0ab7255d4cbbb9d2136e",
+            "content": "I found the specific chunk that matches your description. It is the one that includes the **2023 segment Adjusted EBITDA reconciliation table** for Space, Connectivity, and AI, shows a large AI impairment of $3,775 million, and immediately transitions into the **MD&A Liquidity and Capital Resources** section with the primary cash sources and balances.\n\nHere is that chunk, extracted directly from the provided text:\n\n> **[SECTION: PREAMBLE]**\n> Restructuring charges       ..........................................\n> \n> **[SECTION: PREAMBLE]**\n> Impairment         ..........................................................\n> \n> **[SECTION: PREAMBLE]**\n> Segment Adjusted EBITDA       ................................\n> \n> **[SECTION: PREAMBLE]**\n> |  | Year Ended December 31, |\n> |  | 2023 |\n> | (in millions) | Space |  | Connectivity |  | AI |  | Total Reportable Segments |\n> | Income (loss) from operations ............................ | $(1) |  | $469 |  | $(3,973) |  | $(3,505) |\n> | Add: |  |  |  |  |  |  |  |\n> | Depreciation and amortization ............................ | 571 |  | 884 |  | 1,180 |  | 2,635 |\n> | Share-based compensation .................................. | 427 |  | 249 |  | 3 |  | 679 |\n> | Restructuring charges .......................................... | \u2014 |  | \u2014 |  | 237 |  | 237 |\n> | Impairment .......................................................... | \u2014 |  | \u2014 |  | 3,775 |  | 3,775 |\n> | Segment Adjusted EBITDA ................................ | $997 |  | $1,602 |  | $1,222 |  | $3,821 |\n> \n> **[SECTION: PREAMBLE]**\n> Income (loss) from operations         ............................\n> \n> ... (repeated preamble lines) ...\n> \n> **[SECTION: PREAMBLE]**\n> Segment Adjusted EBITDA       ................................\n> \n> **[SECTION: PREAMBLE]**\n> Our primary sources of liquidity are cash flows generated from operations, our total cash and cash equivalents of\n> \n> **[SECTION: PREAMBLE]**\n> $15,852 million  as of March 31, 2026, short-term marketable securities of  $7,823 million   as of March 31, 2026,  and\n> \n> **[... Structural Fragment Break ...]**\n\nThis chunk begins with the 2023 reconciliation showing the $(3,973) million AI operating loss and the $3,775 million impairment, then leads into the liquidity discussion with the cash and marketable securities balances as of March 31, 2026."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7679,
+        "completion_tokens": 456,
+        "cached_tokens": 6528,
+        "cost_usd": 0.0155975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-10T01:28:11.476243+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "The term \"AI FCF proxy\" is not explicitly defined in the filing. However, common practice in IPO analysis (and given the context of this being an IPO agent benchmark) would be to define the AI FCF proxy as:\n\n**AI FCF Proxy = AI Segment Adjusted EBITDA - AI Capital Expenditures**\n\nThis is a standard approach used by analysts to approximate segment-level free cash flow when full cash flow statements aren't available at the segment level. Adjusted EBITDA strips out non-cash items (D&A, SBC) and non-recurring items (restructuring, impairment), and capex represents the ongoing cash investment.\n\nLet me now compute this:\n\nQ1 2026:\n- AI Segment Adjusted EBITDA: $(609) million\n- AI Capital Expenditures: $7,723 million\n- AI FCF Proxy = $(609) - $7,723 = $(8,332) million\n\nNow, the question is: what happens if GPU procurement costs decline 50%?\n\nGPU procurement costs are part of AI capex. But the filing doesn't break down AI capex into GPU vs. non-GPU components. The closest we have is the SemiAnalysis industry estimate that ~70% of compute infrastructure costs are GPU procurement.\n\nLet me note: there are two ways GPU procurement costs flow through:\n1. Via Capex (capitalized and then depreciated over time)\n2. The question says \"GPU procurement costs declined 50%\", which presumably affects the capex outflow\n\nThe question also says \"at Q1 2026 run-rates\" and \"all else equal.\"\n\nSo the effect would be: AI capex declines by 50% of the GPU procurement portion.\n\nBut since the filing doesn't disclose the GPU procurement share, I need to use the industry benchmark (70% from SemiAnalysis) as a rough proxy, while noting this limitation.\n\nLet me also consider: could GPU procurement costs also affect operating expenses? GPUs, once purchased, are capitalized and depreciated. A 50% decline in procurement costs NOW wouldn't immediately affect depreciation (which is based on historical purchases), unless we're in a steady-state where depreciation roughly equals procurement. At Q1 2026, depreciation was $1,493 million for the AI segment. The GPU depreciation component was $908 million (as noted for the increase). But total GPU depreciation might be higher than just the increase.\n\nActually, the question says \"GPU procurement costs declined 50%\", which I think is about the cash cost of procuring GPUs (i.e., capex), not depreciation. \"All else equal\" would mean depreciation stays the same (at least in the short run).\n\nLet me now compute:\n\nUsing the 70% industry benchmark:\n- GPU procurement as % of AI capex: ~70%\n- Q1 2026 AI capex: $7,723 million\n- Implied GPU procurement (quarterly): $7,723 \u00d7 0.70 = $5,406.1 million\n- 50% decline: savings of $2,703.05 million\n- New AI capex: $7,723 - $2,703.05 = $5,019.95 million\n- New AI FCF proxy: $(609) - $5,019.95 = $(5,628.95) million\n- Improvement: $2,703.05 million (from $(8,332) to $(5,628.95))\n\nBut wait, I should also note that the filing might not use this definition. Let me search for whether the company itself provides any segment-level FCF or similar metric.\n\nLet me also consider: with lower GPU procurement costs, in the longer run, depreciation would also be lower. But the question says \"at Q1 2026 run-rates\" which I think means annualizing Q1 2026 figures, and \"all else equal\" which I think means we hold everything else constant.\n\nLet me also search for any disclosure about GPU procurement costs specifically, and whether there's any specific discussion about what portion of capex is GPU-related.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_401a86ff9fad489e82d7243d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, find the annualized or run-rate discussion. Are any Q1 2026 figures discussed on an annualized or run-rate basis? Also find any discussion of AI segment cash consumption, burn rate, or implied free cash flow."
+          }
+        },
+        {
+          "tool_call_id": "call_e924a37730bb4ad88eac81cc",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the AI segment capital expenditures for all periods (Q1 2026, FY 2025, FY 2024, FY 2023) and any quarterly breakdown within 2025 in {{spacex_s1}}. Also find the total consolidated capital expenditures for comparison."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_401a86ff9fad489e82d7243d",
+            "content": "Based on the provided text, here are the answers to your questions:\n\n**1. Are any Q1 2026 figures discussed on an annualized or run-rate basis?**\n\nNo. The provided text does not contain any discussion of Q1 2026 figures on an annualized or run-rate basis. All figures for the first quarter of 2026 are presented as actual results for the \"three months ended March 31, 2026,\" and the comparisons are made directly against the prior-year quarter.\n\n**2. Is there any discussion of AI segment cash consumption, burn rate, or implied free cash flow?**\n\nNo. The text does not use the terms \"cash consumption,\" \"burn rate,\" or \"free cash flow\" for the AI segment. However, the text does discuss the significant capital investments and expected timeline for profitability, which is directly related to these concepts:\n\n*   **Multi-year Investment Horizon and Losses:** The document states, \"...we plan to allocate substantial capital to build our AI compute infrastructure, and we expect a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA. Our AI segment has incurred significant operating losses since inception...\" This implies a long period of negative cash flow.\n*   **Capital Expenditures (CapEx):** The investment needs are quantified by the AI segment's capital expenditures. For Q1 2026, AI CapEx was **$7,723 million**, which represented over 76% of the company's total capital expenditures of $10,107 million for the quarter."
+          },
+          {
+            "source_call_id": "call_e924a37730bb4ad88eac81cc",
+            "content": "Based on the capital expenditures table in the MD&A section, the AI segment capital expenditures for the requested periods are:\n\n| Period | AI Segment CapEx (in millions) | Total Consolidated CapEx (in millions) |\n|--------|--------------------------------|----------------------------------------|\n| **Q1 2026** (three months ended March 31, 2026) | $7,723 | $10,107 |\n| **Q1 2025** (three months ended March 31, 2025) \u2013 *quarterly breakdown within 2025* | $2,567 | $4,140 |\n| **FY 2025** (year ended December 31, 2025) | $12,727 | $20,737 |\n| **FY 2024** (year ended December 31, 2024) | $5,633 | $11,163 |\n| **FY 2023** (year ended December 31, 2023) | $463 | $4,415 |\n\nThe only quarterly breakdown provided for 2025 is the first quarter (Q1 2025). No other individual quarters within 2025 are disclosed in the provided sections."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8868,
+        "completion_tokens": 1023,
+        "cached_tokens": 7808,
+        "cost_usd": 0.02264
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-10T01:28:52.689694+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a clear picture. Let me also check if there's any additional disclosure about GPU procurement costs specifically - maybe in the risk factors or MD&A sections.\n\nLet me also look for the \"Non-GAAP Financial Measures\" section to see if there's any measure defined there that could be the AI FCF proxy.\n\nBut actually, I think the term \"AI FCF proxy\" is most likely a term from the analyst/IPO context rather than one used in the filing. The standard analyst construction would be:\n\nAI FCF Proxy = AI Segment Adjusted EBITDA - AI Capital Expenditures\n\nLet me also search for any discussion of what share of AI capex is specifically GPU-related, or if there are any other disclosures that would help narrow down the GPU procurement component.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_167d2522a37242d69fe3af7c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the complete Non-GAAP Financial Measures section in {{spacex_s1}}. Does it define any measure that combines Adjusted EBITDA with capital expenditures? Does it define any segment-level cash flow measure?"
+          }
+        },
+        {
+          "tool_call_id": "call_415175906baf4388aa9f5e42",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any discussion in {{spacex_s1}} about what percentage or portion of AI capital expenditures goes to GPU procurement vs data centers vs other infrastructure. Include the SemiAnalysis citation and any company-specific disclosure."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_167d2522a37242d69fe3af7c",
+            "content": "Based on the provided text, the answer to both of your questions is **no**.\n\n**Does it define any measure that combines Adjusted EBITDA with capital expenditures?**\nNo, the provided text does not define or present a measure that combines Adjusted EBITDA with capital expenditures. While the document presents both \"Segment Adjusted EBITDA\" and \"Capital Expenditures\" for each segment, they are reported separately. For example, the text shows that in Q1 2026, the Space segment had a Segment Adjusted EBITDA of $(351) million and capital expenditures of $1,052 million, but it does not combine or net these figures into a single defined metric (such as \"Free Cash Flow\").\n\n**Does it define any segment-level cash flow measure?**\nNo, the provided text does not define any segment-level cash flow measure. The non-GAAP financial measures discussed are exclusively profitability-based reconciliations: \"Adjusted EBITDA\" is reconciled to consolidated net income (loss), and \"Segment Adjusted EBITDA\" is reconciled to segment income (loss) from operations. The section on \"Liquidity and Capital Resources\" discusses primary sources of liquidity at the consolidated level, referencing consolidated cash flows from operations and cash balances, without segment-level detail. While the text presents a table of \"capital expenditures by segment,\" this is a component of investing cash flow, not a comprehensive cash flow measure."
+          },
+          {
+            "source_call_id": "call_415175906baf4388aa9f5e42",
+            "content": "Based on the provided text, here is the discussion regarding the percentage of AI capital expenditures allocated to GPU procurement, data centers, and other infrastructure:\n\nThe document provides a specific industry-wide breakdown from an external source but does not provide a corresponding internal, percentage-based breakdown of its own capital expenditures. The company's disclosures explain the drivers of its spending increases in qualitative terms.\n\n**Industry-Wide Breakdown (SemiAnalysis Citation)**\nThe Preamble section cites a SemiAnalysis report to establish the general cost structure of building compute infrastructure for AI. This breakdown, which applies to most AI companies without a build cost advantage, is as follows:\n*   **~70%:** Procurement of processors and critical IT equipment.\n*   **~30%:** Data center construction costs (including the shell, MEP, and grid interconnection).\n\n**Company-Specific Disclosure**\nThe company's Management\u2019s Discussion and Analysis (MD&A) section discusses its own capital expenditures for the AI segment but does so in narrative form rather than offering a percentage split. It explains that the significant year-over-year increases in AI capital expenditures were \"primarily driven by significant investments in the rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities and supporting infrastructure.\" The term \"equipping\" would encompass spending on GPUs and other IT equipment, but no specific ratio is provided."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10463,
+        "completion_tokens": 312,
+        "cached_tokens": 9600,
+        "cost_usd": 0.0172775
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-10T01:30:10.095185+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now let me also look at the complete picture. Let me search for any disclosure about total GPU-related assets, GPU depreciation, or anything that could help triangulate the GPU procurement component of capex.\n\nAlso, let me look at the property, plant and equipment note to see if there's a breakdown by asset category that might help estimate GPU vs. non-GPU capex.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_247f12dff05c4ad3b95cb4f6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the property, plant and equipment note in {{spacex_s1}} showing the breakdown of assets by category (servers, networking, data center infrastructure, construction in progress, etc.) with dollar amounts for each category. Also find the useful lives or depreciation policies for GPU-related assets."
+          }
+        },
+        {
+          "tool_call_id": "call_57ebe711d37441458284fc56",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any discussion of GPU depreciation expense specifically. What was the total GPU depreciation expense in Q1 2026 and FY 2025? How does this relate to total AI segment depreciation?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_247f12dff05c4ad3b95cb4f6",
+            "content": "Based on the provided chunk, I\u2019ve located the **Property, Plant and Equipment note (Note 5)** that shows the breakdown by asset category with dollar amounts, along with the **useful lives and depreciation policies** that would apply to GPU\u2011related assets.\n\n---\n\n### 1. Property, Plant and Equipment Note (with dollar amounts)\n\n**Note 5 \u2013 Property, Plant, and Equipment, Net**  \n*As presented in the interim financial statements (March 31, 2026 vs. December 31, 2025)*\n\n|  | March 31, 2026 | December 31, 2025 |\n| :--- | ---: | ---: |\n| **(in millions)** |  |  |\n| Servers and networking equipment | $23,850 | $22,694 |\n| Satellites | 12,893 | 11,949 |\n| Machinery and equipment | 8,020 | 6,343 |\n| Data center infrastructure | 2,965 | 2,960 |\n| Launch sites | 2,479 | 2,404 |\n| Land, buildings and improvements\u207d\u00b9\u207e | 2,018 | 1,876 |\n| Flight vehicle hardware | 1,459 | 1,689 |\n| Leasehold improvements | 842 | 784 |\n| Construction\u2011in\u2011progress | 14,045 | 4,604 |\n| **Property, plant, and equipment** | **68,571** | **55,303** |\n| Less: Accumulated depreciation | (14,692) | (12,701) |\n| **Property, plant, and equipment, net** | **$53,879** | **$42,602** |\n\n*Construction in progress is primarily comprised of ongoing construction and expansion of the facilities and equipment as well as AI infrastructure that has not yet been placed in service.*\n\n*(The same categories appear in the year\u2011end 2025 vs. 2024 table, with servers & networking at $22,694 million and $6,892 million, respectively.)*\n\n---\n\n### 2. Useful Lives and Depreciation Policies (including GPU\u2011related assets)\n\nFrom the **significant accounting policies** section, the estimated useful lives of the Company\u2019s property, plant and equipment are:\n\n| Classification | Estimated Useful Life |\n| :--- | :--- |\n| **Servers and networking equipment** | **5 \u2013 6 years** |\n| Satellites | 3 \u2013 5 years |\n| Machinery and equipment | 3 \u2013 10 years |\n| Flight vehicle hardware | 5 \u2013 25 flights |\n| Data center infrastructure | 20 \u2013 25 years |\n| Launch sites | 7 \u2013 20 years |\n| Buildings and improvements | 30 years |\n| Leasehold improvements | Shorter of 7 \u2013 20 years or the lease term |\n\n**Depreciation method** (from the same policy note):  \n\u201cProperty, plant, and equipment are stated at cost, less accumulated depreciation. Depreciation is computed using the **straight\u2011line method** over the estimated useful lives of the assets except flight vehicles, which is computed based on the expected number of average flights for each flight vehicle.\u201d\n\n**GPU\u2011related assets:**  \nThe financial statements do not present a separate line for GPUs. GPUs are included in **\u201cServers and networking equipment.\u201d** Therefore, any GPU assets are:\n- Depreciated on a **straight\u2011line basis** over an estimated useful life of **5 to 6 years**.  \n- The related data center shell/infrastructure (racks, cooling, power, etc.) is depreciated over **20 to 25 years** under \u201cData center infrastructure,\u201d but that does not apply to the GPUs themselves."
+          },
+          {
+            "source_call_id": "call_57ebe711d37441458284fc56",
+            "content": "Based on the provided document sections, here is the discussion and analysis of GPU depreciation expense:\n\n**Total GPU Depreciation Expense**\n*   **Q1 2026**: **$908 million**\n*   **FY 2025**: **$1,673 million**\n\n**Discussion & Sources**\nThe document specifically discusses GPU depreciation expense in the context of explaining increases in Research and Development (R&D) costs:\n*   **Q1 2026**: The MD&A section on quarterly variances states that the R&D increase was \"primarily due to higher GPU depreciation expense of **$908 million**.\"\n*   **FY 2025**: The MD&A section on annual results states that the R&D increase was \"primarily due to higher GPU depreciation expense of **$1,673 million**.\"\n\n**Relationship to Total AI Segment Depreciation**\nThe GPU depreciation expense is a component of the total **Depreciation and amortization** reported for the **AI segment**. The document provides the total segment-level depreciation figures:\n\n*   **Q1 2026**: Total AI segment depreciation and amortization was **$1,493 million**. The specific GPU depreciation of $908 million makes up the majority of this total.\n*   **FY 2025**: Total AI segment depreciation and amortization was **$3,568 million**. The specific GPU depreciation of $1,673 million accounts for a significant portion of this total."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11343,
+        "completion_tokens": 249,
+        "cached_tokens": 0,
+        "cost_usd": 0.0308475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-10T01:32:38.365303+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a very clear picture. Let me summarize:\n\n1. The filing does NOT define an \"AI FCF proxy.\" However, the standard analyst construction would be: AI Segment Adjusted EBITDA minus AI Capital Expenditures.\n\n2. For Q1 2026:\n   - AI Segment Adjusted EBITDA: $(609) million\n   - AI Capital Expenditures: $7,723 million\n   - AI FCF Proxy (implied): $(609) - $7,723 = $(8,332) million\n\n3. GPU procurement costs: The filing doesn't break out GPU procurement separately from AI capex. But:\n   - GPUs are capitalized in \"Servers and networking equipment\" (useful life 5-6 years)\n   - The SemiAnalysis industry estimate is ~70% of compute infrastructure goes to GPU procurement\n   - The MD&A says capex increases are \"primarily driven by...rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities\"\n\n4. Limitations:\n   - No company-specific breakdown of GPU vs. non-GPU capex\n   - No explicit \"AI FCF proxy\" definition\n   - GPU procurement is on purchase-order basis, no long-term contracts\n   - The SemiAnalysis 70% figure is an industry benchmark, not company-specific\n   - GPU depreciation ($908M in Q1 2026) is different from procurement costs\n   - \"All else equal\" assumption may be unrealistic given the rapid scaling\n   - The company also intends to manufacture its own GPUs, which complicates the procurement picture\n\nLet me now compute the implied effects:\n\nUsing SemiAnalysis 70% benchmark:\n- Q1 2026 AI Capex: $7,723M\n- Estimated GPU procurement: $7,723M \u00d7 0.70 = $5,406.1M\n- 50% decline: Savings of $5,406.1M \u00d7 0.50 = $2,703.05M\n- New AI Capex: $7,723M - $2,703.05M = $5,019.95M\n- New AI FCF Proxy: $(609)M - $5,019.95M = $(5,628.95)M\n- Improvement: $2,703.05M\n\nBut wait - should I annualize Q1 2026? The question says \"at Q1 2026 run-rates.\" This could mean:\n- Using Q1 2026 quarterly figures as-is, or\n- Annualizing Q1 2026 to get a full-year run-rate\n\nI think \"run-rates\" suggests annualizing. Let me compute both:\n- Quarterly: improvement of $2,703.05M\n- Annualized: Q1 \u00d7 4 = improvement of $10,812.2M\n\nActually, let me re-read: \"what would be the implied effect on AI FCF proxy at Q1 2026 run-rates.\" I think this means: take Q1 2026 figures, annualize them (multiply by 4), and then see the effect.\n\nAnnualized:\n- AI Segment Adjusted EBITDA: $(609)M \u00d7 4 = $(2,436)M\n- AI Capex: $7,723M \u00d7 4 = $30,892M\n- AI FCF Proxy: $(2,436)M - $30,892M = $(33,328)M\n\nWith 50% GPU procurement decline:\n- GPU procurement: $30,892M \u00d7 0.70 = $21,624.4M\n- Savings: $10,812.2M\n- New AI Capex: $30,892M - $10,812.2M = $20,079.8M\n- New AI FCF Proxy: $(2,436)M - $20,079.8M = $(22,515.8)M\n- Improvement: $10,812.2M\n\nBut let me also consider that some portion of GPU procurement might be for the company's own GPU manufacturing. The filing says \"manufacturing our own GPUs\" which would have a different cost structure. This adds uncertainty.\n\nNow, let me think about what \"AI FCF proxy\" means more carefully. There might be a more specific definition used in the IPO analyst community. Let me check if there's anything in the filing that discusses segment-level cash flow generation or a measure that subtracts capex from adjusted EBITDA.\n\nActually, let me also consider whether the depreciation adjustment to get from operating income to Adjusted EBITDA matters here. If GPU procurement costs decline 50%, that only affects the capital expenditure side (cash outflow for purchasing GPUs), not the depreciation adjustment (which relates to previously purchased GPUs). So the AI FCF proxy would improve by the amount of the capex savings.\n\nLet me also look for any other disclosures that might affect this analysis, such as:\n- Whether the company breaks out GPU-related capex from data center capex\n- Whether there are purchase commitments disclosed\n- The relationship between GPU depreciation and GPU procurement\n\nLet me now construct my answer. But first, let me also check if there's any mention of \"AI FCF\" or \"segment free cash flow\" in any other context in the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ce0f7bffbf6e4b7d8a6e6dd6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, find any discussion of segment-level profitability combined with capital spending. Look for any statement that discusses \"Adjusted EBITDA less capex\", \"Adjusted EBITDA minus capital expenditures\", \"segment cash flow\", or any analyst-style metric that combines profitability with investment."
+          }
+        },
+        {
+          "tool_call_id": "call_ff408361c9a24b5f8ee74bde",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any discussion in {{spacex_s1}} about the relationship between GPU procurement and GPU depreciation - specifically, how procurement costs flow through to the income statement over time. Also find any discussion of the gap between capex and depreciation for AI assets, or the expected path of depreciation as GPU fleet grows."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ce0f7bffbf6e4b7d8a6e6dd6",
+            "content": "After carefully reviewing all the provided text chunks, there is **no discussion** of any metric that combines segment-level profitability with capital spending. The document presents:\n\n- **Segment Adjusted EBITDA** as a non-GAAP profitability measure (reconciled separately).\n- **Capital expenditures by segment** in a separate table and narrative.\n- Statements about heavy capital investment and the path to future profitability, but **never** a calculated or discussed metric like \u201cAdjusted EBITDA less capex,\u201d \u201cAdjusted EBITDA minus capital expenditures,\u201d \u201csegment cash flow,\u201d or any similar analyst-style combined measure.\n\nThe two concepts are consistently kept separate, with explanations segment by segment, but no single figure or ratio that blends them."
+          },
+          {
+            "source_call_id": "call_ff408361c9a24b5f8ee74bde",
+            "content": "Based on the provided excerpts, the relationship between GPU procurement and GPU depreciation, as well as the expected trajectory of depreciation as the AI compute fleet grows, is discussed in several sections:\n\n### 1. MD&A Results of Operations \u2013 Drivers of Increased R&D Expense (fiscal year and quarterly)\nThese passages explicitly link the build\u2011out of compute infrastructure (procurement) to higher GPU depreciation expense on the income statement.\n\n- **Year ended December\u202f31, 2025**  \n  > \u201cResearch and development \u2026 increased by $3,888 million \u2026 primarily due to higher **GPU depreciation expense of $1,673 million**, higher infrastructure and cloud computing expenses of $1,440 million **associated with the build out of our compute infrastructure**\u2026\u201d  \n  *(MD&A Results of Operations chunk comparing full\u2011year 2025 to 2024)*\n\n- **Three months ended March\u202f31, 2026**  \n  > \u201cResearch and development \u2026 increased by $1,471 million \u2026 primarily due to higher **GPU depreciation expense of $908 million**, and higher cloud computing and data center infrastructure expenses of $301 million **associated with the continued build out of our compute infrastructure**\u2026\u201d  \n  *(MD&A Results of Operations quarterly chunk)*\n\n- **Full\u2011year 2025 segment\u2011level driver**  \n  > \u201cResearch and development expense \u2026 increased \u2026 primarily due to higher R&D costs in our AI segment of $3,888 million **driven by the depreciation of GPU hardware and the cost of cloud computing as a result of our AI data center expansions**.\u201d  \n  *(Segment\u2011level MD&A chunk)*\n\nThese statements indicate that as the company procures and expands its GPU/data center infrastructure, the associated depreciation charges immediately rise and flow through R&D expense, contributing to the segment\u2019s operating loss.\n\n### 2. AI Segment Description \u2013 Expected Path of Depreciation as Compute Infrastructure Expands\nThe narrative that describes the AI segment\u2019s cost structure explicitly ties future investment to a continuing increase in R&D expenses (which include GPU depreciation).\n\n> \u201cAI segment\u2019s R&D expenses mainly relate to the training of Grok \u2026 **These costs include \u2026 depreciation of data center assets, including processors**, equipment lease expenses, and networking equipment.  \n> **We expect AI R&D expenses to increase, both in absolute dollars and as a percentage of revenue, as we invest in compute infrastructure for Grok.**\u201d  \n*(AI segment overview chunk)*\n\nThis confirms that the expected path of depreciation is upward as the GPU fleet grows through ongoing procurement.\n\n### 3. Property, Plant & Equipment Note \u2013 How Procurement Costs Flow to Depreciation Over Time\nThe accounting policy explains the mechanism: capital expenditures are first recorded as construction\u2011in\u2011progress (no depreciation) and then, once placed in service, depreciated, thereby impacting the income statement.\n\n> \u201c**Construction in progress** is primarily comprised of ongoing construction and expansion of the facilities and equipment as well as **AI infrastructure that has not yet been placed in service**.  \n> **Depreciation expense** for the three months ended March\u202f31, 2026 and 2025 was $2,329 million and $1,237 million, respectively.  \n> Interest is capitalized during the construction period for significant long term construction projects, such as the **AI infrastructure data centers**\u2026\u201d  \n*(Notes to financial statements \u2013 Property, Plant & Equipment chunk)*\n\nThis illustrates the flow: procurement of AI assets (GPUs) initially sits in construction in progress; once the assets are placed in service, depreciation begins, and the depreciation charge grows as more assets become operational.\n\n### 4. Risk Factors \u2013 Gap Between Capital Expenditures and Near\u2011Term Profitability, Multi\u2011Year Investment Horizon\nAlthough not a direct numerical gap analysis, these risk disclosures describe the substantial capital outlays for GPUs and data centers and warn that these investments will lead to \u201creduced profitability or increased losses\u201d over a multi\u2011year period \u2013 the effect of rapidly rising depreciation charges well in excess of near\u2011term incremental revenue.\n\n- > \u201cDeveloping, training, and providing inference for frontier AI models requires **substantial and growing capital expenditures, including investments in specialized computing hardware, data center infrastructure**\u2026 We plan to allocate **substantial capital to build our AI compute infrastructure, and we expect a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA**.\u201d  \n*(Risk Factors \u2013 AI segment capital intensity chunk)*\n\n- > \u201cWe have incurred significant capital expenditures and expect to increase \u2026 In addition, we have made and intend to continue to make **substantial capital expenditures to support the growth of our AI products, including costs related to obtaining third\u2011party GPUs, manufacturing our own GPUs, and constructing \u2026 data centers**. We may choose to increase or accelerate \u2026 which could result in **periods of reduced profitability or increased losses as we prioritize long\u2011term growth over near\u2011term financial performance**.\u201d  \n*(Risk Factors \u2013 capital expenditures chunk)*\n\nThese passages connect high GPU procurement directly to future losses, which is the consequence of the depreciation cost flowing through the income statement before the assets generate sufficient returns, effectively describing the gap between capex and the timing of depreciation\u2019s earnings impact.\n\nThus, the documents collectively discuss: (i) how GPU procurement costs are capitalized and then depreciated into R&D expense over time (PP&E note, segment description), (ii) that depreciation charges are currently rising rapidly as the GPU fleet expands (MD&A variance explanations), and (iii) that the company expects a prolonged period during which capital expenditures and depreciation will outpace the incremental contribution from those assets, keeping the AI segment deeply unprofitable (risk factors)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12670,
+        "completion_tokens": 1296,
+        "cached_tokens": 11392,
+        "cost_usd": 0.030395
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-10T01:33:34.593633+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also check for any discussion of purchase obligations or commitments that might help quantify GPU procurement.\n\nLet me also look at the construction-in-progress balance to understand what portion might be GPU-related.\n\nLet me now also look for the total GPU depreciation in Q1 2026 and try to estimate the GPU asset base.\n\nGPU depreciation in Q1 2026 was $908 million. If useful life is 5-6 years, that implies annual depreciation of $908M \u00d7 4 = $3,632M (annualized). At a 5-6 year life, the GPU asset base would be roughly $3,632M \u00d7 5.5 = ~$19,976M. But this is a very rough estimate given the rapid growth.\n\nActually, let me also look for the purchase obligations note to see if there are any GPU-related purchase commitments.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_31cc803e60224438aafa0be1",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the purchase obligations, commitments, and contingencies note in {{spacex_s1}}. Are there any GPU-related or compute infrastructure purchase commitments disclosed? What are the total purchase obligations?"
+          }
+        },
+        {
+          "tool_call_id": "call_2a394175b5454e8093531f2a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the total consolidated Adjusted EBITDA for Q1 2026 and FY 2025 in {{spacex_s1}}. Also find the consolidated net cash provided by operating activities and total capex for these periods to understand the consolidated free cash flow context."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_31cc803e60224438aafa0be1",
+            "content": "Yes, the purchase obligations, commitments, and contingencies note discloses non\u2011cancelable contractual commitments that primarily relate to the company\u2019s investments in AI infrastructure and third\u2011party cloud capacity (i.e., GPU\u2011related and compute infrastructure). The total of these obligations as of the reporting date is **$25,451** (in millions of dollars, as presented in the maturity schedule)."
+          },
+          {
+            "source_call_id": "call_2a394175b5454e8093531f2a",
+            "content": "**Consolidated Adjusted EBITDA (Non\u2011GAAP)**\n- **Q1 2026 (three months ended March 31, 2026):** $1,127 million  \n- **FY 2025 (year ended December 31, 2025):** $6,584 million  \n\n**Consolidated Net Cash Provided by Operating Activities**\n- **Q1 2026:** $1,047 million  \n- **FY 2025:** $6,785 million  \n\n**Total Capital Expenditures (Capex)**\n- **Q1 2026:** $10,107 million (purchases of property, plant, and equipment from the cash flow statement)  \n- **FY 2025:** $20,737 million (total capital expenditures per the MD&A segment table)  \n\n**Free Cash Flow Context (Operating Cash Flow \u2013 Capex)**\n- **Q1 2026:** $1,047M \u2013 $10,107M = \u2013$9,060 million  \n- **FY 2025:** $6,785M \u2013 $20,737M = \u2013$13,952 million  \n\nAll amounts are in millions of U.S. dollars."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15285,
+        "completion_tokens": 347,
+        "cached_tokens": 0,
+        "cost_usd": 0.041682500000000004
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-06-10T01:33:58.621008+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a pretty complete picture. Let me also look at the purchase obligations more carefully to see if there's a GPU-specific breakdown.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_497ddcc1d72d4d5d905178bb",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the complete purchase obligations maturity schedule from {{spacex_s1}}. Show the breakdown by period (less than 1 year, 1-3 years, 3-5 years, more than 5 years). Also describe what these purchase obligations primarily consist of."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_497ddcc1d72d4d5d905178bb",
+            "content": "The purchase obligations maturity schedule, showing the breakdown by period, is as follows:\n\n| Period | Amount (in millions) |\n| :--- | :--- |\n| Less than 1 year (2026) | $2,720 |\n| 1\u20133 years (2027\u20132028) | $22,726 |\n| 3\u20135 years (2029\u20132030) | $5 |\n| More than 5 years (Thereafter) | $\u2014 |\n| **Total** | **$25,451** |\n\n**What these purchase obligations primarily consist of:**  \nThese non-cancelable contractual commitments are primarily for the company\u2019s investments in **AI infrastructure and third-party cloud capacity arrangements**, as well as other service arrangements. They also include commitments under the Spectrum Transaction, which are payable in a combination of cash and the company\u2019s Class A Common Stock."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15973,
+        "completion_tokens": 128,
+        "cached_tokens": 15488,
+        "cost_usd": 0.0218525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-06-10T01:34:43.034049+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a comprehensive picture. Let me construct my answer.\n\nKey findings:\n\n1. **AI FCF Proxy Definition**: The filing does NOT define an \"AI FCF proxy.\" The standard analyst construction would be:\n   - AI FCF Proxy = AI Segment Adjusted EBITDA \u2013 AI Capital Expenditures\n\n2. **Q1 2026 figures**:\n   - AI Segment Adjusted EBITDA: $(609) million\n   - AI Capital Expenditures: $7,723 million\n   - Implied AI FCF Proxy: $(8,332) million (quarterly)\n   - Annualized run-rate: $(33,328) million\n\n3. **GPU Procurement Cost Context**:\n   - GPUs are procured on a purchase-order basis (no long-term contracts)\n   - GPU procurement costs are capitalized in PP&E (servers and networking equipment, 5-6 year useful life)\n   - GPU depreciation in Q1 2026 was $908 million\n   - The filing does NOT break out GPU procurement from total AI capex\n   - The SemiAnalysis industry benchmark suggests ~70% of compute infrastructure capex is GPU procurement\n\n4. **Effect of 50% GPU procurement cost decline**:\n   - Using the 70% industry benchmark: GPU procurement in Q1 2026 AI capex \u2248 $7,723M \u00d7 0.70 = $5,406.1M\n   - 50% decline saves $2,703.05M quarterly\n   - New AI capex: $5,019.95M\n   - New AI FCF Proxy (quarterly): $(609) \u2013 $5,019.95 = $(5,628.95)M\n   - Improvement: $2,703.05M (quarterly) or $10,812.2M annualized\n   - The AI FCF proxy would improve by approximately $2,703M quarterly (or ~$10.8B annualized)\n\n5. **Disclosures limiting confidence**:\n   - No company-specific GPU procurement vs. data center capex breakdown\n   - \"AI FCF proxy\" is not a company-defined metric\n   - The SemiAnalysis 70% is an external industry benchmark, not company-specific\n   - GPU procurement is on purchase-order basis (no long-term contracts) - pricing is opaque\n   - The company also manufactures its own GPUs, blurring \"procurement\" definition\n   - \"All else equal\" assumption is unrealistic: lower GPU costs could change procurement volumes, revenue strategies, competitive dynamics\n   - GPU depreciation ($908M in Q1 2026) would not change under \"all else equal\" (relates to historical purchases)\n   - Rapid scaling: Q1 2026 capex is $7,723M vs. FY2025 full year $12,727M - run-rate is accelerating\n   - Purchase obligations of $25.5B (mostly 1-3 years) suggest significant committed spending, but these are non-cancelable commitments, not necessarily all GPU-related\n   - The construction-in-progress balance ($14B at March 2026) contains AI infrastructure not yet in service, making it hard to separate GPU from non-GPU\n   - The filing doesn't disclose per-GPU pricing or volume\n\nLet me also consider: what about the 2026 purchase obligations of $2,720M? If these are primarily AI infrastructure, that would suggest that a significant portion of procurement is already committed and might not benefit from a price decline (unless these are cancellable). But the filing says \"non-cancelable.\"\n\nNow let me write my final answer.\n\nOne more thing - let me consider whether the \"AI FCF proxy\" might be defined differently. Let me search one more time specifically for any mention of this term in the context of the overall filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_01619d4abb6f4c4ea3f5949e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Search the entire {{spacex_s1}} for any mention of \"FCF\", \"free cash\", or \"cash flow proxy\" in the context of the AI segment or segment reporting. Also search for any table or disclosure that subtracts capital expenditures from any profitability metric at either the consolidated or segment level."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_01619d4abb6f4c4ea3f5949e",
+            "content": "After thoroughly searching the provided document sections, here are the findings:\n\n**No mentions of \u201cFCF,\u201d \u201cfree cash,\u201d or \u201ccash flow proxy\u201d**  \nThe terms \u201cFCF,\u201d \u201cfree cash,\u201d and \u201ccash flow proxy\u201d do not appear anywhere in the searched text, whether in connection with the AI segment, segment reporting, or otherwise.  \n\n**No table or disclosure subtracts capital expenditures from a profitability metric**  \n- Profitability metrics disclosed include **net income (loss)**, **income (loss) from operations**, and the non-GAAP measures **Adjusted EBITDA** and **Segment Adjusted EBITDA**.  \n- Capital expenditures are presented as standalone line items in the segment tables (e.g., \u201cCapital expenditures \u2026 $7,723\u201d for AI in Q1 2026) and in the consolidated cash flow statement (under investing activities).  \n- **Nowhere is capital expenditure deducted from any of these profitability metrics**\u2014neither at the consolidated level nor for the individual segments. For example, Segment Adjusted EBITDA is defined as segment income (loss) from operations excluding depreciation, share-based compensation, restructuring, and impairment; it explicitly **does not** subtract capital expenditures.  \n- The cash flow statement shows net cash from operating activities and net cash used in investing activities (which includes capex), but it does not present a computed \u201cfree cash flow\u201d subtotal or any similar metric.  \n\nIn summary, the document emphasizes capital expenditure amounts alongside profit measures but does not combine them into a free cash flow figure or any cash flow proxy at either the consolidated or segment level."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16290,
+        "completion_tokens": 901,
+        "cached_tokens": 15744,
+        "cost_usd": 0.030055
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 16,
+      "timestamp": "2026-06-10T01:35:21.703836+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a complete picture. Let me construct the final answer.\n\nTo summarize:\n- The filing does not define \"AI FCF proxy.\" The most reasonable interpretation is AI Segment Adjusted EBITDA minus AI Capital Expenditures.\n- Q1 2026: AI Segment Adjusted EBITDA = $(609)M, AI Capex = $7,723M\n- The filing does not break out GPU procurement from total AI capex. The only benchmark is the SemiAnalysis industry estimate of ~70%.\n- Using that: estimated GPU procurement = $5,406.1M quarterly, savings from 50% decline = $2,703.05M\n- The AI FCF proxy would improve by the amount of capex savings: ~$2.7B quarterly or ~$10.8B annualized\n- But many disclosures limit confidence\n\nLet me now write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_f0b508de4eb246ba9213c78a",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "# Implied Effect of a 50% Decline in GPU Procurement Costs on AI FCF Proxy (Q1 2026 Run-Rates)\n\n## 1. Defining the \"AI FCF Proxy\"\n\nThe SpaceX S-1 does **not** define an \"AI FCF proxy\" or any segment-level free-cash-flow measure. The filing presents Segment Adjusted EBITDA and segment capital expenditures as separate, uncombined disclosures. The most reasonable analyst-constructed proxy\u2014and the one this analysis adopts\u2014is:\n\n> **AI FCF Proxy = AI Segment Adjusted EBITDA \u2013 AI Capital Expenditures**\n\nThis nets the segment's closest approximation of operating cash generation (Adjusted EBITDA, which excludes D&A, SBC, restructuring, and impairment) against its principal recurring cash investment (capex).\n\n## 2. Q1 2026 Baseline (Actual Reported Figures)\n\n| Metric | Q1 2026 (in millions) |\n|---|---|\n| AI Segment Revenue | $818 |\n| AI Loss from Operations | $(2,469) |\n| *Add: Depreciation & amortization* | $1,493 |\n| *Add: Share-based compensation* | $378 |\n| *Add: Restructuring (credit)* | $(11) |\n| **AI Segment Adjusted EBITDA** | **$(609)** |\n| AI Capital Expenditures | $7,723 |\n| **Implied AI FCF Proxy (quarterly)** | **$(8,332)** |\n| **Implied AI FCF Proxy (annualized run-rate)** | **$(33,328)** |\n\n## 3. GPU Procurement Cost: What the Filing Discloses\n\nThe filing does **not** break out GPU procurement costs from total AI capex. The key disclosures are:\n\n- **Procurement method**: GPUs are procured on a **purchase-order basis** with no long-term or material contractual arrangements with direct chip suppliers.\n- **Accounting treatment**: GPUs are capitalized within \"Servers and networking equipment\" (PP&E, useful life 5\u20136 years) and depreciated straight-line. GPU depreciation flowing through AI R&D was **$908 million** in Q1 2026 (and $1,673 million in FY 2025).\n- **External benchmark**: The filing cites a SemiAnalysis industry estimate that for most AI companies, **~70%** of total compute infrastructure capital cost derives from processor/IT equipment procurement, with ~30% attributable to data center construction.\n- **No company-specific split**: The MD&A describes AI capex increases as \"primarily driven by significant investments in the rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities,\" but provides no quantitative allocation between GPUs, data centers, manufacturing, or other categories.\n\n## 4. Estimated Effect of a 50% GPU Procurement Cost Decline\n\nUsing the **SemiAnalysis 70% benchmark** as the only available allocation framework:\n\n| Step | Calculation | Amount (quarterly, $M) |\n|---|---|---|\n| Q1 2026 AI Capex | (A) | $7,723 |\n| Estimated GPU procurement share | (B) = (A) \u00d7 70% | $5,406.1 |\n| 50% cost decline savings | (C) = (B) \u00d7 50% | $2,703.1 |\n| Revised AI Capex | (D) = (A) \u2013 (C) | $5,019.9 |\n| AI Segment Adjusted EBITDA (unchanged) | (E) | $(609) |\n| **Revised AI FCF Proxy** | (F) = (E) \u2013 (D) | **$(5,628.9)** |\n| **Improvement in AI FCF Proxy** | = (C) | **$2,703.1** |\n\n| | Quarterly | Annualized Run-Rate |\n|---|---|---|\n| Baseline AI FCF Proxy | $(8,332)M | $(33,328)M |\n| Revised AI FCF Proxy | $(5,629)M | $(22,516)M |\n| **Implied improvement** | **$2,703M** | **$10,812M** |\n\nThe improvement flows entirely through reduced capex. Under the \"all else equal\" assumption, GPU depreciation (tied to *historical* procurement) and all other P&L items are unchanged.\n\n## 5. Disclosures That Limit Confidence in This Estimate\n\nThe following filing-specific disclosure gaps materially limit the reliability of the estimate above:\n\n### (a) No Company-Specific GPU/Non-GPU Capex Split\nThe 70/30 SemiAnalysis split is an **external, industry-level benchmark**, not a company-specific disclosure. SpaceX may have a materially different cost structure given its vertically-integrated approach (e.g., the company states it intends to **manufacture its own GPUs**, which would alter the procurement-vs-construction mix). The MD&A's attribution of capex increases to data center expansion could imply a data-center-heavy mix inconsistent with the 70% assumption.\n\n### (b) \"AI FCF Proxy\" Is Not a Company-Defined Metric\nThe company does not define, endorse, or present any metric combining Segment Adjusted EBITDA with capex. Segment Adjusted EBITDA is explicitly a profitability measure (not a cash-flow measure), and the company cautions that non-GAAP measures \"should not be considered in isolation.\" Any \"FCF proxy\" constructed from these components is an analyst artifact.\n\n### (c) GPU Procurement Is on Purchase-Order Basis\nThe absence of long-term supply contracts means GPU pricing and volume are not observable through disclosed commitments. The $25.5 billion in total purchase obligations (primarily AI infrastructure and cloud capacity, with $22.7 billion due in 2027\u20132028) are **non-cancelable**; it is unclear what portion relates to GPU procurement versus data center leases, cloud arrangements, or other commitments, and a 50% price decline might not reduce already-committed spending.\n\n### (d) \"All Else Equal\" Is Unrealistic\nThe condition that only GPU procurement costs change while procurement *volumes*, revenue trajectory, competitive dynamics, and pricing strategy all remain constant is counterfactual. A halving of GPU costs would likely alter the company's procurement volume, deployment timeline, pricing to customers, and competitive positioning\u2014all of which would cascade through both Adjusted EBITDA and capex.\n\n### (e) Short-Run vs. Long-Run Distinction\nIn the short run (the Q1 2026 \"run-rate\" framing), GPU depreciation ($908M in Q1 2026) reflects *past* procurement and would not change. Over time, lower procurement costs would reduce the GPU asset base and thus future depreciation, eventually improving Adjusted EBITDA as well. The estimate above captures only the immediate capex effect and understates the long-run impact.\n\n### (f) Rapid Scaling Obscures Steady-State Run-Rate\nQ1 2026 AI capex of $7,723 million already exceeds half of full-year 2025 AI capex ($12,727 million). The construction-in-progress balance surged to $14.0 billion at March 31, 2026 (from $4.6 billion at year-end 2025), suggesting a significant pipeline of AI assets not yet placed in service. This trajectory makes any \"run-rate\" extrapolation inherently fragile.\n\n### (g) Manufacturing Ambition Blurs \"Procurement\"\nThe filing states the company intends to manufacture its own GPUs. To the extent GPU costs reflect internal manufacturing rather than third-party procurement, the notion of a uniform 50% cost decline is ambiguous\u2014internal manufacturing costs would follow a different cost structure than purchase-order pricing from external suppliers.\n\n### (h) GPU Depreciation vs. Procurement Gap\nGPU depreciation of $908M in Q1 2026 (annualized: ~$3.6B) is substantially below estimated quarterly procurement of ~$5.4B (annualized: ~$21.6B), reflecting the fact that the GPU fleet is still being built and many assets are in construction-in-progress (not yet depreciating). This gap means the full P&L burden of current procurement levels has not yet materialized, complicating any FCF assessment.\n\n---\n\nIn sum, the **directional effect** is clear\u2014a 50% GPU procurement cost decline would meaningfully reduce AI capex and thus improve the AI FCF proxy by an estimated **~$2.7 billion quarterly (~$10.8 billion annualized)** under the available industry-benchmark allocation. However, the **magnitude** is highly uncertain, and the S-1's lack of a GPU-specific capex breakdown, absence of any company-defined FCF proxy, and the unrealistic \"all else equal\" premise make this estimate illustrative rather than reliable for investment decisions.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_f0b508de4eb246ba9213c78a",
+            "content": "# Implied Effect of a 50% Decline in GPU Procurement Costs on AI FCF Proxy (Q1 2026 Run-Rates)\n\n## 1. Defining the \"AI FCF Proxy\"\n\nThe SpaceX S-1 does **not** define an \"AI FCF proxy\" or any segment-level free-cash-flow measure. The filing presents Segment Adjusted EBITDA and segment capital expenditures as separate, uncombined disclosures. The most reasonable analyst-constructed proxy\u2014and the one this analysis adopts\u2014is:\n\n> **AI FCF Proxy = AI Segment Adjusted EBITDA \u2013 AI Capital Expenditures**\n\nThis nets the segment's closest approximation of operating cash generation (Adjusted EBITDA, which excludes D&A, SBC, restructuring, and impairment) against its principal recurring cash investment (capex).\n\n## 2. Q1 2026 Baseline (Actual Reported Figures)\n\n| Metric | Q1 2026 (in millions) |\n|---|---|\n| AI Segment Revenue | $818 |\n| AI Loss from Operations | $(2,469) |\n| *Add: Depreciation & amortization* | $1,493 |\n| *Add: Share-based compensation* | $378 |\n| *Add: Restructuring (credit)* | $(11) |\n| **AI Segment Adjusted EBITDA** | **$(609)** |\n| AI Capital Expenditures | $7,723 |\n| **Implied AI FCF Proxy (quarterly)** | **$(8,332)** |\n| **Implied AI FCF Proxy (annualized run-rate)** | **$(33,328)** |\n\n## 3. GPU Procurement Cost: What the Filing Discloses\n\nThe filing does **not** break out GPU procurement costs from total AI capex. The key disclosures are:\n\n- **Procurement method**: GPUs are procured on a **purchase-order basis** with no long-term or material contractual arrangements with direct chip suppliers.\n- **Accounting treatment**: GPUs are capitalized within \"Servers and networking equipment\" (PP&E, useful life 5\u20136 years) and depreciated straight-line. GPU depreciation flowing through AI R&D was **$908 million** in Q1 2026 (and $1,673 million in FY 2025).\n- **External benchmark**: The filing cites a SemiAnalysis industry estimate that for most AI companies, **~70%** of total compute infrastructure capital cost derives from processor/IT equipment procurement, with ~30% attributable to data center construction.\n- **No company-specific split**: The MD&A describes AI capex increases as \"primarily driven by significant investments in the rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities,\" but provides no quantitative allocation between GPUs, data centers, manufacturing, or other categories.\n\n## 4. Estimated Effect of a 50% GPU Procurement Cost Decline\n\nUsing the **SemiAnalysis 70% benchmark** as the only available allocation framework:\n\n| Step | Calculation | Amount (quarterly, $M) |\n|---|---|---|\n| Q1 2026 AI Capex | (A) | $7,723 |\n| Estimated GPU procurement share | (B) = (A) \u00d7 70% | $5,406.1 |\n| 50% cost decline savings | (C) = (B) \u00d7 50% | $2,703.1 |\n| Revised AI Capex | (D) = (A) \u2013 (C) | $5,019.9 |\n| AI Segment Adjusted EBITDA (unchanged) | (E) | $(609) |\n| **Revised AI FCF Proxy** | (F) = (E) \u2013 (D) | **$(5,628.9)** |\n| **Improvement in AI FCF Proxy** | = (C) | **$2,703.1** |\n\n| | Quarterly | Annualized Run-Rate |\n|---|---|---|\n| Baseline AI FCF Proxy | $(8,332)M | $(33,328)M |\n| Revised AI FCF Proxy | $(5,629)M | $(22,516)M |\n| **Implied improvement** | **$2,703M** | **$10,812M** |\n\nThe improvement flows entirely through reduced capex. Under the \"all else equal\" assumption, GPU depreciation (tied to *historical* procurement) and all other P&L items are unchanged.\n\n## 5. Disclosures That Limit Confidence in This Estimate\n\nThe following filing-specific disclosure gaps materially limit the reliability of the estimate above:\n\n### (a) No Company-Specific GPU/Non-GPU Capex Split\nThe 70/30 SemiAnalysis split is an **external, industry-level benchmark**, not a company-specific disclosure. SpaceX may have a materially different cost structure given its vertically-integrated approach (e.g., the company states it intends to **manufacture its own GPUs**, which would alter the procurement-vs-construction mix). The MD&A's attribution of capex increases to data center expansion could imply a data-center-heavy mix inconsistent with the 70% assumption.\n\n### (b) \"AI FCF Proxy\" Is Not a Company-Defined Metric\nThe company does not define, endorse, or present any metric combining Segment Adjusted EBITDA with capex. Segment Adjusted EBITDA is explicitly a profitability measure (not a cash-flow measure), and the company cautions that non-GAAP measures \"should not be considered in isolation.\" Any \"FCF proxy\" constructed from these components is an analyst artifact.\n\n### (c) GPU Procurement Is on Purchase-Order Basis\nThe absence of long-term supply contracts means GPU pricing and volume are not observable through disclosed commitments. The $25.5 billion in total purchase obligations (primarily AI infrastructure and cloud capacity, with $22.7 billion due in 2027\u20132028) are **non-cancelable**; it is unclear what portion relates to GPU procurement versus data center leases, cloud arrangements, or other commitments, and a 50% price decline might not reduce already-committed spending.\n\n### (d) \"All Else Equal\" Is Unrealistic\nThe condition that only GPU procurement costs change while procurement *volumes*, revenue trajectory, competitive dynamics, and pricing strategy all remain constant is counterfactual. A halving of GPU costs would likely alter the company's procurement volume, deployment timeline, pricing to customers, and competitive positioning\u2014all of which would cascade through both Adjusted EBITDA and capex.\n\n### (e) Short-Run vs. Long-Run Distinction\nIn the short run (the Q1 2026 \"run-rate\" framing), GPU depreciation ($908M in Q1 2026) reflects *past* procurement and would not change. Over time, lower procurement costs would reduce the GPU asset base and thus future depreciation, eventually improving Adjusted EBITDA as well. The estimate above captures only the immediate capex effect and understates the long-run impact.\n\n### (f) Rapid Scaling Obscures Steady-State Run-Rate\nQ1 2026 AI capex of $7,723 million already exceeds half of full-year 2025 AI capex ($12,727 million). The construction-in-progress balance surged to $14.0 billion at March 31, 2026 (from $4.6 billion at year-end 2025), suggesting a significant pipeline of AI assets not yet placed in service. This trajectory makes any \"run-rate\" extrapolation inherently fragile.\n\n### (g) Manufacturing Ambition Blurs \"Procurement\"\nThe filing states the company intends to manufacture its own GPUs. To the extent GPU costs reflect internal manufacturing rather than third-party procurement, the notion of a uniform 50% cost decline is ambiguous\u2014internal manufacturing costs would follow a different cost structure than purchase-order pricing from external suppliers.\n\n### (h) GPU Depreciation vs. Procurement Gap\nGPU depreciation of $908M in Q1 2026 (annualized: ~$3.6B) is substantially below estimated quarterly procurement of ~$5.4B (annualized: ~$21.6B), reflecting the fact that the GPU fleet is still being built and many assets are in construction-in-progress (not yet depreciating). This gap means the full P&L burden of current procurement levels has not yet materialized, complicating any FCF assessment.\n\n---\n\nIn sum, the **directional effect** is clear\u2014a 50% GPU procurement cost decline would meaningfully reduce AI capex and thus improve the AI FCF proxy by an estimated **~$2.7 billion quarterly (~$10.8 billion annualized)** under the available industry-benchmark allocation. However, the **magnitude** is highly uncertain, and the S-1's lack of a GPU-specific capex breakdown, absence of any company-defined FCF proxy, and the unrealistic \"all else equal\" premise make this estimate illustrative rather than reliable for investment decisions.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 17523,
+        "completion_tokens": 2127,
+        "cached_tokens": 17024,
+        "cost_usd": 0.0437975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 139165,
+    "total_completion_tokens": 8200,
+    "total_cached_tokens": 96256,
+    "total_cost_usd": 0.3095925,
+    "total_steps": 16
+  }
+}

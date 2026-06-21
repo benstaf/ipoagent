@@ -1,0 +1,660 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "647d62ad-a512-494a-929b-fbc2a1b3f1bf",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T18:43:38.265410+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T18:43:38.265410+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe filing emphasizes Segment Adjusted EBITDA while capital intensity remains elevated. Identify two situations in which EBITDA-based segment comparisons could materially misrepresent economic profitability.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T18:43:38.265410+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "The user is asking me to identify two situations in which EBITDA-based segment comparisons could materially misrepresent economic profitability, in the context of the SpaceX S-1 filing. I need to first parse the filing to understand the segment structure, the Adjusted EBITDA definitions, and the capital intensity details. Let me start by parsing the S-1 filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_cba82cb070364185979664f4",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_cba82cb070364185979664f4",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3502,
+        "completion_tokens": 164,
+        "cached_tokens": 3200,
+        "cost_usd": 0.006395
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T18:46:01.172812+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve information about the Segment Adjusted EBITDA reconciliation, the segment structure, and capital intensity details from the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_59b053f68143400fb5a14019",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the Segment Adjusted EBITDA reconciliation table and definition from MD&A in {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_a4ff14fd020d4bc4bef29c60",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the segment descriptions, segment structure, and how segments are defined in {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_465e417d19454552b8b24f69",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve capital expenditure, capital intensity, depreciation and amortization by segment in {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_59b053f68143400fb5a14019",
+            "content": "Based on the provided MD&A text, here is the definition and the reconciliation tables for **Segment Adjusted EBITDA**.\n\n### **Definition**\n**Segment Adjusted EBITDA** is defined as segment income (loss) from operations excluding:\n(i) depreciation and amortization, \n(ii) share-based compensation, \n(iii) restructuring charges, and \n(iv) impairment.\n\n---\n\n### **Reconciliation Tables**\nThe following tables set forth a reconciliation of Income (loss) from operations for each segment (the most directly comparable GAAP measure) to Segment Adjusted EBITDA for the respective periods:\n\n#### **Three Months Ended March 31, 2026**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(662)** | **$1,188** | **$(2,469)** | **$(1,943)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 166 | 783 | 1,493 | 2,442 |\n| Share-based compensation | 145 | 116 | 378 | 639 |\n| Restructuring charges | \u2014 | \u2014 | (11) | (11) |\n| **Segment Adjusted EBITDA** | **$(351)** | **$2,087** | **$(609)** | **$1,127** |\n\n#### **Three Months Ended March 31, 2025**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(70)** | **$1,033** | **$(936)** | **$27** |\n| *Add:* | | | | |\n| Depreciation and amortization | 162 | 510 | 771 | 1,443 |\n| Share-based compensation | 108 | 75 | 49 | 232 |\n| Restructuring charges | \u2014 | \u2014 | 4 | 4 |\n| Impairment | 24 | \u2014 | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$224** | **$1,618** | **$(112)** | **$1,730** |\n\n#### **Year Ended December 31, 2025**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(657)** | **$4,423** | **$(6,355)** | **$(2,589)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 757 | 2,376 | 3,568 | 6,701 |\n| Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |\n\n#### **Year Ended December 31, 2024**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$21** | **$2,006** | **$(1,561)** | **$466** |\n| *Add:* | | | | |\n| Depreciation and amortization | 637 | 1,508 | 1,679 | 3,824 |\n| Share-based compensation | 472 | 296 | 16 | 784 |\n| Restructuring charges | \u2014 | \u2014 | 213 | 213 |\n| Impairment | 24 | 39 | \u2014 | 63 |\n| **Segment Adjusted EBITDA** | **$1,154** | **$3,849** | **$347** | **$5,350** |\n\n#### **Year Ended December 31, 2023**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(1)** | **$469** | **$(3,973)** | **$(3,505)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 571 | 884 | 1,180 | 2,635 |\n| Share-based compensation | 427 | 249 | 3 | 679 |\n| Restructuring charges | \u2014 | \u2014 | 237 | 237 |\n| Impairment | \u2014 | \u2014 | 3,775 | 3,775 |\n| **Segment Adjusted EBITDA** | **$997** | **$1,602** | **$1,222** | **$3,821** |"
+          },
+          {
+            "source_call_id": "call_a4ff14fd020d4bc4bef29c60",
+            "content": "Based on the provided S-1 preamble and financial statement notes, here is the breakdown of the company's segment structure, descriptions, and how they are defined and evaluated:\n\n### 1. Segment Structure\nThe company operates a \"vertically integrated innovation engine\" that is organized into **three operating and reportable segments**: \n1. **Space**\n2. **Connectivity**\n3. **AI**\n\n**Post-Merger Realignment:** Following recent mergers, the company evaluated its historical segment structure. Effective in Q1 2026, the combined company realigned into the current three-segment structure. All prior period financial presentations have been conformed to match this current reporting structure.\n\n### 2. Segment Descriptions\n*   **Space Segment:** \n    *   **Core Operations:** Designs, manufactures, launches, and refurbishes reusable rockets and spacecraft (including Falcon launch vehicles, Dragon spacecraft, and the in-development fully reusable Starship system) to provide high-cadence, reliable, and affordable access to space at an unprecedented scale.\n    *   **Offerings:** Includes customer launch operations and offerings, providing cost-efficient access to space for the company's own purposes, as well as for third-party commercial and government customers.\n*   **Connectivity Segment:** \n    *   **Core Operations:** Operates a worldwide high-speed, low-latency broadband data and communications network powered by over 9,600 *Starlink* broadband and mobile satellites in Low-Earth Orbit (LEO). \n    *   **Offerings:** Delivers internet connectivity to millions of consumer, enterprise, and government customers across 164 countries, territories, and markets. It also includes *Starlink Mobile*, which provides satellite-to-mobile texting and voice services.\n*   **AI Segment:** \n    *   **Core Operations:** Operates a highly vertically integrated AI platform and computational infrastructure (including data centers and GPU hardware).\n    *   **Offerings:** Spans the company's truth-seeking frontier large language model (*Grok*), AI solutions for consumer and enterprise customers, and *X* (the real-time information, entertainment, and free speech platform).\n\n### 3. How Segments are Defined and Evaluated\nThe company's segments are defined by how the **Chief Operating Decision Maker (CODM)**\u2014which is the company's **Chief Executive Officer**\u2014organizes the business, manages resource allocations, and measures performance.\n\n*   **Primary GAAP Metric (Resource Allocation):** The CODM assesses performance and allocates resources based on **Segment Income (Loss) from Operations**. This is evaluated by comparing actual income/loss from operations against historical results and previously forecasted financial information. *(Note: The CODM does not evaluate the segments using asset or liability metrics).*\n*   **Key Non-GAAP Metric (Internal Planning & Investor Evaluation):** Management also heavily relies on **Segment Adjusted EBITDA** for internal planning, forecasting, and evaluating operating performance. It is defined as *Segment Income (Loss) from Operations* excluding the following items:\n    1. Depreciation and amortization\n    2. Share-based compensation\n    3. Restructuring charges\n    4. Impairments\n*   **Capital Expenditures Tracking:** The company also tracks and reports segment-level capital expenditures to monitor the heavy infrastructure investments required for each segment (e.g., launch pads and Starship facilities for Space; satellite deployments for Connectivity; and GPU/data center expansions for AI)."
+          },
+          {
+            "source_call_id": "call_465e417d19454552b8b24f69",
+            "content": "Based on the provided text, here is the retrieval of capital expenditures and depreciation & amortization by segment across the reported periods. \n\n### **1. Capital Expenditures by Segment**\n**Three Months Ended March 31, 2026**\n* **Space:** $1,052 million\n* **Connectivity:** $1,332 million\n* **AI:** $7,723 million\n* **Total:** $10,107 million\n\n**Three Months Ended March 31, 2025**\n* **Space:** $759 million\n* **Connectivity:** $814 million\n* **AI:** $2,567 million\n* **Total:** $4,140 million\n\n**Year Ended December 31, 2025**\n* **Space:** $3,832 million\n* **Connectivity:** $4,178 million\n* **AI:** $12,727 million\n* **Total:** $20,737 million\n\n**Year Ended December 31, 2024**\n* **Space:** $2,032 million\n* **Connectivity:** $3,498 million\n* **AI:** $5,633 million\n* **Total:** $11,163 million\n\n**Year Ended December 31, 2023**\n* **Space:** $1,497 million\n* **Connectivity:** $2,455 million\n* **AI:** $463 million\n* **Total:** $4,415 million\n\n---\n\n### **2. Depreciation and Amortization by Segment**\n**Three Months Ended March 31, 2026**\n* **Space:** $166 million\n* **Connectivity:** $783 million\n* **AI:** $1,493 million\n* **Total:** $2,442 million\n\n**Three Months Ended March 31, 2025**\n* **Space:** $162 million\n* **Connectivity:** $510 million\n* **AI:** $771 million\n* **Total:** $1,443 million\n\n**Year Ended December 31, 2025**\n* **Space:** $757 million\n* **Connectivity:** $2,376 million\n* **AI:** $3,568 million\n* **Total:** $6,701 million\n\n**Year Ended December 31, 2024**\n* **Space:** $637 million\n* **Connectivity:** $1,508 million\n* **AI:** $1,679 million\n* **Total:** $3,824 million\n\n**Year Ended December 31, 2023**\n* **Space:** $571 million\n* **Connectivity:** $884 million\n* **AI:** $1,180 million\n* **Total:** $2,635 million\n\n---\n\n### **3. Capital Intensity**\n* **Not explicitly provided:** The specific metric or ratio for \"capital intensity\" is **not explicitly defined or stated** in the provided text. *(Note: While capital intensity is typically calculated by dividing Capital Expenditures by Revenue\u2014and the text provides both of these raw figures by segment\u2014the document itself does not calculate or report a formal \"capital intensity\" percentage/metric).*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3692,
+        "completion_tokens": 216,
+        "cached_tokens": 3200,
+        "cost_usd": 0.00739
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T18:48:20.159720+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have excellent data. Let me also retrieve information about share-based compensation details, the useful lives of assets, and any discussion about how depreciation may not reflect actual capital consumption. Let me also look for any discussion about the differences in capital intensity across segments.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_68fda00f6e0a4c4eb0eb9123",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve discussion of useful lives of assets, depreciation methods, satellite useful life, and asset impairment in {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_59e48a804ab745e398703dbd",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve revenue by segment for all periods in {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_be3f60f58ac14f4c83d38a32",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve share-based compensation details, SBC expense recognition, and any discussion of SBC as a recurring cost in {{spacex_s1}}",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_68fda00f6e0a4c4eb0eb9123",
+            "content": "Based on the provided financial document excerpts, here is the detailed discussion regarding the useful lives of assets, depreciation methods, satellite useful life, and asset impairment:\n\n### **Useful Lives of Assets and Depreciation Methods**\n*   **General Depreciation Method:** Property, plant, and equipment (PP&E) are stated at cost less accumulated depreciation. The Company primarily uses the **straight-line method** over the estimated useful lives of the assets. \n*   **Exceptions:** \n    *   **Flight vehicles and spacecraft** are depreciated based on the expected number of *average flights* for each vehicle rather than a time-based metric.\n    *   **Leasehold improvements** are depreciated over the shorter of their estimated useful lives or the related lease term.\n*   **Estimated Useful Lives Schedule:**\n    *   **Servers and networking equipment:** 5 - 6 years\n    *   **Satellites:** 3 - 5 years\n    *   **Machinery and equipment:** 3 - 10 years\n    *   **Flight vehicle hardware:** 5 - 25 flights\n    *   **Data center infrastructure:** 20 - 25 years\n    *   **Launch sites:** 7 - 20 years\n    *   **Buildings and improvements:** 30 years\n    *   **Leasehold improvements:** Shorter of 7 - 20 years or the life of the lease\n*   **Revisions and Capitalization:** Management periodically reviews useful life estimates with engineering and operations teams. If useful lives or expected flights are revised, depreciation rates are adjusted accordingly. Routine maintenance is expensed as incurred, but significant refurbishments and enhancements that extend an asset's life or functionality are capitalized and depreciated ratably. Capitalized interest associated with significant construction projects is also depreciated over the asset's useful life.\n\n### **Satellite Useful Life**\n*   **Lifespan Characteristics:** The useful life of satellites is inherently shorter than the information technology systems and infrastructure they host. Consequently, the Company must periodically launch replacement satellites, which may truncate the effective lifespan of the underlying hosted IT infrastructure.\n*   **Estimation Factors:** Satellite useful lives are estimated using engineering studies, historical on-orbit performance, propellant life, utilization patterns, orbit-raise timing, expected service capability, design enhancements across generations, constellation density evolution, and planned transitions to newer technology.\n*   **Specific Estimates:** The Company estimates a **5-year useful life** for broadband satellites and a **3-year useful life** for first-generation mobile satellites.\n*   **Sensitivity Analysis:** A one-year change in the average useful life of satellite assets would have impacted operating income by approximately **$480 million** for the year ended December 31, 2025, and **$170 million** for the three months ended March 31, 2026.\n\n### **Asset Impairment**\n*   **Evaluation Methodology:** The Company evaluates PP&E for impairment whenever events or circumstances indicate that an asset's carrying value may not be recoverable. Indicators include significant planned changes in asset use, technological developments reducing asset utility, declines in forecasted cash flows, and negative industry or economic trends.\n*   **Recognition of Charges:** Impairment is assessed at the lowest level with largely independent cash flows. If estimated future cash flows fall below the carrying value, an impairment charge is recognized for the amount the carrying value exceeds the estimated fair value. Routine disposals, scrapping, and gateway decommissions are charged to Cost of Revenue or SG&A, while impairments outside the normal course of business are charged to Impairment expenses.\n*   **Specific Impairment Events & Financial Impacts:**\n    *   **Space & Connectivity Segments (2025 & 2024):** The Company recorded impairment charges of **$38 million** (2025) and **$63 million** (2024) related to the write-off of a damaged flight vehicle (Space segment) and an abandoned production line and damaged satellite hardware (Connectivity segment). The 2025 decrease was also tied to the discontinuation of a Starlink Kit production line.\n    *   **AI Segment Restructuring (2024 & 2023):** The Company recorded **$36 million** (2024) and **$54 million** (2023) in Restructuring charges for leasehold improvements and office equipment due to facilities consolidation efforts.\n    *   **Space Segment (Q1 2025):** Recorded **$24 million** related to the write-off of damaged flight vehicles.\n    *   **Q1 2026:** No impairment charges related to PP&E were recorded.\n    *   *Note:* Overall, impairments on fixed assets were not considered material for the years ended December 31, 2025, 2024, and 2023, or for the three months ended March 31, 2026."
+          },
+          {
+            "source_call_id": "call_59e48a804ab745e398703dbd",
+            "content": "Based on the financial highlights detailed in the Preamble, here is the revenue by segment for the reported periods:\n\n**Space Segment**\n* **Three months ended March 31, 2026:** $619 million\n* **Year ended December 31, 2025:** $4,086 million\n\n**Connectivity Segment**\n* **Three months ended March 31, 2026:** $3,257 million\n* **Year ended December 31, 2025:** $11,387 million\n\n**AI Segment**\n* **Three months ended March 31, 2026:** $818 million\n* **Year ended December 31, 2025:** $3,201 million"
+          },
+          {
+            "source_call_id": "call_be3f60f58ac14f4c83d38a32",
+            "content": "Based on the provided financial statements and notes, here are the details regarding share-based compensation (SBC), expense recognition policies, and its treatment as an ongoing operational cost:\n\n### 1. Share-Based Compensation Details\n**Valuation Methodologies**\n*   **RSUs, RSAs, and ESPP:** Valued based on the fair market value of the Company\u2019s common stock on the grant date.\n*   **Stock Options:** Valued using the Black-Scholes option-pricing model (inputs include stock price, risk-free interest rate, expected term, and volatility).\n*   **CEO Awards (Market/Performance/Service conditions):** Valued using a Monte Carlo simulation. Because the SpaceX and AI CEO Awards lack a defined performance period other than continued employment, an expected term midpoint of 30 years (from a 10\u201350 year range) was used.\n\n**Specific Award Programs & Modifications**\n*   **xAI Merger Conversions:** Outstanding xAI options, RSUs, and RSAs were converted into SpaceX equity awards at a **0.1433** ratio (on a pre-2026 Stock Split basis).\n*   **xAI Award (Elon Musk, Nov 2025):** A 12-tranche performance award tied to valuation milestones ($213B to $1,313B), a $2B capital raise condition, and a 10-year service period. The grant date fair value was **$2,205 million**, with $28 million expensed in 2025 before the award was terminated in March 2026.\n*   **X Employee RSUs (March 2023):** Originally tied to liquidity events (change in control or IPO). In 2025, the performance conditions were removed, triggering additional SBC expense.\n*   **CFO Award (Bret Johnsen, Jan 2026 Amendment):** 4 million performance-based options amended to vest based on achieving $10 billion increments in Adjusted EBITDA (from 2025\u20132029), followed by a 1-year service requirement.\n*   **SpaceX & AI CEO Awards:** As of March 31, 2026, performance milestones were deemed improbable, and no expense has been recognized.\n*   **Excluded Awards:** 14.5 million (2025), 38.3 million (2024), and 21.2 million (2023) awards were excluded from outstanding tables because their performance/market conditions had not been met.\n\n**Financial Impact & Capitalization**\n*   **Total SBC Expense:** $1,947M (2025), $784M (2024), and $679M (2023). For Q1 2026, it was $639M compared to $232M in Q1 2025.\n*   **By Line Item (2025):** R&D ($859M), SG&A ($835M), and Cost of Revenue ($253M).\n*   **By Segment (Q1 2026):** AI ($378M), Space ($145M), and Connectivity ($116M).\n*   **Capitalized SBC:** $154M (2025), $132M (2024), and $108M (2023) were capitalized to the balance sheet. Q1 2026 capitalized SBC was $60M.\n*   **Tax Impact:** No income tax benefit was recognized for SBC expenses due to a valuation allowance on U.S. deferred tax assets.\n\n### 2. SBC Expense Recognition Policies\n*   **Service Conditions Only:** Expense is recognized on a **straight-line basis** over the requisite service period.\n*   **Performance Conditions:** Expense is recognized on a **graded vesting basis** over the requisite service period, but *only* when the vesting of the award becomes probable.\n*   **Market Conditions (e.g., CEO Awards):** Expense is not recognized until the performance condition is deemed probable. Once met, it is recorded based on the requisite service period associated with the probable milestone.\n*   **Forfeitures:** The Company accounts for forfeitures **as they occur** rather than estimating them upfront.\n\n### 3. Discussion of SBC as a Recurring Cost\nWhile the text does not explicitly use the phrase \"recurring cost,\" SBC is structurally embedded and treated as a fundamental, ongoing component of the Company's operating expenses:\n*   **Core Operational Integration:** SBC is consistently grouped with salaries and benefits as a standard element of \"employee compensation costs.\" It is a permanent fixture in the cost structure of Cost of Revenue, R&D, and SG&A across all segments (Space, Connectivity, and AI).\n*   **Forward-Looking MD&A Projections:** Management projects that Connectivity's Cost of Revenue, R&D, and SG&A (all of which include SBC) will **increase in absolute dollars** as the business and revenue grow. However, they expect these costs to decrease as a *percentage of revenue* over time due to scaling efficiencies. This confirms SBC's role as an ongoing, scaling operational cost.\n*   **Non-Cash Add-Back for Performance Metrics:** SBC is consistently added back to GAAP Income from Operations to calculate **Segment Adjusted EBITDA** and Consolidated Adjusted EBITDA. Furthermore, the CFO's performance-based vesting metrics explicitly exclude SBC from the definition of Adjusted EBITDA. This highlights that management views SBC as a standard, recurring non-cash expense that must be adjusted for when evaluating core operational cash flow and performance."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6772,
+        "completion_tokens": 246,
+        "cached_tokens": 3200,
+        "cost_usd": 0.015390000000000001
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T18:48:49.958945+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have comprehensive data. Let me analyze the two situations where EBITDA-based segment comparisons could materially misrepresent economic profitability.\n\nLet me compute some key ratios to support my analysis:\n\n**Situation 1: Disparate capital intensity across segments \u2014 depreciation add-back masks true capital consumption**\n\nThe key issue: Adjusted EBITDA adds back depreciation and amortization, but segments have vastly different capital intensity profiles. When capex far exceeds depreciation (i.e., the segment is in a heavy growth/investment phase), EBITDA overstates the cash-generative ability of the segment.\n\nLet me compute capex vs. depreciation ratios:\n\nFor FY2025:\n- Space: Capex $3,832M vs D&A $757M \u2192 ratio 5.06x\n- Connectivity: Capex $4,178M vs D&A $2,376M \u2192 ratio 1.76x\n- AI: Capex $12,727M vs D&A $3,568M \u2192 ratio 3.57x\n\nFor Q1 2026:\n- Space: Capex $1,052M vs D&A $166M \u2192 ratio 6.34x\n- Connectivity: Capex $1,332M vs D&A $783M \u2192 ratio 1.70x\n- AI: Capex $7,723M vs D&A $1,493M \u2192 ratio 5.17x\n\nSo the AI segment's capex is 3.57x its depreciation in FY2025, meaning the depreciation add-back in EBITDA dramatically understates the true capital consumption. The Connectivity segment is more mature with capex only 1.76x depreciation.\n\nThis means comparing Connectivity's Adjusted EBITDA to AI's Adjusted EBITDA is misleading because:\n- Connectivity's EBITDA is closer to reflecting true economic cost (capex and depreciation are more aligned)\n- AI's EBITDA massively overstates economic profitability because it ignores the enormous capital outlays that far exceed the depreciation being added back\n\n**Situation 2: Share-based compensation add-back distorts cross-segment labor cost comparisons**\n\nSBC is added back in Adjusted EBITDA, but SBC is a real economic cost (dilution to shareholders). The distribution of SBC across segments is highly uneven:\n\nFor Q1 2026:\n- Space: SBC $145M on revenue $619M \u2192 23.4% of revenue\n- Connectivity: SBC $116M on revenue $3,257M \u2192 3.6% of revenue\n- AI: SBC $378M on revenue $818M \u2192 46.2% of revenue\n\nFor FY2025:\n- Space: SBC $515M on revenue $4,086M \u2192 12.6% of revenue\n- Connectivity: SBC $369M on revenue $11,387M \u2192 3.2% of revenue\n- AI: SBC $1,063M on revenue $3,201M \u2192 33.2% of revenue\n\nSo the AI segment has SBC at 33-46% of revenue, while Connectivity has SBC at only 3-4% of revenue. By adding back SBC, Adjusted EBITDA makes the AI segment look much more profitable relative to Connectivity than it truly is on an economic basis, because the AI segment is effectively compensating its workforce heavily through equity dilution \u2014 a real economic cost to shareholders.\n\nLet me also think about whether there are other good situations:\n\n**Alternative Situation: Satellite useful life estimation subjectivity**\nThe filing notes that a one-year change in satellite useful life would impact operating income by ~$480M (FY2025). Since satellites are depreciated over 3-5 years and EBITDA adds back depreciation, changes in useful life estimates affect operating income but not EBITDA. However, this is more about EBITDA masking accounting estimate risk rather than a cross-segment comparison issue per se.\n\nActually, let me reconsider. The question asks for two situations where EBITDA-based segment comparisons could materially misrepresent economic profitability. Let me focus on the two strongest:\n\n1. **Divergent capex-to-depreciation ratios across segments** \u2014 The add-back of D&A in EBITDA assumes that depreciation is a reasonable proxy for capital consumption. But when capex vastly exceeds depreciation (as in the AI segment at 3.57x in FY2025 and the Space segment at 5.06x), EBITDA dramatically overstates the segment's ability to generate cash after maintaining its asset base. Comparing Connectivity (capex/D&A ~1.76x) to AI (capex/D&A ~3.57x) on an EBITDA basis makes AI appear more economically viable than it is, because the massive ongoing capital outlays needed to sustain the AI business are ignored.\n\n2. **Disproportionate share-based compensation across segments** \u2014 SBC is added back in Adjusted EBITDA, but it represents real economic dilution to shareholders. The AI segment's SBC is 33-46% of revenue versus Connectivity's 3-4%. This means Adjusted EBITDA systematically overstates AI's economic profitability relative to Connectivity's, because AI is effectively paying its workforce with equity that dilutes existing shareholders \u2014 a real cost not captured in EBITDA.\n\nLet me compute some specific numbers to make this concrete.\n\nFor FY2025:\n- Connectivity Adjusted EBITDA: $7,168M; Capex: $4,178M \u2192 EBITDA - Capex = $2,990M\n- AI Adjusted EBITDA: $(1,237)M; Capex: $12,727M \u2192 EBITDA - Capex = $(13,964)M\n- Space Adjusted EBITDA: $653M; Capex: $3,832M \u2192 EBITDA - Capex = $(3,179)M\n\nSo Connectivity is the only segment generating positive EBITDA after capex.\n\nLet me also compute the SBC impact more precisely:\n\nFor FY2025:\n- Connectivity: Operating income $4,423M \u2192 Adj EBITDA $7,168M. SBC add-back = $369M (5.1% of Adj EBITDA)\n- AI: Operating income $(6,355)M \u2192 Adj EBITDA $(1,237)M. SBC add-back = $1,063M (reduces the loss by 86% of the gap)\n- Space: Operating income $(657)M \u2192 Adj EBITDA $653M. SBC add-back = $515M (79% of Adj EBITDA)\n\nThis is very telling. For the Space segment, SBC alone ($515M) is 79% of its Adjusted EBITDA ($653M). Without the SBC add-back, Space's operating income was negative. So Adjusted EBITDA makes Space look profitable when its GAAP operating income was a loss, largely because of the SBC add-back.\n\nLet me now write up a comprehensive answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c4e297dfbd4240a9b2d3dc1b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3832 / 757"
+          }
+        },
+        {
+          "tool_call_id": "call_763923bf8c5740eeb7440a4d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4178 / 2376"
+          }
+        },
+        {
+          "tool_call_id": "call_6dfd9cad89bc4c088fce2f71",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "12727 / 3568"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c4e297dfbd4240a9b2d3dc1b",
+            "content": "5.062087186261559"
+          },
+          {
+            "source_call_id": "call_763923bf8c5740eeb7440a4d",
+            "content": "1.7584175084175084"
+          },
+          {
+            "source_call_id": "call_6dfd9cad89bc4c088fce2f71",
+            "content": "3.566984304932735"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9537,
+        "completion_tokens": 1740,
+        "cached_tokens": 6528,
+        "cost_usd": 0.0330825
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T18:48:55.103109+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Good. Now let me compute the SBC as a percentage of revenue for each segment for FY2025 and Q1 2026.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_784110672b6444ea9e4fde67",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "515 / 4086 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_bbd621104a634c0e8fbb7748",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "369 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_0b18f0a56ee94d4ba486febe",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1063 / 3201 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_e02ba17d80624593b779ba16",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "145 / 619 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_e6691d018d284117a6ac427c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "116 / 3257 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_6aaf648ec0c64e47844f97f2",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "378 / 818 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_784110672b6444ea9e4fde67",
+            "content": "12.60401370533529"
+          },
+          {
+            "source_call_id": "call_bbd621104a634c0e8fbb7748",
+            "content": "3.2405374549925354"
+          },
+          {
+            "source_call_id": "call_0b18f0a56ee94d4ba486febe",
+            "content": "33.20837238363011"
+          },
+          {
+            "source_call_id": "call_e02ba17d80624593b779ba16",
+            "content": "23.424878836833603"
+          },
+          {
+            "source_call_id": "call_e6691d018d284117a6ac427c",
+            "content": "3.5615597175314706"
+          },
+          {
+            "source_call_id": "call_6aaf648ec0c64e47844f97f2",
+            "content": "46.21026894865526"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11353,
+        "completion_tokens": 270,
+        "cached_tokens": 8704,
+        "cost_usd": 0.0202025
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T18:49:04.026479+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also compute EBITDA minus Capex for each segment to show the stark contrast:\n\nFY2025:\n- Space: $653M - $3,832M = -$3,179M\n- Connectivity: $7,168M - $4,178M = $2,990M\n- AI: -$1,237M - $12,727M = -$13,964M\n\nQ1 2026:\n- Space: -$351M - $1,052M = -$1,403M\n- Connectivity: $2,087M - $1,332M = $755M\n- AI: -$609M - $7,723M = -$8,332M\n\nLet me also compute the SBC as a percentage of Adjusted EBITDA for the segments where EBITDA is positive:\n\nFY2025:\n- Space: $515M / $653M = 78.9%\n- Connectivity: $369M / $7,168M = 5.1%\n\nThis is very telling. For Space, SBC accounts for 78.9% of its Adjusted EBITDA. If SBC were not added back, Space would have been at a GAAP operating loss of $(657)M.\n\nNow I have all the data I need. Let me write up the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8a354ba16267431a97da0406",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "515 / 653 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_a570bdadfd1d4ffb87d14805",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "369 / 7168 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_af504b9c30dd455cade09990",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - 4178"
+          }
+        },
+        {
+          "tool_call_id": "call_049a49eb0e5c4b3084fce7dc",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "653 - 3832"
+          }
+        },
+        {
+          "tool_call_id": "call_08be7b02728747c593a69750",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "-1237 - 12727"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8a354ba16267431a97da0406",
+            "content": "78.86676875957122"
+          },
+          {
+            "source_call_id": "call_a570bdadfd1d4ffb87d14805",
+            "content": "5.147879464285714"
+          },
+          {
+            "source_call_id": "call_af504b9c30dd455cade09990",
+            "content": "2990"
+          },
+          {
+            "source_call_id": "call_049a49eb0e5c4b3084fce7dc",
+            "content": "-3179"
+          },
+          {
+            "source_call_id": "call_08be7b02728747c593a69750",
+            "content": "-13964"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11767,
+        "completion_tokens": 529,
+        "cached_tokens": 10880,
+        "cost_usd": 0.021107499999999998
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T18:49:36.777896+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me write a comprehensive, well-structured answer identifying two situations where EBITDA-based segment comparisons could materially misrepresent economic profitability.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e3129d43bc574baf9b0ff9a9",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Two Situations Where Segment Adjusted EBITDA Comparisons Could Materially Misrepresent Economic Profitability\n\nThe SpaceX S-1 defines **Segment Adjusted EBITDA** as segment income (loss) from operations excluding: (i) depreciation and amortization, (ii) share-based compensation, (iii) restructuring charges, and (iv) impairment. While useful as an operating-performance screen, this metric can materially distort cross-segment economic-profitability comparisons in at least two situations clearly evidenced by the filing's own data.\n\n---\n\n### Situation 1: Divergent Capital Intensity \u2014 The Depreciation Add-Back Masks Vastly Different Cash-Capital Consumption Across Segments\n\nAdjusted EBITDA adds back depreciation and amortization, implicitly treating D&A as a non-cash charge that does not reflect ongoing economic cost. This assumption breaks down when a segment's **capital expenditures substantially exceed its depreciation**, meaning the segment is consuming cash capital far faster than the accounting add-back suggests.\n\nThe filing's own segment data for FY 2025 reveals dramatic disparities:\n\n| Segment | FY 2025 Capex | FY 2025 D&A | Capex / D&A Ratio | Adj. EBITDA | EBITDA \u2212 Capex |\n|---|---|---|---|---|---|\n| **Space** | $3,832M | $757M | **5.06\u00d7** | $653M | **$(3,179)M** |\n| **Connectivity** | $4,178M | $2,376M | **1.76\u00d7** | $7,168M | **$2,990M** |\n| **AI** | $12,727M | $3,568M | **3.57\u00d7** | $(1,237)M | **$(13,964)M** |\n\n**Why this misrepresents economic profitability:**\n\n- **Connectivity** appears to be the most profitable segment on an Adjusted EBITDA basis ($7,168M), and it *also* generates positive free cash flow after capex ($2,990M). Its capex-to-D&A ratio of 1.76\u00d7 indicates a segment approaching a steady-state capital-replacement cycle, where depreciation is a reasonable proxy for maintenance capex.\n\n- **AI** reports Adjusted EBITDA of $(1,237)M \u2014 already negative \u2014 but this figure *still* dramatically understates the segment's cash-capital burn. Actual capex was $12,727M, meaning the segment consumed **$13,964M** in cash after EBITDA. The D&A add-back of $3,568M captures only 28% of the capital actually deployed.\n\n- **Space** reports *positive* Adjusted EBITDA of $653M, which could misleadingly suggest the segment is economically self-sustaining. In reality, capex of $3,832M (5.06\u00d7 depreciation) means the segment consumed **$(3,179)M** in cash after EBITDA. The D&A add-back of $757M captures only 20% of actual capital outlays.\n\n**Comparing Space's positive $653M Adjusted EBITDA to Connectivity's $7,168M on a \"profitability\" basis is misleading**: Space is not generating cash above its capital needs \u2014 it is consuming $3.2 billion more in capital than its EBITDA suggests. An investor comparing segments on Adjusted EBITDA alone would not see that Connectivity is the *only* segment generating positive cash flow after capital expenditures.\n\nThis distortion is structurally inherent to EBITDA in any capital-intensive, growth-phase business where the asset base is expanding rapidly and depreciation (based on historical cost and useful-life estimates) systematically lags current capital deployment.\n\n---\n\n### Situation 2: Disproportionate Share-Based Compensation Across Segments \u2014 The SBC Add-Back Obscures Real Economic Dilution Costs\n\nAdjusted EBITDA adds back share-based compensation (SBC), treating it as a non-cash expense irrelevant to operating performance. However, SBC represents **real economic cost to shareholders through equity dilution** and is a core component of talent retention \u2014 particularly in the AI segment. The filing's data shows SBC is distributed highly unevenly across segments:\n\n| Segment | FY 2025 SBC | FY 2025 Revenue | SBC as % of Revenue | Q1 2026 SBC | Q1 2026 Revenue | SBC as % of Revenue |\n|---|---|---|---|---|---|---|\n| **Space** | $515M | $4,086M | **12.6%** | $145M | $619M | **23.4%** |\n| **Connectivity** | $369M | $11,387M | **3.2%** | $116M | $3,257M | **3.6%** |\n| **AI** | $1,063M | $3,201M | **33.2%** | $378M | $818M | **46.2%** |\n\n**Why this misrepresents economic profitability:**\n\n- **The AI segment's SBC is 33\u201346% of its revenue**, meaning roughly one-third to nearly one-half of every dollar earned is used to compensate employees through equity. In Q1 2026, the AI segment reported an operating loss of $(2,469)M; the SBC add-back of $378M reduced that loss by 15% to arrive at Adjusted EBITDA of $(609)M. The segment is effectively funding its workforce with shareholder equity \u2014 a real economic transfer that EBITDA ignores entirely.\n\n- **Connectivity's SBC is only 3.2\u20133.6% of revenue**, meaning its Adjusted EBITDA of $7,168M (FY 2025) is far closer to its true economic earnings. The SBC add-back of $369M represents only **5.1%** of its Adjusted EBITDA.\n\n- **Space's SBC of $515M represents 78.9% of its Adjusted EBITDA of $653M** (FY 2025). Without the SBC add-back, Space reported a GAAP operating *loss* of $(657)M. Adjusted EBITDA converts this loss into an apparent profit \u2014 entirely through the exclusion of a recurring, structurally embedded compensation cost.\n\n**Comparing Space's $653M Adjusted EBITDA to Connectivity's $7,168M is misleading** because Space's \"profitability\" is an artifact of excluding $515M in equity compensation \u2014 without which the segment is operating at a loss. Meanwhile, Connectivity's profitability is robust to the SBC add-back because its SBC burden is minimal relative to its revenue base. An investor using Adjusted EBITDA to rank segment profitability would systematically overstate the economic performance of the AI and Space segments relative to Connectivity, because the dilution cost borne by shareholders to retain talent in those segments is invisible in the metric.\n\n---\n\n### Summary\n\n| Distortion | Root Cause | Most Affected Comparison |\n|---|---|---|\n| **Capex \u226b Depreciation** | D&A add-back understates true capital consumption in growth-phase segments | Space and AI appear closer to Connectivity in profitability than cash-flow reality supports |\n| **Disproportionate SBC** | SBC add-back ignores real dilution cost that varies 10\u00d7+ across segments | Space's EBITDA \"profit\" is entirely an artifact of excluding SBC equal to 79% of that EBITDA; AI's losses are understated by SBC equal to 33\u201346% of revenue |\n\nBoth situations are explicitly supported by the filing's own segment-level disclosures and are not speculative \u2014 they are arithmetic consequences of the Adjusted EBITDA definition applied to segments with fundamentally different capital and compensation structures.\n\n---\n\n**Sources:**\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e3129d43bc574baf9b0ff9a9",
+            "content": "## Two Situations Where Segment Adjusted EBITDA Comparisons Could Materially Misrepresent Economic Profitability\n\nThe SpaceX S-1 defines **Segment Adjusted EBITDA** as segment income (loss) from operations excluding: (i) depreciation and amortization, (ii) share-based compensation, (iii) restructuring charges, and (iv) impairment. While useful as an operating-performance screen, this metric can materially distort cross-segment economic-profitability comparisons in at least two situations clearly evidenced by the filing's own data.\n\n---\n\n### Situation 1: Divergent Capital Intensity \u2014 The Depreciation Add-Back Masks Vastly Different Cash-Capital Consumption Across Segments\n\nAdjusted EBITDA adds back depreciation and amortization, implicitly treating D&A as a non-cash charge that does not reflect ongoing economic cost. This assumption breaks down when a segment's **capital expenditures substantially exceed its depreciation**, meaning the segment is consuming cash capital far faster than the accounting add-back suggests.\n\nThe filing's own segment data for FY 2025 reveals dramatic disparities:\n\n| Segment | FY 2025 Capex | FY 2025 D&A | Capex / D&A Ratio | Adj. EBITDA | EBITDA \u2212 Capex |\n|---|---|---|---|---|---|\n| **Space** | $3,832M | $757M | **5.06\u00d7** | $653M | **$(3,179)M** |\n| **Connectivity** | $4,178M | $2,376M | **1.76\u00d7** | $7,168M | **$2,990M** |\n| **AI** | $12,727M | $3,568M | **3.57\u00d7** | $(1,237)M | **$(13,964)M** |\n\n**Why this misrepresents economic profitability:**\n\n- **Connectivity** appears to be the most profitable segment on an Adjusted EBITDA basis ($7,168M), and it *also* generates positive free cash flow after capex ($2,990M). Its capex-to-D&A ratio of 1.76\u00d7 indicates a segment approaching a steady-state capital-replacement cycle, where depreciation is a reasonable proxy for maintenance capex.\n\n- **AI** reports Adjusted EBITDA of $(1,237)M \u2014 already negative \u2014 but this figure *still* dramatically understates the segment's cash-capital burn. Actual capex was $12,727M, meaning the segment consumed **$13,964M** in cash after EBITDA. The D&A add-back of $3,568M captures only 28% of the capital actually deployed.\n\n- **Space** reports *positive* Adjusted EBITDA of $653M, which could misleadingly suggest the segment is economically self-sustaining. In reality, capex of $3,832M (5.06\u00d7 depreciation) means the segment consumed **$(3,179)M** in cash after EBITDA. The D&A add-back of $757M captures only 20% of actual capital outlays.\n\n**Comparing Space's positive $653M Adjusted EBITDA to Connectivity's $7,168M on a \"profitability\" basis is misleading**: Space is not generating cash above its capital needs \u2014 it is consuming $3.2 billion more in capital than its EBITDA suggests. An investor comparing segments on Adjusted EBITDA alone would not see that Connectivity is the *only* segment generating positive cash flow after capital expenditures.\n\nThis distortion is structurally inherent to EBITDA in any capital-intensive, growth-phase business where the asset base is expanding rapidly and depreciation (based on historical cost and useful-life estimates) systematically lags current capital deployment.\n\n---\n\n### Situation 2: Disproportionate Share-Based Compensation Across Segments \u2014 The SBC Add-Back Obscures Real Economic Dilution Costs\n\nAdjusted EBITDA adds back share-based compensation (SBC), treating it as a non-cash expense irrelevant to operating performance. However, SBC represents **real economic cost to shareholders through equity dilution** and is a core component of talent retention \u2014 particularly in the AI segment. The filing's data shows SBC is distributed highly unevenly across segments:\n\n| Segment | FY 2025 SBC | FY 2025 Revenue | SBC as % of Revenue | Q1 2026 SBC | Q1 2026 Revenue | SBC as % of Revenue |\n|---|---|---|---|---|---|---|\n| **Space** | $515M | $4,086M | **12.6%** | $145M | $619M | **23.4%** |\n| **Connectivity** | $369M | $11,387M | **3.2%** | $116M | $3,257M | **3.6%** |\n| **AI** | $1,063M | $3,201M | **33.2%** | $378M | $818M | **46.2%** |\n\n**Why this misrepresents economic profitability:**\n\n- **The AI segment's SBC is 33\u201346% of its revenue**, meaning roughly one-third to nearly one-half of every dollar earned is used to compensate employees through equity. In Q1 2026, the AI segment reported an operating loss of $(2,469)M; the SBC add-back of $378M reduced that loss by 15% to arrive at Adjusted EBITDA of $(609)M. The segment is effectively funding its workforce with shareholder equity \u2014 a real economic transfer that EBITDA ignores entirely.\n\n- **Connectivity's SBC is only 3.2\u20133.6% of revenue**, meaning its Adjusted EBITDA of $7,168M (FY 2025) is far closer to its true economic earnings. The SBC add-back of $369M represents only **5.1%** of its Adjusted EBITDA.\n\n- **Space's SBC of $515M represents 78.9% of its Adjusted EBITDA of $653M** (FY 2025). Without the SBC add-back, Space reported a GAAP operating *loss* of $(657)M. Adjusted EBITDA converts this loss into an apparent profit \u2014 entirely through the exclusion of a recurring, structurally embedded compensation cost.\n\n**Comparing Space's $653M Adjusted EBITDA to Connectivity's $7,168M is misleading** because Space's \"profitability\" is an artifact of excluding $515M in equity compensation \u2014 without which the segment is operating at a loss. Meanwhile, Connectivity's profitability is robust to the SBC add-back because its SBC burden is minimal relative to its revenue base. An investor using Adjusted EBITDA to rank segment profitability would systematically overstate the economic performance of the AI and Space segments relative to Connectivity, because the dilution cost borne by shareholders to retain talent in those segments is invisible in the metric.\n\n---\n\n### Summary\n\n| Distortion | Root Cause | Most Affected Comparison |\n|---|---|---|\n| **Capex \u226b Depreciation** | D&A add-back understates true capital consumption in growth-phase segments | Space and AI appear closer to Connectivity in profitability than cash-flow reality supports |\n| **Disproportionate SBC** | SBC add-back ignores real dilution cost that varies 10\u00d7+ across segments | Space's EBITDA \"profit\" is entirely an artifact of excluding SBC equal to 79% of that EBITDA; AI's losses are understated by SBC equal to 33\u201346% of revenue |\n\nBoth situations are explicitly supported by the filing's own segment-level disclosures and are not speculative \u2014 they are arithmetic consequences of the Adjusted EBITDA definition applied to segments with fundamentally different capital and compensation structures.\n\n---\n\n**Sources:**\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12379,
+        "completion_tokens": 1981,
+        "cached_tokens": 10880,
+        "cost_usd": 0.037157499999999996
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 59002,
+    "total_completion_tokens": 5146,
+    "total_cached_tokens": 46592,
+    "total_cost_usd": 0.140725,
+    "total_steps": 9
+  }
+}

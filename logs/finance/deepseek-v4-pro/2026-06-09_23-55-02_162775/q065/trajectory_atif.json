@@ -1,0 +1,755 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "bb8a7f78-3c26-4329-9df9-b8b9c1708965",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "deepseek-v4-pro",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T23:55:06.694845+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T23:55:06.694845+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nAmazon disclosed that FY2025 free cash flow fell from $32.9 billion to $7.7 billion as capex consumed approximately 94% of operating cash flow. Using SpaceX's disclosed Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source) and annualized Q1 2026 AI capex, construct an analogous FCF pressure ratio for SpaceX. Compare the two ratios and assess whether SpaceX's internal funding position for AI infrastructure is more or less constrained than Amazon's was in FY2025. What disclosure does the SpaceX S-1 provide or omit that limits confidence in this comparison?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T23:55:06.694845+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me analyze this question carefully. I need to:\n\n1. Find Amazon's FY2025 FCF pressure ratio (capex/operating cash flow \u2248 94%)\n2. Find SpaceX's Connectivity Segment Adjusted EBITDA (the primary internal cash source)\n3. Find SpaceX's annualized Q1 2026 AI capex\n4. Construct an analogous FCF pressure ratio for SpaceX\n5. Compare the two ratios\n6. Assess whether SpaceX's internal funding position is more or less constrained than Amazon's\n7. Identify what disclosures the SpaceX S-1 provides or omits that limits confidence in this comparison\n\nLet me start by parsing the SpaceX S-1 filing and searching for Amazon's disclosures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5d61935adf2c4381a34a0b15",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_5d61935adf2c4381a34a0b15",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3396,
+        "completion_tokens": 238,
+        "cached_tokens": 0,
+        "cost_usd": 0.01087
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T23:56:52.590688+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Good, the filing is loaded. Now let me search for key information. I need:\n\n1. Connectivity Segment Adjusted EBITDA\n2. Q1 2026 AI capex\n3. Any related disclosures about cash flow, capex, etc.\n\nLet me retrieve multiple pieces of information simultaneously.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b8783b0ed54040bb9c7c6c87",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity Segment Adjusted EBITDA for all periods presented (FY2023, FY2024, FY2025, Q1 2025, Q1 2026)? Retrieve the exact figures and any reconciliation table from {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_e848b7647b7a452d80a4392e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the AI capex or AI-related capital expenditure for Q1 2026 and any other periods? Retrieve all disclosures about AI capital expenditures, AI infrastructure spending, and related capex figures from {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_6930cdf7657147d5b02a4319",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total capital expenditure (capex) for all segments and consolidated for FY2023, FY2024, FY2025, Q1 2025, and Q1 2026? Retrieve capex by segment and consolidated from {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b8783b0ed54040bb9c7c6c87",
+            "content": "Based on the provided document sections, here are the exact figures and reconciliation tables for the Connectivity Segment Adjusted EBITDA:\n\n**Connectivity Segment Adjusted EBITDA Figures:**\n*   **FY2023:** $1,602 million\n*   **FY2024:** $3,849 million\n*   **FY2025:** $7,168 million\n*   **Q1 2025:** $1,618 million\n*   **Q1 2026:** $2,087 million\n\n**Reconciliation Tables:**\n\n*   **FY2023 Reconciliation:**\n    | | Year Ended December 31, |\n    | :--- | :--- |\n    | | 2023 |\n    | (in millions) | Connectivity |\n    | Income (loss) from operations | $469 |\n    | Add: | |\n    | Depreciation and amortization | 884 |\n    | Share-based compensation | 249 |\n    | Restructuring charges | \u2014 |\n    | Impairment | \u2014 |\n    | Segment Adjusted EBITDA | $1,602 |\n\n*   **FY2024 Reconciliation:**\n    | | Year Ended December 31, |\n    | :--- | :--- |\n    | | 2024 |\n    | (in millions) | Connectivity |\n    | Income (loss) from operations | $2,006 |\n    | Add: | |\n    | Depreciation and amortization | 1,508 |\n    | Share-based compensation | 296 |\n    | Restructuring charges | \u2014 |\n    | Impairment | 39 |\n    | Segment Adjusted EBITDA | $3,849 |\n\n*   **FY2025 Reconciliation:**\n    | | Year Ended December 31, |\n    | :--- | :--- |\n    | | 2025 |\n    | (in millions) | Connectivity |\n    | Income (loss) from operations | $4,423 |\n    | Add: | |\n    | Depreciation and amortization | 2,376 |\n    | Share-based compensation | 369 |\n    | Restructuring charges | \u2014 |\n    | Impairment | \u2014 |\n    | Segment Adjusted EBITDA | $7,168 |\n\n*   **Q1 2025 Reconciliation:**\n    | | Three Months Ended March 31, |\n    | :--- | :--- |\n    | | 2025 |\n    | (in millions) | Connectivity |\n    | Income (loss) from operations | $1,033 |\n    | Add: | |\n    | Depreciation and amortization | 510 |\n    | Share-based compensation | 75 |\n    | Restructuring charges | \u2014 |\n    | Impairment | \u2014 |\n    | Segment Adjusted EBITDA | $1,618 |\n\n*   **Q1 2026 Reconciliation:**\n    | | Three Months Ended March 31, |\n    | :--- | :--- |\n    | | 2026 |\n    | (in millions) | Connectivity |\n    | Income (loss) from operations | $1,188 |\n    | Add: | |\n    | Depreciation and amortization | 783 |\n    | Share-based compensation | 116 |\n    | Restructuring charges | \u2014 |\n    | Segment Adjusted EBITDA | $2,087 |"
+          },
+          {
+            "source_call_id": "call_e848b7647b7a452d80a4392e",
+            "content": "Based on the provided excerpts from the company\u2019s S-1 filing, here are all disclosed AI-related capital expenditures (capex), AI infrastructure spending figures, and related commitments.\n\n---\n\n### 1. AI Capital Expenditures by Period (from Segment Reporting)\n\nThe company reports capex in three segments: Space, Connectivity, and AI. The AI capex figures are as follows:\n\n| Period | AI Capital Expenditures |\n| :--- | :--- |\n| **Q1 2026 (three months ended March 31, 2026)** | **$7,723 million** |\n| Q1 2025 (three months ended March 31, 2025) | $2,567 million |\n| FY 2025 (year ended December 31, 2025) | $12,727 million |\n| FY 2024 (year ended December 31, 2024) | $5,633 million |\n| FY 2023 (year ended December 31, 2023) | $463 million |\n\n**Source snippet (appears in multiple sections):**\n> *\u201cThe following table presents our capital expenditures by segment:*\n> *|  | Three Months Ended March 31, |  | Year Ended December 31, |\n> |  | 2026 |  | 2025 |  | 2025 |  | 2024 |  | 2023 |\n> | AI ........................................................ | 7,723 |  | 2,567 |  | 12,727 |  | 5,633 |  | 463 |\n> | Total Capital Expenditures ................. | $10,107 |  | $4,140 |  | $20,737 |  | $11,163 |  | $4,415 |\u201d*\n\n**Also directly stated in narrative:**\n> *\u201c\u2022 For the three months ended March 31, 2026, capital expenditures for our Space segment was $1,052 million, for our Connectivity segment was $1,332 million and for our AI segment was $7,723 million. In 2025, capital expenditures for our Space segment was $3,832 million, for our Connectivity segment was $4,178 million and for our AI segment was $12,727 million.\u201d*\n\n---\n\n### 2. Year-over-Year Changes and Explanations for AI Capex\n\n**Q1 2026 vs. Q1 2025**\n> *\u201cAI capital expenditures for the three months ended March 31, 2026 increased $5,156 million to $7,723 million compared to $2,567 million for the three months ended March 31, 2025. The increase was primarily driven by investments in the rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities and supporting infrastructure.\u201d*\n\n**FY 2025 vs. FY 2024 vs. FY 2023**\n> *\u201cAI capital expenditures for 2025 increased $7,094 million to $12,727 million compared to $5,633 million in 2024, while AI capital expenditures for 2024 increased $5,170 million to $5,633 million compared to $463 million in 2023. This increase was primarily driven by significant investments in the rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities and supporting infrastructure.\u201d*\n\n---\n\n### 3. AI Infrastructure within Property, Plant, and Equipment (Balance Sheet)\n\nAs of March 31, 2026 and December 31, 2025, the company\u2019s PP&E includes assets directly tied to AI infrastructure:\n\n| (in millions) | March 31, 2026 | December 31, 2025 |\n| :--- | :--- | :--- |\n| Servers and networking equipment | $23,850 | $22,694 |\n| Data center infrastructure | 2,965 | 2,960 |\n| Construction-in-progress | 14,045 | 4,604 |\n\n**Context on Construction-in-Progress:**\n> *\u201cConstruction in progress is primarily comprised of ongoing construction and expansion of the facilities and equipment as well as AI infrastructure that has not yet been placed in service.\u201d*\n\nThe jump in Construction-in-progress from $4,604 million to $14,045 million during Q1 2026 largely reflects the rapid build-out of AI data centers.\n\n---\n\n### 4. Capitalized Interest Related to AI Infrastructure\n\nFor Q1 2026, the company capitalized interest on AI infrastructure projects:\n\n> *\u201cInterest is capitalized during the construction period for significant long term construction projects, such as the AI infrastructure data centers and launch facilities. For the three months ended March 31, 2026, the Company capitalized $7 million of interest, which is included in Construction-in-progress amounts above. No interest was capitalized during the three months ended March 31, 2025.\u201d*\n\n---\n\n### 5. AI-Related Contractual Commitments (Future Spending)\n\nThe company\u2019s non-cancelable contractual commitments are primarily for AI infrastructure and cloud capacity. A maturity schedule is provided (amounts presumably as of March 31, 2026):\n\n| Year | Commitment |\n| :--- | :--- |\n| 2026 | $2,720 million |\n| 2027 | $21,476 million |\n| 2028 | $1,250 million |\n| 2029 | $4 million |\n| 2030 | $1 million |\n| **Total** | **$25,451 million** |\n\n> *\u201cThe Company\u2019s unconditional obligations are non-cancelable contractual commitments primarily relate to the Company\u2019s investments in AI infrastructure and third-party cloud capacity arrangements and other service arrangements.\u201d*\n\nAdditionally, during Q1 2026, a new purchase agreement was signed specifically for AI infrastructure turbines:\n\n> *\u201cDuring the three months ended March 31, 2026, there have been no material changes to the Company\u2019s unconditional obligation since December 31, 2025 other than the execution of certain purchase agreements with an unaffiliated third party to acquire additional turbines for the AI infrastructure totaling $925 million through 2029.\u201d*\n\n---\n\n### 6. Strategic Context and Forward-Looking AI Spend\n\nThe MD&A outlines the company\u2019s intention to continue investing heavily in AI compute infrastructure:\n\n> *\u201cWe acquired xAI in February 2026, which forms the basis of our AI segment. We expect to allocate substantial capital to expand our compute infrastructure, and we expect a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA. During this investment period, our capital expenditures will scale as quickly as we are able to deploy power and compute to address the $26.5 trillion potential market opportunity for AI.\u201d*\n\nA supplemental segment disclosure for Q1 2026 also shows the AI segment\u2019s depreciation and amortization:\n> *\u201cDepreciation and amortization ............................ | $166 |  | $783 |  | $1,493 |  | $2,442 |\u201d*  \n(The $1,493 million is for the AI segment.)\n\n---\n\n### 7. Risk Factors Highlighting AI Capex Requirements\n\nSeveral risk factors underscore the scale and importance of AI capital spending:\n\n> *\u201cThe development and maintenance of the technologies and infrastructure necessary to support our current and future operations will require significant capital expenditures, and if we are unable to generate sufficient cash flow from operations or obtain additional financing on acceptable terms, our business, financial condition, results of operations, and future prospects could be materially and adversely affected.\u201d*\n\n> *\u201c\u2022 the amount, nature and timing of our capital expenditures and the impact of such capital expenditures on our growth and performance, including our ability to fund such expenditures, manage costs, strategically reduce costs and achieve expected returns on investment;\u201d*\n\n> *\u201c\u2022 our ability to obtain sufficient power, GPUs, and other critical components and manage our supply chain to meet our needs;\u201d*\n\nAll of the above disclosures directly relate to AI capital expenditures and AI infrastructure spending as derived from the provided text."
+          },
+          {
+            "source_call_id": "call_6930cdf7657147d5b02a4319",
+            "content": "Based on the provided document sections, here is the capital expenditure (capex) data by segment and consolidated:\n\n| (in millions) | Space | Connectivity | AI | Total Capital Expenditures |\n| :--- | :--- | :--- | :--- | :--- |\n| **FY2023** | $1,497 | $2,455 | $463 | $4,415 |\n| **FY2024** | $2,032 | $3,498 | $5,633 | $11,163 |\n| **FY2025** | $3,832 | $4,178 | $12,727 | $20,737 |\n| **Q1 2025** | $759 | $814 | $2,567 | $4,140 |\n| **Q1 2026** | $1,052 | $1,332 | $7,723 | $10,107 |"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3659,
+        "completion_tokens": 322,
+        "cached_tokens": 3456,
+        "cost_usd": 0.0080475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T23:58:00.565717+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have the key SpaceX data. Let me also retrieve the operating cash flow information for SpaceX to construct an analogous ratio.\n\nFor Amazon, the question states:\n- FY2025 free cash flow fell from $32.9 billion to $7.7 billion\n- Capex consumed approximately 94% of operating cash flow\n\nSo Amazon's ratio is: capex / operating cash flow \u2248 94% (i.e., 0.94)\n\nNow for SpaceX, I need to construct an analogous ratio using:\n- Connectivity Segment Adjusted EBITDA as the \"primary internal cash source\" (analogous to operating cash flow)\n- Annualized Q1 2026 AI capex\n\nLet me compute:\n\nSpaceX:\n- Q1 2026 AI capex = $7,723 million\n- Annualized Q1 2026 AI capex = $7,723 \u00d7 4 = $30,892 million\n- Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source): \n  - FY2025: $7,168 million\n  - Q1 2026 annualized: $2,087 \u00d7 4 = $8,348 million\n\nThe question says \"using SpaceX's disclosed Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source) and annualized Q1 2026 AI capex.\"\n\nSo the ratio would be: Annualized Q1 2026 AI Capex / Connectivity Segment Adjusted EBITDA\n\nWhich figure to use for the denominator? The question says \"SpaceX's disclosed Connectivity Segment Adjusted EBITDA\" - I think this likely means the most recent annual figure, FY2025: $7,168 million, or perhaps the Q1 2026 annualized: $8,348 million.\n\nLet me think about which one makes more sense. Amazon used FY2025 data, so the analogous approach would use FY2025 Connectivity Segment Adjusted EBITDA.\n\nSpaceX ratio: $30,892 / $7,168 = 4.31 or 431%\n\nBut wait, let me think more carefully. The question says \"using SpaceX's disclosed Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source) and annualized Q1 2026 AI capex, construct an analogous FCF pressure ratio for SpaceX.\"\n\nSo the ratio = Annualized Q1 2026 AI capex / Connectivity Segment Adjusted EBITDA\n\nLet me compute both using FY2025 Connectivity Adj EBITDA and Q1 2026 annualized:\n\nUsing FY2025: 30,892 / 7,168 = 4.310\n\nUsing Q1 2026 annualized: 30,892 / 8,348 = 3.700\n\nNow, the question is about an \"analogous FCF pressure ratio.\" Amazon's ratio was capex/operating cash flow \u2248 94%. So Amazon's capex consumed 94% of OCF. \n\nSpaceX's ratio with FY2025 denominator: AI capex alone is 431% of Connectivity Segment Adjusted EBITDA. That's far more than Amazon's 94%.\n\nBut let me also check what the filing says about operating cash flow to get a fuller picture.\n\nLet me also look for additional disclosures about how the Connectivity segment's cash flow is used, and any discussion of cross-segment funding.\n\nLet me also retrieve the consolidated operating cash flow and free cash flow for SpaceX.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c7f7e5de2fde471ea91a4d8a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the consolidated operating cash flow, free cash flow, and net cash provided by operating activities for FY2023, FY2024, FY2025, Q1 2025, and Q1 2026? Retrieve cash flow statement data from {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_81581ec385a045e588d5eaf2",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What disclosures does the filing make about how the Connectivity segment's cash flow or Adjusted EBITDA is used to fund AI infrastructure or other segments? Is there any discussion of cross-segment funding, internal capital allocation, or cash management across segments? Retrieve from {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_22a00250ae1d40c7814f7d57",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about the Connectivity segment being the primary internal cash source or cash generator? Are there any statements about which segments generate cash and which consume cash? Retrieve from {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c7f7e5de2fde471ea91a4d8a",
+            "content": "Based on the cash flow statements and additional disclosures provided in the filing, here are the figures for net cash provided by operating activities (which is the consolidated operating cash flow) and free cash flow (calculated as net cash from operations minus capital expenditures). All amounts are in millions USD.\n\n| Period | Net Cash Provided by Operating Activities | Capital Expenditures (PP&E) | Free Cash Flow (OpCF \u2013 Capex) |\n| :--- | :--- | :--- | :--- |\n| **FY2023** | $4,520 | $4,415 | $105 |\n| **FY2024** | $5,776 | $11,163 | $(5,387) |\n| **FY2025** | $6,785 | $20,737 | $(13,952) |\n| **Q1 2025** | $727 | $4,140 | $(3,413) |\n| **Q1 2026** | $1,047 | $10,107 | $(9,060) |\n\n**Sources from the provided data:**\n\n- **FY2023, FY2024, FY2025 net cash from operations** and **capital expenditures**:  \n  - The consolidated statement of cash flows shows \u201cNet cash provided by operating activities\u201d of $4,520 (2023), $5,776 (2024), and $6,785 (2025).  \n  - \u201cPurchases of property, plant, and equipment\u201d are listed as $(4,415), $(11,163), and $(20,737) for the same years.  \n\n- **Q1 2025 and Q1 2026 net cash from operations** and **capital expenditures**:  \n  - The condensed consolidated statement of cash flows for the three months ended March 31, 2026 and 2025 reports \u201cNet cash provided by operating activities\u201d of $727 (2025) and $1,047 (2026).  \n  - The corresponding \u201cPurchases of property, plant, and equipment\u201d are $4,140 (2025) and $10,107 (2026).  \n\n- **Free cash flow** is calculated as net cash provided by operating activities less capital expenditures (purchases of PP&E). No additional adjustments (e.g., capitalized interest or product rebates) were included in the simple definition used here; those amounts are available if a more refined measure is required."
+          },
+          {
+            "source_call_id": "call_81581ec385a045e588d5eaf2",
+            "content": "Based on the provided text, the filing **does not** make any disclosures indicating that the Connectivity segment's cash flow or Adjusted EBITDA is specifically used to fund AI infrastructure or other segments.\n\nThe filing explicitly discloses the funding strategy for the AI segment, which relies on external financing rather than internal cross-segment cash flows from Connectivity:\n\n> \u201cWe acquired xAI in February 2026, which forms the basis of our AI segment. We expect to allocate substantial capital to expand our compute infrastructure, and we expect a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA... **We plan to access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth and to maintain strong liquidity.**\u201d\n\nRegarding historical cross-segment funding, the text describes a previous cycle where Space funded Connectivity, but it does not state that Connectivity is currently funding AI:\n\n> \u201cWe invested in our Connectivity segment as we generated Segment Adjusted EBITDA from our Space segment, along with additional equity capital that we raised externally...\u201d\n\nThe provided chunks do not contain any discussion of internal capital allocation or cash management policies that direct Connectivity's cash generation (e.g., $7,168 million in Segment Adjusted EBITDA for 2025) toward the AI segment or other segments."
+          },
+          {
+            "source_call_id": "call_22a00250ae1d40c7814f7d57",
+            "content": "Based on the provided chunks, the filing does not explicitly state that the Connectivity segment is the \"primary internal cash source or cash generator.\" However, the financial data and segment descriptions strongly imply it is the primary profit and cash generation engine, while the AI segment is a significant cash consumer.\n\nHere is what the filing states about which segments generate and consume cash:\n\n**Connectivity Segment: Cash Generator**\nThe filing shows the Connectivity segment generates significant profit, which serves as a source of cash.\n*   For 2023, the segment reported income from operations of **$469 million** and Segment Adjusted EBITDA of **$1,602 million**.\n*   In 2025, these figures grew substantially to income from operations of **$4,423 million** and Segment Adjusted EBITDA of **$7,168 million**.\n\n**AI Segment: Cash Consumer**\nThe filing explicitly states that the AI segment is in an investment phase and expects to consume cash for years before becoming a positive cash generator.\n*   For 2023, the segment showed a loss from operations of **$(3,973) million**.\n*   The filing discusses the capital allocation strategy, noting the AI segment will require substantial investment: \"We expect to allocate substantial capital to expand our compute infrastructure, and **we expect a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA**.\"\n*   Its capital expenditures reflect this high-consumption phase, with **$7,723 million** spent in just the first quarter of 2026.\n\n**Space Segment: Mixed/Near Break-Even**\nThe Space segment's cash generation is less clear-cut, as it funds significant research and development.\n*   In 2023, it was essentially break-even with a loss from operations of **$(1) million**.\n*   In 2025, it generated a loss from operations of **$(657) million**, which the filing notes included \"the impact of funding **$3,004 million** in research and development expense for our next-generation Starship launch vehicle program.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6522,
+        "completion_tokens": 947,
+        "cached_tokens": 0,
+        "cost_usd": 0.025775
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T23:58:35.922727+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have all the key data. Let me also check for the AI Segment Adjusted EBITDA, to see if there's an analogous concept on the AI side.\n\nLet me also look for the Space Segment Adjusted EBITDA to understand the full picture.\n\nAnd I should look for the discussion about the Connectivity segment being the \"primary internal cash source\" - the question specifically calls it that.\n\nLet me also retrieve some additional details about the AI segment's operating losses and adjusted EBITDA.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1eeec8f6599a4d15836d0ca5",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the AI Segment Adjusted EBITDA and Segment income/loss from operations for FY2023, FY2024, FY2025, Q1 2025, and Q1 2026? Also retrieve Space Segment Adjusted EBITDA for the same periods. Include reconciliation tables. From {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_06ccf1f3078a4ad2a6a7e957",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about how the Connectivity segment's Adjusted EBITDA or cash flow is characterized? Is it called the \"primary\" cash source, or described as funding other segments? Search for any language about internal funding, cash generation, or cash source in {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1eeec8f6599a4d15836d0ca5",
+            "content": "Based on the provided document chunks, here are the requested figures and reconciliation tables.\n\n### AI Segment\n\n| Period | Segment Income (Loss) from Operations | Segment Adjusted EBITDA |\n| :--- | :--- | :--- |\n| **FY2023** | $(3,973) million | $1,222 million |\n| **FY2024** | $(1,561) million | $347 million |\n| **FY2025** | $(6,355) million | $(1,237) million |\n| **Q1 2025** | $(936) million | $(112) million |\n| **Q1 2026** | $(2,469) million | $(609) million |\n\n### Space Segment\n\n| Period | Segment Adjusted EBITDA |\n| :--- | :--- |\n| **FY2023** | $997 million |\n| **FY2024** | $1,154 million |\n| **FY2025** | $653 million |\n| **Q1 2025** | $224 million |\n| **Q1 2026** | $(351) million |\n\n---\n\n### Reconciliation Tables\n\n**FY2023**\n| (in millions) | AI | Space |\n| :--- | :--- | :--- |\n| Income (loss) from operations | $(3,973) | $(1) |\n| Add: | | |\n| Depreciation and amortization | 1,180 | 571 |\n| Share-based compensation | 3 | 427 |\n| Restructuring charges | 237 | \u2014 |\n| Impairment | 3,775 | \u2014 |\n| **Segment Adjusted EBITDA** | **$1,222** | **$997** |\n\n**FY2024**\n| (in millions) | AI | Space |\n| :--- | :--- | :--- |\n| Income (loss) from operations | $(1,561) | $21 |\n| Add: | | |\n| Depreciation and amortization | 1,679 | 637 |\n| Share-based compensation | 16 | 472 |\n| Restructuring charges | 213 | \u2014 |\n| Impairment | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$347** | **$1,154** |\n\n**FY2025**\n| (in millions) | AI | Space |\n| :--- | :--- | :--- |\n| Income (loss) from operations | $(6,355) | $(657) |\n| Add: | | |\n| Depreciation and amortization | 3,568 | 757 |\n| Share-based compensation | 1,063 | 515 |\n| Restructuring charges | 487 | \u2014 |\n| Impairment | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$(1,237)** | **$653** |\n\n**Q1 2025**\n| (in millions) | AI | Space |\n| :--- | :--- | :--- |\n| Income (loss) from operations | $(936) | $(70) |\n| Add: | | |\n| Depreciation and amortization | 771 | 162 |\n| Share-based compensation | 49 | 108 |\n| Restructuring charges | 4 | \u2014 |\n| Impairment | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$(112)** | **$224** |\n\n**Q1 2026**\n| (in millions) | AI | Space |\n| :--- | :--- | :--- |\n| Income (loss) from operations | $(2,469) | $(662) |\n| Add: | | |\n| Depreciation and amortization | 1,493 | 166 |\n| Share-based compensation | 378 | 145 |\n| Restructuring charges | (11) | \u2014 |\n| **Segment Adjusted EBITDA** | **$(609)** | **$(351)** |"
+          },
+          {
+            "source_call_id": "call_06ccf1f3078a4ad2a6a7e957",
+            "content": "Based on the provided filing, the Connectivity segment's Adjusted EBITDA or cash flow is **not** characterized as the \"primary\" cash source, nor is it explicitly described as currently funding other segments.\n\nHere is the relevant language found in the text:\n\n*   **Historical Funding Order:** The filing describes the historical funding relationship, stating that cash from the Space segment was used to invest in the Connectivity segment, not the other way around.\n    > \"We invested in our Connectivity segment as we generated Segment Adjusted EBITDA from our Space segment, along with additional equity capital that we raised externally...\"\n\n*   **Current Profitability:** The text states that the Connectivity segment is now generating positive Segment Adjusted EBITDA.\n    > \"...the Connectivity segment became in aggregate Segment Adjusted EBITDA positive on a sustained basis beginning in 2023.\"\n\n*   **General Cash Sources:** The filing's Liquidity and Capital Resources section identifies the company's primary sources of liquidity in general, consolidated terms without singling out any specific segment.\n    > \"Our primary sources of liquidity are cash flows generated from operations, our total cash and cash equivalents of $15,852 million as of March 31, 2026, short-term marketable securities of $7,823 million as of March 31, 2026, and...\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8661,
+        "completion_tokens": 291,
+        "cached_tokens": 7296,
+        "cost_usd": 0.0154425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-10T00:01:19.654262+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also retrieve information about Amazon's 2025 operating cash flow for precision - the question says capex consumed approximately 94% of operating cash flow with FCF falling from $32.9B to $7.7B. Let me verify.\n\nActually, I can infer:\n- FY2025 FCF = $7.7B\n- FY2024 FCF = $32.9B\n- Capex consumed ~94% of OCF\n\nSo OCF FY2025 = FCF + Capex\nIf capex/OCF = 0.94, then FCF/OCF = 0.06\nOCF = 7.7 / 0.06 = $128.33B\nCapex = 128.33 * 0.94 = $120.63B\n\nWait, let me verify with actual Amazon numbers. Let me search for Amazon's FY2025 cash flow statement.\n\nActually, the question just gives me the ratio - capex consumed approximately 94% of OCF. Let me just use that as the comparison point. The \"FCF pressure ratio\" = capex / operating cash flow \u2248 0.94 or 94%.\n\nNow for SpaceX, the question asks me to construct an \"analogous FCF pressure ratio\" using:\n- Connectivity Segment Adjusted EBITDA as the primary internal cash source (analogous to OCF)\n- Annualized Q1 2026 AI capex\n\nSo:\n- Annualized Q1 2026 AI capex = $7,723M \u00d7 4 = $30,892M\n- Connectivity Segment Adjusted EBITDA: The question says \"SpaceX's disclosed Connectivity Segment Adjusted EBITDA\"\n\nWhich period? It could be FY2025 ($7,168M) or Q1 2026 annualized ($2,087M \u00d7 4 = $8,348M).\n\nFor the Amazon analogy, Amazon used FY2025 data, so the analogous SpaceX ratio would use FY2025 Connectivity Segment Adjusted EBITDA.\n\nSpaceX FCF Pressure Ratio = $30,892M / $7,168M = 4.310 = 431%\n\nThis means AI capex alone is 4.3x the Connectivity segment's entire Adjusted EBITDA - the primary internal cash generator.\n\nAmazon's ratio was 0.94 (94%), meaning capex consumed 94% of OCF.\n\nSo SpaceX's internal funding position is far more constrained than Amazon's was. SpaceX's AI capex alone is more than 4x its primary internal cash source, while Amazon's total capex was 94% of OCF.\n\nNow let me think about what disclosures SpaceX provides or omits that limit confidence:\n\n1. **Segment-level cash flow not disclosed**: The S-1 provides segment-level Adjusted EBITDA but does NOT provide segment-level cash flow from operations. We can't see how much actual cash the Connectivity segment generates vs. its Adjusted EBITDA.\n\n2. **No segment-level operating cash flow**: The filing does not break down operating cash flow by segment, so we can't verify how Connectivity Segment Adjusted EBITDA translates into actual cash generation.\n\n3. **Cross-segment funding opaque**: The filing doesn't describe whether Connectivity's cash is actually available to fund AI capex or whether it's retained/reinvested within Connectivity. There's no disclosure of internal capital allocation policies.\n\n4. **Connectivity has its own capex needs**: Connectivity had $4,178M in capex in FY2025 and $1,332M in Q1 2026. If Connectivity's own capex needs consume most of its cash generation, there may be little left for AI.\n\n5. **Adjusted EBITDA is not cash flow**: Adjusted EBITDA excludes D&A, SBC, restructuring, impairments - some of which may represent real cash costs (or non-cash items). It's an imperfect proxy for cash generation.\n\n6. **AI capex run-rate may not be stable**: Annualizing Q1 2026 AI capex assumes the Q1 run rate continues, but the filing notes a massive ramp-up that may not be linear.\n\n7. **No consolidated free cash flow by segment**: We have consolidated FCF but not segmented FCF.\n\n8. **External financing not factored in**: The ratio only looks at internal cash generation, but SpaceX explicitly plans to access debt and equity markets to fund AI.\n\n9. **The \"primary internal cash source\" characterization**: The question asserts this, but the S-1 doesn't explicitly call Connectivity the \"primary\" cash source - it's an inference from the data.\n\n10. **No disclosure of what portion of Connectivity's Adj EBITDA is available**: The Connectivity segment has its own significant capex ($4,178M in FY2025), which would need to be subtracted from its Adj EBITDA to get a true \"free cash flow\" proxy.\n\nLet me now compute the actual FCF pressure ratio more precisely using consolidated data for comparison:\n\nAmazon FY2025: Capex/OCF \u2248 94%\nSpaceX FY2025 consolidated: Capex/OCF = 20,737/6,785 = 3.057 = 306%\nSpaceX Q1 2026 annualized: Capex/OCF = (10,107*4)/(1,047*4) = 40,428/4,188 = 9.65 = 965%\n\nBut the question specifically asks for the ratio using Connectivity Segment Adjusted EBITDA and annualized Q1 2026 AI capex. So:\n\nRatio = Annualized Q1 2026 AI capex / Connectivity Segment Adjusted EBITDA (FY2025)\n\n= $30,892 / $7,168 = 4.31 = 431%\n\nLet me also compute using Q1 2026 annualized Connectivity Adj EBITDA:\n= $30,892 / $8,348 = 3.70 = 370%\n\nI should present both and explain which is more appropriate.\n\nNow let me also look at what other limitations there might be. Let me retrieve some more disclosures about how the segments interact financially.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7fe6faea9f7a4913b7ca4cf2",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the complete Liquidity and Capital Resources section or discussion of how the company funds its operations, including any discussion of capital allocation across segments, internal funding, or cash management policies. From {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_2ed9dbea86b549439e8669d7",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Does the filing provide segment-level cash flow statements or segment-level operating cash flow? Is there any reconciliation from Segment Adjusted EBITDA to segment cash flow? Retrieve any discussion of segment cash flow from {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7fe6faea9f7a4913b7ca4cf2",
+            "content": "**Liquidity and Capital Resources**\n\n**Our Capital Allocation and Funding Strategy**\n\nSince our beginning, we have managed through multiple investment cycles. We initially raised capital to fund what is now our Space segment, which generates revenue from commercial and government customers while serving as the backbone for our Connectivity segment. We invested in our Connectivity segment as we generated Segment Adjusted EBITDA from our Space segment, along with additional equity capital that we raised externally, creating a segment that generates predictable and recurring revenue from consumer, enterprise, and government customers. We continue to invest meaningfully in both our Space and Connectivity segments to build out the infrastructure of the future through our next-generation Starship launch platform and our expanded Starlink broadband and mobility offerings.\n\nWe have a stellar track record of capital allocation and value creation in Space and Connectivity. Since SpaceX\u2019s founding in 2002, we have raised over $9 billion of equity capital to fund the development and growth of these two business segments. The Space segment became Segment Adjusted EBITDA positive on a sustained basis beginning in 2018 and the Connectivity segment became in aggregate Segment Adjusted EBITDA positive on a sustained basis beginning in 2023. In 2025, our Space segment generated a loss from operations of $(657) million and Segment Adjusted EBITDA of $653 million, including the impact of funding $3,004 million in research and development expense for our next-generation Starship launch vehicle program. In 2025, our Connectivity segment generated income from operations of $4,423 million and Segment Adjusted EBITDA of $7,168 million.\n\nWe acquired xAI in February 2026, which forms the basis of our AI segment. We expect to allocate substantial capital to expand our compute infrastructure, and we expect a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA. During this investment period, our capital expenditures will scale as quickly as we are able to deploy power and compute to address the $26.5 trillion potential market opportunity for AI. We plan to access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth and to maintain strong liquidity. We aim to maintain an investment grade credit profile over time.\n\nSegment Adjusted EBITDA is a non-GAAP measure. Please refer to the section titled \u201c\u2014Non-GAAP Financial Measures\u201d for additional information on our non-GAAP financial measures, including reconciliations of Segment Adjusted EBITDA to segment income (loss) from operations, the most directly comparable GAAP measure.\n\n**Primary Sources of Liquidity and Funding Flexibility**\n\nOur primary sources of liquidity are cash flows generated from operations, our total cash and cash equivalents of $15,852 million as of March 31, 2026, short-term marketable securities of $7,823 million as of March 31, 2026, and borrowings under our credit facilities. As of March 31, 2026, we have $1,500 million available to borrow under the SpaceX Credit Facility. The cash we generate from our core operations also enables us to fund our research and development projects including our Starship rocket and next-generation satellites, the construction of future data centers, and the continued expansion of our AI-enabled products.\n\nIn addition, because we expect a significant portion of our future expenditures to fund growth initiatives, we retain flexibility to adjust spending across segments. For example, if our near-term data center needs decrease in scale or ramp more slowly than expected, including due to global economic, tax, trade or business conditions, we may reduce future capital expenditures in this segment and reallocate those expenditures to other segments based on business priorities and growth opportunities. In addition, we continually evaluate our cash needs and may decide it is best to raise additional capital or seek alternative financing sources to fund the rapid growth of our business, including through drawdowns on existing or new debt facilities. We may seek to refinance the SpaceX Bridge Loan, including with the proceeds from notes offerings, bank borrowings, or other financial arrangements. We may also from time to time determine that it is in our best interests to voluntarily repay certain indebtedness early.\n\nAccordingly, we believe we have sufficient sources of funding to meet our business requirements for at least the next twelve months from the issuance of the consolidated financial statements.\n\n**SpaceX Credit Facility**\n\nIn February 2025, SpaceX entered into a five-year senior unsecured revolving credit agreement with a syndicate of banks, under which the Company may borrow up to $1,500 million (\u201cSpaceX Credit Facility\u201d). The SpaceX Credit Facility is subject to certain customary representations, warranties, covenants, and events of default, including a maximum financial covenant requiring the Company to maintain a Consolidated Leverage Ratio (as defined in the SpaceX Credit Facility) of no greater than 3.75 to 1.0 as of the end of each fiscal quarter (subject to temporary increases to 4.25 to 1.0 following certain qualified acquisitions) and other customary reporting requirements. The SpaceX Credit Facility also includes sublimits of up to $150 million for financial letters of credit and up to $1,000 million for performance letters of credit. The SpaceX Credit Facility terminates, and all outstanding loans become due and payable, on February 7, 2030, unless the parties agree to an extension in accordance with the terms of the SpaceX Credit Facility. As of March 31, 2026 and December 31, 2025, no amounts were outstanding under the SpaceX Credit Facility. Borrowings under the SpaceX Credit Facility bear interest, at the Company\u2019s option, at a rate per annum equal to (i)\u2026\n\n**Indebtedness and Lease Obligations**\n\nAs of March 31, 2026, we and our subsidiaries had outstanding $29,132 million in aggregate principal amount of indebtedness and no debt principal payments are due until August 28, 2027 if we choose not to extend. As of March 31, 2026, our total minimum lease payments was $5,823 million, of which $1,026 million is due within this fiscal year. For details regarding our indebtedness and lease obligations, refer to Note 10, Debt, and Note 11, Leases of our audited consolidated financial statements and Note 9, Debt of our unaudited consolidated financial statements included elsewhere in this prospectus.\n\n**Cash Flows**\n\nThe following table summarizes our cash flows for the periods indicated:\n\n|                             | Three Months Ended March 31, | Year Ended December 31, |\n|-----------------------------|------------------------------|-------------------------|\n| (in millions)               | 2026      | 2025       | 2025      | 2024      | 2023      |\n| Net cash provided by (used in) |           |           |           |           |           |\n| Operating activities        | $1,047    | $727      | $6,785    | $5,776    | $4,520    |\n| Investing activities        | $(16,724) | $(4,170)  | $(19,575) | $(10,796) | $(4,867)  |\n| Financing activities        | $7,125    | $354      | $26,350   | $11,830   | $422      |\n\n**Investing Activities**\n\nNet cash used in investing activities increased by $5,929 million from $4,867 million during the year ended December 31, 2023 to $10,796 million during the year ended December 31, 2024. This increase was primarily driven by an increase in capital expenditures of $6,748 million related to the build out of data centers and related infrastructure, and space launch facilities and related infrastructure, partially offset by an increase in cash received for the maturities of marketable securities of $981 million.\n\n**Financing Activities**\n\nNet cash provided by financing activities increased by $11,408 million from $422 million during the year ended December 31, 2023 to $11,830 million during the year ended December 31, 2024. This increase was primarily driven by an increase in proceeds from the sale of our capital stock of $12,327 million, partially offset by an increase in the buyback of common and preferred shares by the Company of $104 million.\n\nNet cash provided by financing activities increased by $14,520 million from $11,830 million during the year ended December 31, 2024 to $26,350 million during the year ended December 31, 2025. This increase was primarily driven by an increase in proceeds from debt and other financing arrangements for our AI segment of $16,055 million and proceeds from sale of our capital stock of $5,706 million, partially offset by an increase in repayments on debt and other financing arrangements for our AI segment of $6,781 million.\n\nNet cash provided by financing activities increased by $6,771 million from $354 million during the three months ended March 31, 2025 to $7,125 million during the three months ended March 31, 2026. This increase was primarily driven by an increase in proceeds from the SpaceX Bridge Loan and other financing arrangements of $17,950 million and proceeds from sale of our capital stock of $7,420 million, partially offset by an increase in payment on existing debt obligations and debt extinguishment costs of $14,703 million from the proceeds from the SpaceX Bridge Loan as well as an increase in repurchases of our capital stock of $3,838 million following the xAI acquisition."
+          },
+          {
+            "source_call_id": "call_2ed9dbea86b549439e8669d7",
+            "content": "Based on the provided filing chunks, here are the answers to your questions:\n\n**Does the filing provide segment-level cash flow statements or segment-level operating cash flow?**\nNo, the filing does not provide segment-level cash flow statements or a metric for segment-level operating cash flow. The detailed cash flow statement presented is on a consolidated basis only, reconciling net income (loss) to net cash provided by operating activities for the entire company.\n\n**Is there any reconciliation from Segment Adjusted EBITDA to segment cash flow?**\nNo, there is no reconciliation from Segment Adjusted EBITDA to segment cash flow. The provided reconciliations for the segments start with \"Income (loss) from operations\" and add back items like depreciation and amortization, share-based compensation, restructuring charges, and impairment to arrive at \"Segment Adjusted EBITDA.\" The reconciliation stops at this point and does not continue to a cash flow metric.\n\n**Retrieve any discussion of segment cash flow...**\nThe filing does not contain a discussion of segment cash flow. The segment-level financial discussion focuses on:\n*   Revenue\n*   Income (loss) from operations\n*   Segment Adjusted EBITDA\n*   Capital expenditures by segment\n\nFor example, capital expenditures are presented by segment: \"Space capital expenditures for the three months ended March 31, 2026 increased $293 million to $1,052 million,\" but a corresponding segment-level operating cash flow is not discussed or presented. The company's primary sources of liquidity are discussed only at the consolidated level."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10018,
+        "completion_tokens": 1413,
+        "cached_tokens": 0,
+        "cost_usd": 0.039175
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-10T00:01:25.336789+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also verify the Amazon FY2025 numbers by searching for Amazon's 10-K.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_865e66e9258c4382ab29a6ba",
+          "function_name": "edgar_search",
+          "arguments": {
+            "search_query": "Amazon free cash flow 2025 operating cash flow capital expenditures",
+            "form_types": [
+              "10-K"
+            ],
+            "ciks": [
+              "0001018724"
+            ],
+            "start_date": "2025-01-01",
+            "end_date": "2026-03-01"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_865e66e9258c4382ab29a6ba",
+            "content": "[{\"accessionNo\": \"0001018724-25-000004\", \"cik\": \"1018724\", \"companyNameLong\": \"AMAZON COM INC (AMZN) (CIK 0001018724)\", \"ticker\": \"AMZN\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872425000004/amzn-20241231.htm\", \"filedAt\": \"2025-02-07\"}, {\"accessionNo\": \"0001018724-26-000004\", \"cik\": \"1018724\", \"companyNameLong\": \"AMAZON COM INC (AMZN) (CIK 0001018724)\", \"ticker\": \"AMZN\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm\", \"filedAt\": \"2026-02-06\"}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13688,
+        "completion_tokens": 170,
+        "cached_tokens": 0,
+        "cost_usd": 0.03592
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-10T00:01:28.743247+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me parse the Amazon FY2025 10-K to verify the numbers.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_a59924a7c10a49cdbf0093f1",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "key": "amazon_2025_10k",
+            "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_a59924a7c10a49cdbf0093f1",
+            "content": "SUCCESS: Loaded portable assets for key: amazon_2025_10k"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14132,
+        "completion_tokens": 116,
+        "cached_tokens": 13696,
+        "cost_usd": 0.01937
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-10T00:01:41.801763+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me retrieve Amazon's cash flow data to verify the numbers.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bb0e47af4c4a4e4193d8d04b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Amazon's operating cash flow, capital expenditures, and free cash flow for FY2025 and FY2024? Retrieve the exact figures from the cash flow statement in {{amazon_2025_10k}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bb0e47af4c4a4e4193d8d04b",
+            "content": "Based on the provided text, here are the exact figures for Amazon's operating cash flow, capital expenditures, and free cash flow for FY2024 and FY2025:\n\n| Metric | FY2024 | FY2025 |\n| :--- | :--- | :--- |\n| **Operating Cash Flow** (\"Net cash provided by operating activities\") | $115,877 million | $139,514 million |\n| **Capital Expenditures** (\"Purchases of property and equipment, net of proceeds from sales and incentives\") | $(77,658) million | $(128,320) million |\n| **Free Cash Flow** | $38,219 million | $11,194 million |\n\nThe text also references \"Cash capital expenditures\" in the narrative as $77.7 billion and $128.3 billion for 2024 and 2025, which aligns with the figures in the free cash flow reconciliation table."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14276,
+        "completion_tokens": 104,
+        "cached_tokens": 13952,
+        "cost_usd": 0.01929
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-10T00:02:01.164194+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me verify the numbers. Amazon:\n\nFY2024:\n- OCF = $115,877M\n- Capex = $77,658M\n- FCF = $38,219M (which is $115,877 - $77,658)\n\nFY2025:\n- OCF = $139,514M\n- Capex = $128,320M\n- FCF = $11,194M (which is $139,514 - $128,320)\n\nNow, the question says: \"Amazon disclosed that FY2025 free cash flow fell from $32.9 billion to $7.7 billion as capex consumed approximately 94% of operating cash flow.\"\n\nBut according to the 10-K, FCF fell from $38.2B to $11.2B, and capex/OCF = 128,320/139,514 = 91.97% \u2248 92%, not 94%.\n\nHowever, the question says the fall was from $32.9B to $7.7B and 94%. These numbers don't match exactly. Let me check if Amazon might have used a different definition of FCF (like FCF less equipment finance leases and principal repayments), or if the question is referencing different numbers.\n\nWait, the question might be using Amazon's own disclosed numbers from their earnings release, or it might be a simplified version. Let me not get hung up on verifying Amazon's numbers since the question gives them to me directly. The question states:\n\n- FY2025 free cash flow fell from $32.9 billion to $7.7 billion\n- Capex consumed approximately 94% of operating cash flow\n\nSo:\n- FY2024 FCF = $32.9B\n- FY2025 FCF = $7.7B\n- Capex/OCF \u2248 94%\n\nFrom this: OCF = FCF + Capex, and Capex = 0.94 \u00d7 OCF\nSo: OCF = 7.7 + 0.94 \u00d7 OCF\n0.06 \u00d7 OCF = 7.7\nOCF = 7.7/0.06 = $128.33B\nCapex = $120.63B\n\nThese are close but not identical to the 10-K figures. Amazon may report slightly different numbers in different contexts (earnings releases vs 10-K, or there might be rounding involved). The question gives us the numbers to use. Let me use the question's framing.\n\nNow, for SpaceX:\n\nThe ratio the question wants me to construct:\n= Annualized Q1 2026 AI Capex / Connectivity Segment Adjusted EBITDA\n\nAnnualized Q1 2026 AI capex = $7,723M \u00d7 4 = $30,892M\n\nFor Connectivity Segment Adjusted EBITDA, I'll use FY2025 ($7,168M) as the most recent full-year figure, analogous to Amazon's FY2025 data.\n\nRatio = $30,892 / $7,168 = 4.31 = 431%\n\nMeaning: AI capex alone is 431% of Connectivity Segment Adjusted EBITDA.\n\nCompared to Amazon's 94% (capex/OCF), SpaceX's ratio is about 4.6x higher.\n\nNow, let me think about the limitations. Let me also compute alternative formulations:\n\nUsing Q1 2026 annualized Connectivity Adj EBITDA: $30,892 / $8,348 = 3.70 = 370%\n\nUsing consolidated data:\n- FY2025 Capex/OCF = $20,737 / $6,785 = 306%\n\nLet me also think about what's missing:\n\n1. No segment-level cash flow - Adj EBITDA \u2260 cash flow. Reconciliation from Adj EBITDA to actual cash generation requires adjustments for working capital, interest, taxes, etc.\n\n2. Connectivity has its own capex needs ($4,178M in FY2025). If we subtract Connectivity's own capex from its Adj EBITDA, we get a \"Connectivity free cash flow\" proxy of $7,168 - $4,178 = $2,990M. The ratio would then be $30,892 / $2,990 = 10.33 = 1033%.\n\n3. The filing doesn't disclose whether Connectivity's cash is available for cross-segment funding or is ring-fenced.\n\n4. The AI capex run rate may accelerate further (construction in progress jumped from $4.6B to $14.0B in Q1 2026 alone).\n\n5. No disclosure of the portion of consolidated OCF attributable to Connectivity specifically.\n\n6. The ratio uses a non-GAAP metric (Adj EBITDA) as a proxy for cash flow, which is inherently imperfect.\n\n7. The \"primary internal cash source\" characterization is an inference, not an explicit disclosure.\n\n8. SpaceX explicitly plans to use external debt and equity financing for AI, not just internal cash.\n\nLet me now write up my comprehensive answer.\n\nActually, I want to also check if the S-1 says anything about operating cash flow by segment, or if there's any discussion about what portion of consolidated OCF comes from Connectivity.\n\nLet me also look for the non-GAAP reconciliation section.\n\nI think I have enough information now. Let me structure my answer.\n\nLet me also compute some additional ratios for completeness:\n\nAmazon:\n- Capex/OCF = ~94% (from the question)\n- FCF/OCF = ~6%\n\nSpaceX (using FY2025 Connectivity Adj EBITDA):\n- AI Capex/Connectivity Adj EBITDA = 30,892/7,168 = 4.31x (431%)\n- \"Excess\" = AI capex exceeds Connectivity Adj EBITDA by $23,724M\n\nFor a more complete picture, let me also note:\n- SpaceX consolidated FY2025: Capex/OCF = 20,737/6,785 = 3.06x (306%)\n- SpaceX consolidated Q1 2026 annualized: Capex/OCF = (10,107\u00d74)/(1,047\u00d74) = 40,428/4,188 = 9.65x (965%)\n\nThis shows that even on a consolidated basis, SpaceX's capex massively exceeds OCF, while Amazon's was within OCF.\n\nNow let me write the answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1c0dd53ca062461ab1222d60",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7723 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_061ecda9ed6b47db9b3d1e79",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "30892 / 7168"
+          }
+        },
+        {
+          "tool_call_id": "call_775e63acf8004734962f9dc6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "30892 / (2087 * 4)"
+          }
+        },
+        {
+          "tool_call_id": "call_d6006d4b8cee4c4cb732910a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "20737 / 6785"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1c0dd53ca062461ab1222d60",
+            "content": "30892"
+          },
+          {
+            "source_call_id": "call_061ecda9ed6b47db9b3d1e79",
+            "content": "4.309709821428571"
+          },
+          {
+            "source_call_id": "call_775e63acf8004734962f9dc6",
+            "content": "3.7005270723526595"
+          },
+          {
+            "source_call_id": "call_d6006d4b8cee4c4cb732910a",
+            "content": "3.056300663227708"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14574,
+        "completion_tokens": 1458,
+        "cached_tokens": 14208,
+        "cost_usd": 0.033255
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-10T00:02:04.295816+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Good. Now let me also compute the ratio with Connectivity capex subtracted to see the \"available\" cash proxy.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d3c31ab5817f4c6f969c5cc3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - 4178"
+          }
+        },
+        {
+          "tool_call_id": "call_4426588a201340aeaf40ca27",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "30892 / (7168 - 4178)"
+          }
+        },
+        {
+          "tool_call_id": "call_7ff164e2280d45d5b9e41349",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "128320 / 139514"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d3c31ab5817f4c6f969c5cc3",
+            "content": "2990"
+          },
+          {
+            "source_call_id": "call_4426588a201340aeaf40ca27",
+            "content": "10.331772575250836"
+          },
+          {
+            "source_call_id": "call_7ff164e2280d45d5b9e41349",
+            "content": "0.9197643247272675"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16091,
+        "completion_tokens": 144,
+        "cached_tokens": 15744,
+        "cost_usd": 0.0219875
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-10T00:02:30.721861+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have all the numbers. Let me write the comprehensive answer.\n\nKey numbers:\n- Amazon FY2025: Capex/OCF \u2248 92% per 10-K, ~94% per question\n- SpaceX AI capex (Q1 2026 annualized) / Connectivity Adj EBITDA (FY2025) = 431%\n- SpaceX AI capex (Q1 2026 annualized) / Connectivity Adj EBITDA (Q1 2026 annualized) = 370%\n- SpaceX consolidated FY2025: Capex/OCF = 306%\n\nNow let me write the final answer with complete reasoning, calculations, analysis, and limitations.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_38e6eba27cd44d6c995f0967",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## SpaceX vs. Amazon: AI Infrastructure Funding Pressure Ratio\n\n### 1. Amazon FY2025 \u2014 The Reference Ratio\n\nThe question states that Amazon's FY2025 free cash flow fell from $32.9B to $7.7B as capex consumed approximately 94% of operating cash flow. This yields:\n\n> **Amazon FCF Pressure Ratio = Capex \u00f7 OCF \u2248 0.94 (94%)**\n\nIn other words, $0.94 of every dollar of operating cash flow was consumed by capital expenditures, leaving only $0.06 (i.e., $7.7B) as free cash flow.\n\n*(Note: Amazon's FY2025 10-K reports OCF of $139.5B and capex of $128.3B, yielding a ratio of ~92%. The 94% cited in the question is consistent with the approximate disclosure; the analysis below uses the question's 94% framing.)*\n\n---\n\n### 2. SpaceX \u2014 Constructing the Analogous Ratio\n\nThe question instructs us to use:\n- **Numerator:** Annualized Q1 2026 AI capex\n- **Denominator:** Connectivity Segment Adjusted EBITDA (characterized as \"the filing's primary internal cash source\")\n\n**Annualized Q1 2026 AI Capex:**\n$7,723M \u00d7 4 = **$30,892M**\n\n**Connectivity Segment Adjusted EBITDA (FY2025, most recent full year):**\n**$7,168M**\n\n> **SpaceX AI Pressure Ratio = $30,892M \u00f7 $7,168M = 4.31 (431%)**\n\nAI capital expenditures alone consume over **4.3\u00d7** the Connectivity segment's entire annual Segment Adjusted EBITDA. If we instead annualize Q1 2026 Connectivity Segment Adjusted EBITDA ($2,087M \u00d7 4 = $8,348M), the ratio is **3.70 (370%)** \u2014 still nearly 4\u00d7.\n\n---\n\n### 3. Head-to-Head Comparison\n\n| Metric | Amazon FY2025 | SpaceX (analogous) |\n|:---|:---|:---|\n| Cash-source metric | Consolidated OCF | Connectivity Segment Adj. EBITDA |\n| Capex metric | Total consolidated capex | Annualized Q1 2026 AI capex only |\n| Ratio | **~0.94 (94%)** | **4.31 (431%)** |\n| Internal cash consumed by capex | 94% | 431% |\n| \"Surplus\" / (Deficit) | +$7.7B FCF | ($23,724M) deficit |\n\n**Conclusion on constraint:** SpaceX's internal funding position for AI infrastructure is **dramatically more constrained** than Amazon's was in FY2025. Amazon's total capex still left positive free cash flow. SpaceX's AI capex alone \u2014 excluding Space segment capex ($3,832M in FY2025) and Connectivity's own sustaining capex ($4,178M in FY2025) \u2014 exceeds the Connectivity segment's entire Adjusted EBITDA by a factor of more than four.\n\n**Reinforcing consolidated view:** On a fully consolidated basis, SpaceX FY2025 total capex ($20,737M) was **306%** of consolidated OCF ($6,785M). The Q1 2026 annualized run rate implies consolidated capex of $40,428M against annualized OCF of only $4,188M \u2014 a ratio of **965%**. Amazon's consolidated ratio of 92\u201394% is an order of magnitude lower.\n\n---\n\n### 4. Disclosures Provided vs. Omitted \u2014 Factors Limiting Confidence\n\nThe SpaceX S-1 provides sufficient data to perform the calculation above, but several critical disclosures are absent, materially limiting the reliability of any direct comparison with Amazon:\n\n#### (a) No Segment-Level Cash Flow\nThe S-1 provides Segment Adjusted EBITDA (a non-GAAP profit proxy) for each segment but **no segment-level statement of cash flows** and **no reconciliation from Segment Adjusted EBITDA to segment operating cash flow**. Amazon's denominator is GAAP operating cash flow; SpaceX's denominator is a non-GAAP measure that excludes depreciation, amortization, share-based compensation, restructuring, and impairments \u2014 some of which have real cash implications. The translation from Connectivity Segment Adjusted EBITDA to actual cash available for cross-segment deployment is undisclosed and uncertain.\n\n#### (b) Connectivity's Own Capital Requirements Are Not Netted\nConnectivity itself consumed $4,178M in capex during FY2025 and $1,332M in Q1 2026. If Connectivity's Adj EBITDA must first cover its own capex before any surplus is available for AI, the residual is only $7,168M \u2013 $4,178M = **$2,990M** (FY2025). Using this as the denominator yields a pressure ratio of **$30,892M \u00f7 $2,990M = 10.33 (1,033%)** \u2014 more than double the already extreme 431%. The filing does not disclose what portion of Connectivity's cash generation is retained within the segment versus made available for corporate allocation.\n\n#### (c) No Cross-Segment Funding Policy Disclosed\nThe S-1 describes historical capital flows (Space funded Connectivity) and explicitly states that AI will be funded through **external debt and equity markets**, not internal cash:\n> *\"We plan to access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth...\"*\n\nThe filing does **not** state that Connectivity Segment Adjusted EBITDA is, or will be, the primary funding source for AI capex. The \"primary internal cash source\" characterization is an inference \u2014 one the company's own disclosures appear to deprecate by emphasizing external financing for AI.\n\n#### (d) AI Capex Run Rate May Not Be Stable\nAnnualizing a single quarter (Q1 2026) assumes linear spending. The S-1 shows construction-in-progress surging from $4,604M to $14,045M in Q1 2026 alone, contractual commitments of $25.5B (with $21.5B due in 2027), and forward-looking language that capex \"will scale as quickly as we are able to deploy power and compute.\" The Q1 2026 run rate may understate rather than overstate future spending.\n\n#### (e) Numerator/Denominator Mismatch\nAmazon's ratio uses **total** consolidated capex and **total** consolidated OCF \u2014 like measured against like, on the same GAAP basis. The SpaceX ratio pairs **one segment's capex** (AI) against **a different segment's non-GAAP profit metric** (Connectivity). This cross-segment, cross-metric construction has no direct GAAP analogue and is inherently less rigorous than Amazon's like-for-like comparison.\n\n#### (f) Consolidated OCF Masks Segment Composition\nSpaceX's consolidated OCF of $6,785M (FY2025) reflects the net of all three segments plus corporate-level items. The Connectivity segment's contribution to consolidated OCF cannot be isolated from the financial statements. If a material portion of consolidated OCF derives from non-Connectivity sources (e.g., customer prepayments in Space, working capital), then Connectivity Segment Adjusted EBITDA overstates Connectivity's actual cash contribution.\n\n#### (g) Post-Merger Recast Financials\nAll historical financials reflect the retrospective common-control combination of SpaceX, xAI, and X Holdings. No period reflects standalone SpaceX operations. The Connectivity segment's historical Adj EBITDA trajectory may embed recast adjustments whose nature is not fully transparent, potentially affecting trend analysis.\n\n---\n\n### Summary\n\n| Dimension | Amazon FY2025 | SpaceX (Analogous) |\n|:---|:---|:---|\n| Ratio | ~94% (capex within OCF) | ~431% (AI capex alone 4.3\u00d7 Connectivity Adj EBITDA) |\n| Internal funding position | Constrained but cash-flow-positive | Severely constrained; AI capex dwarfs internal cash generation |\n| Key disclosure strength | GAAP OCF and capex on same consolidated basis | Transparent segment Adj EBITDA and segment capex |\n| Key disclosure gap | N/A | No segment cash flow; no cross-segment funding policy; reliance on non-GAAP proxy; external financing emphasized over internal funding |\n\nThe S-1 makes clear that SpaceX's AI build-out will be funded predominantly through external capital markets, not internal cash generation \u2014 a fact that the ratio calculation above corroborates by demonstrating that internal sources are quantitatively insufficient to cover the AI spending trajectory.\n\n---\n\n**Sources:**\n- SpaceX S-1 (filed May 20, 2026): https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n- Amazon 10-K (FY2025, filed Feb 6, 2026): https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_38e6eba27cd44d6c995f0967",
+            "content": "## SpaceX vs. Amazon: AI Infrastructure Funding Pressure Ratio\n\n### 1. Amazon FY2025 \u2014 The Reference Ratio\n\nThe question states that Amazon's FY2025 free cash flow fell from $32.9B to $7.7B as capex consumed approximately 94% of operating cash flow. This yields:\n\n> **Amazon FCF Pressure Ratio = Capex \u00f7 OCF \u2248 0.94 (94%)**\n\nIn other words, $0.94 of every dollar of operating cash flow was consumed by capital expenditures, leaving only $0.06 (i.e., $7.7B) as free cash flow.\n\n*(Note: Amazon's FY2025 10-K reports OCF of $139.5B and capex of $128.3B, yielding a ratio of ~92%. The 94% cited in the question is consistent with the approximate disclosure; the analysis below uses the question's 94% framing.)*\n\n---\n\n### 2. SpaceX \u2014 Constructing the Analogous Ratio\n\nThe question instructs us to use:\n- **Numerator:** Annualized Q1 2026 AI capex\n- **Denominator:** Connectivity Segment Adjusted EBITDA (characterized as \"the filing's primary internal cash source\")\n\n**Annualized Q1 2026 AI Capex:**\n$7,723M \u00d7 4 = **$30,892M**\n\n**Connectivity Segment Adjusted EBITDA (FY2025, most recent full year):**\n**$7,168M**\n\n> **SpaceX AI Pressure Ratio = $30,892M \u00f7 $7,168M = 4.31 (431%)**\n\nAI capital expenditures alone consume over **4.3\u00d7** the Connectivity segment's entire annual Segment Adjusted EBITDA. If we instead annualize Q1 2026 Connectivity Segment Adjusted EBITDA ($2,087M \u00d7 4 = $8,348M), the ratio is **3.70 (370%)** \u2014 still nearly 4\u00d7.\n\n---\n\n### 3. Head-to-Head Comparison\n\n| Metric | Amazon FY2025 | SpaceX (analogous) |\n|:---|:---|:---|\n| Cash-source metric | Consolidated OCF | Connectivity Segment Adj. EBITDA |\n| Capex metric | Total consolidated capex | Annualized Q1 2026 AI capex only |\n| Ratio | **~0.94 (94%)** | **4.31 (431%)** |\n| Internal cash consumed by capex | 94% | 431% |\n| \"Surplus\" / (Deficit) | +$7.7B FCF | ($23,724M) deficit |\n\n**Conclusion on constraint:** SpaceX's internal funding position for AI infrastructure is **dramatically more constrained** than Amazon's was in FY2025. Amazon's total capex still left positive free cash flow. SpaceX's AI capex alone \u2014 excluding Space segment capex ($3,832M in FY2025) and Connectivity's own sustaining capex ($4,178M in FY2025) \u2014 exceeds the Connectivity segment's entire Adjusted EBITDA by a factor of more than four.\n\n**Reinforcing consolidated view:** On a fully consolidated basis, SpaceX FY2025 total capex ($20,737M) was **306%** of consolidated OCF ($6,785M). The Q1 2026 annualized run rate implies consolidated capex of $40,428M against annualized OCF of only $4,188M \u2014 a ratio of **965%**. Amazon's consolidated ratio of 92\u201394% is an order of magnitude lower.\n\n---\n\n### 4. Disclosures Provided vs. Omitted \u2014 Factors Limiting Confidence\n\nThe SpaceX S-1 provides sufficient data to perform the calculation above, but several critical disclosures are absent, materially limiting the reliability of any direct comparison with Amazon:\n\n#### (a) No Segment-Level Cash Flow\nThe S-1 provides Segment Adjusted EBITDA (a non-GAAP profit proxy) for each segment but **no segment-level statement of cash flows** and **no reconciliation from Segment Adjusted EBITDA to segment operating cash flow**. Amazon's denominator is GAAP operating cash flow; SpaceX's denominator is a non-GAAP measure that excludes depreciation, amortization, share-based compensation, restructuring, and impairments \u2014 some of which have real cash implications. The translation from Connectivity Segment Adjusted EBITDA to actual cash available for cross-segment deployment is undisclosed and uncertain.\n\n#### (b) Connectivity's Own Capital Requirements Are Not Netted\nConnectivity itself consumed $4,178M in capex during FY2025 and $1,332M in Q1 2026. If Connectivity's Adj EBITDA must first cover its own capex before any surplus is available for AI, the residual is only $7,168M \u2013 $4,178M = **$2,990M** (FY2025). Using this as the denominator yields a pressure ratio of **$30,892M \u00f7 $2,990M = 10.33 (1,033%)** \u2014 more than double the already extreme 431%. The filing does not disclose what portion of Connectivity's cash generation is retained within the segment versus made available for corporate allocation.\n\n#### (c) No Cross-Segment Funding Policy Disclosed\nThe S-1 describes historical capital flows (Space funded Connectivity) and explicitly states that AI will be funded through **external debt and equity markets**, not internal cash:\n> *\"We plan to access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth...\"*\n\nThe filing does **not** state that Connectivity Segment Adjusted EBITDA is, or will be, the primary funding source for AI capex. The \"primary internal cash source\" characterization is an inference \u2014 one the company's own disclosures appear to deprecate by emphasizing external financing for AI.\n\n#### (d) AI Capex Run Rate May Not Be Stable\nAnnualizing a single quarter (Q1 2026) assumes linear spending. The S-1 shows construction-in-progress surging from $4,604M to $14,045M in Q1 2026 alone, contractual commitments of $25.5B (with $21.5B due in 2027), and forward-looking language that capex \"will scale as quickly as we are able to deploy power and compute.\" The Q1 2026 run rate may understate rather than overstate future spending.\n\n#### (e) Numerator/Denominator Mismatch\nAmazon's ratio uses **total** consolidated capex and **total** consolidated OCF \u2014 like measured against like, on the same GAAP basis. The SpaceX ratio pairs **one segment's capex** (AI) against **a different segment's non-GAAP profit metric** (Connectivity). This cross-segment, cross-metric construction has no direct GAAP analogue and is inherently less rigorous than Amazon's like-for-like comparison.\n\n#### (f) Consolidated OCF Masks Segment Composition\nSpaceX's consolidated OCF of $6,785M (FY2025) reflects the net of all three segments plus corporate-level items. The Connectivity segment's contribution to consolidated OCF cannot be isolated from the financial statements. If a material portion of consolidated OCF derives from non-Connectivity sources (e.g., customer prepayments in Space, working capital), then Connectivity Segment Adjusted EBITDA overstates Connectivity's actual cash contribution.\n\n#### (g) Post-Merger Recast Financials\nAll historical financials reflect the retrospective common-control combination of SpaceX, xAI, and X Holdings. No period reflects standalone SpaceX operations. The Connectivity segment's historical Adj EBITDA trajectory may embed recast adjustments whose nature is not fully transparent, potentially affecting trend analysis.\n\n---\n\n### Summary\n\n| Dimension | Amazon FY2025 | SpaceX (Analogous) |\n|:---|:---|:---|\n| Ratio | ~94% (capex within OCF) | ~431% (AI capex alone 4.3\u00d7 Connectivity Adj EBITDA) |\n| Internal funding position | Constrained but cash-flow-positive | Severely constrained; AI capex dwarfs internal cash generation |\n| Key disclosure strength | GAAP OCF and capex on same consolidated basis | Transparent segment Adj EBITDA and segment capex |\n| Key disclosure gap | N/A | No segment cash flow; no cross-segment funding policy; reliance on non-GAAP proxy; external financing emphasized over internal funding |\n\nThe S-1 makes clear that SpaceX's AI build-out will be funded predominantly through external capital markets, not internal cash generation \u2014 a fact that the ratio calculation above corroborates by demonstrating that internal sources are quantitatively insufficient to cover the AI spending trajectory.\n\n---\n\n**Sources:**\n- SpaceX S-1 (filed May 20, 2026): https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n- Amazon 10-K (FY2025, filed Feb 6, 2026): https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16279,
+        "completion_tokens": 2070,
+        "cached_tokens": 16000,
+        "cost_usd": 0.0413975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 121296,
+    "total_completion_tokens": 7273,
+    "total_cached_tokens": 84352,
+    "total_cost_usd": 0.27053,
+    "total_steps": 13
+  }
+}

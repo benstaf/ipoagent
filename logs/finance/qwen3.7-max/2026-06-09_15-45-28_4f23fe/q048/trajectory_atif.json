@@ -1,0 +1,1122 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "fd590cf0-26e6-4e8a-9fb4-5b45bba5a986",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T15:45:32.965295+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T15:45:32.965295+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nAssume Connectivity Segment Adjusted EBITDA declined 25% while AI capex remained at Q1 2026 annualized levels. Quantify the reduction in internal funding capacity and assess the implications for financing flexibility.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T15:45:32.965295+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "This is a complex financial analysis question about SpaceX's S-1 filing. I need to:\n\n1. First, parse the SpaceX S-1 filing to get the relevant financial data\n2. Find the Connectivity Segment Adjusted EBITDA figures\n3. Find AI capex figures for Q1 2026\n4. Calculate the 25% decline in Connectivity Segment Adjusted EBITDA\n5. Assess the reduction in internal funding capacity\n6. Assess implications for financing flexibility\n\nLet me start by parsing the S-1 filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e236a3dc16794df4a65d16b4",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e236a3dc16794df4a65d16b4",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3516,
+        "completion_tokens": 205,
+        "cached_tokens": 3200,
+        "cost_usd": 0.00684
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T15:47:52.068434+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve the relevant financial data from the filing. I need:\n1. Connectivity Segment Adjusted EBITDA\n2. AI capex for Q1 2026\n3. Segment information\n4. Capital expenditure details",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c291464af5b645fda11740e5",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity Segment Adjusted EBITDA for all periods presented in {{spacex_s1}}? Include the full reconciliation table.",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_10510d828f4a49a78657d199",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the AI capital expenditures (AI capex) for Q1 2026 and all other periods in {{spacex_s1}}? Include all capital expenditure breakdowns by segment.",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_0672cc40b3954e3a877ae79b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total capital expenditure and segment capital expenditure breakdown for all periods in {{spacex_s1}}?",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c291464af5b645fda11740e5",
+            "content": "Based on the provided financial highlights and reconciliation tables, here is the **Connectivity Segment Adjusted EBITDA** for all periods presented:\n\n*   **Three months ended March 31, 2026:** $2,087 million\n*   **Year ended December 31, 2025:** $7,168 million\n*   **Three months ended March 31, 2025:** $1,618 million\n*   **Year ended December 31, 2024:** $3,849 million\n*   **Year ended December 31, 2023:** $1,602 million\n\n***\n\n### Full Segment Adjusted EBITDA Reconciliation Tables\nBelow are the full reconciliation tables from the text detailing the adjustment from Segment Income (Loss) from Operations to Segment Adjusted EBITDA across all reportable segments (Space, Connectivity, and AI) for all presented periods.\n\n**Three Months Ended March 31, 2026**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(662)** | **$1,188** | **$(2,469)** | **$(1,943)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 166 | 783 | 1,493 | 2,442 |\n| Share-based compensation | 145 | 116 | 378 | 639 |\n| Restructuring charges | \u2014 | \u2014 | (11) | (11) |\n| **Segment Adjusted EBITDA** | **$(351)** | **$2,087** | **$(609)** | **$1,127** |\n\n**Three Months Ended March 31, 2025**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(70)** | **$1,033** | **$(936)** | **$27** |\n| *Add:* | | | | |\n| Depreciation and amortization | 162 | 510 | 771 | 1,443 |\n| Share-based compensation | 108 | 75 | 49 | 232 |\n| Restructuring charges | \u2014 | \u2014 | 4 | 4 |\n| Impairment | 24 | \u2014 | \u2014 | 24 |\n| **Segment Adjusted EBITDA** | **$224** | **$1,618** | **$(112)** | **$1,730** |\n\n**Year Ended December 31, 2025**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(657)** | **$4,423** | **$(6,355)** | **$(2,589)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 757 | 2,376 | 3,568 | 6,701 |\n| Share-based compensation | 515 | 369 | 1,063 | 1,947 |\n| Restructuring charges | \u2014 | \u2014 | 487 | 487 |\n| Impairment | 38 | \u2014 | \u2014 | 38 |\n| **Segment Adjusted EBITDA** | **$653** | **$7,168** | **$(1,237)** | **$6,584** |\n\n**Year Ended December 31, 2024**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$21** | **$2,006** | **$(1,561)** | **$466** |\n| *Add:* | | | | |\n| Depreciation and amortization | 637 | 1,508 | 1,679 | 3,824 |\n| Share-based compensation | 472 | 296 | 16 | 784 |\n| Restructuring charges | \u2014 | \u2014 | 213 | 213 |\n| Impairment | 24 | 39 | \u2014 | 63 |\n| **Segment Adjusted EBITDA** | **$1,154** | **$3,849** | **$347** | **$5,350** |\n\n**Year Ended December 31, 2023**\n| (in millions) | Space | Connectivity | AI | Total Reportable Segments |\n| :--- | :--- | :--- | :--- | :--- |\n| **Income (loss) from operations** | **$(1)** | **$469** | **$(3,973)** | **$(3,505)** |\n| *Add:* | | | | |\n| Depreciation and amortization | 571 | 884 | 1,180 | 2,635 |\n| Share-based compensation | 427 | 249 | 3 | 679 |\n| Restructuring charges | \u2014 | \u2014 | 237 | 237 |\n| Impairment | \u2014 | \u2014 | 3,775 | 3,775 |\n| **Segment Adjusted EBITDA** | **$997** | **$1,602** | **$1,222** | **$3,821** |"
+          },
+          {
+            "source_call_id": "call_10510d828f4a49a78657d199",
+            "content": "Based on the provided financial documents, here are the AI capital expenditures (AI capex) for Q1 2026 and all other reported periods, followed by the complete capital expenditure breakdown across all segments. \n\n*(Note: All figures are presented in millions of USD)*\n\n### **AI Capital Expenditures (AI Capex) by Period**\n* **Q1 2026** (Three Months Ended March 31, 2026): **$7,723**\n* **Q1 2025** (Three Months Ended March 31, 2025): **$2,567**\n* **FY 2025** (Year Ended December 31, 2025): **$12,727**\n* **FY 2024** (Year Ended December 31, 2024): **$5,633**\n* **FY 2023** (Year Ended December 31, 2023): **$463**\n\n---\n\n### **Complete Capital Expenditure Breakdown by Segment**\n\n| Period | Space | Connectivity | AI | Total Capital Expenditures |\n| :--- | :--- | :--- | :--- | :--- |\n| **Q1 2026** *(Three Months Ended Mar 31, 2026)* | $1,052 | $1,332 | **$7,723** | **$10,107** |\n| **Q1 2025** *(Three Months Ended Mar 31, 2025)* | $759 | $814 | **$2,567** | **$4,140** |\n| **FY 2025** *(Year Ended Dec 31, 2025)* | $3,832 | $4,178 | **$12,727** | **$20,737** |\n| **FY 2024** *(Year Ended Dec 31, 2024)* | $2,032 | $3,498 | **$5,633** | **$11,163** |\n| **FY 2023** *(Year Ended Dec 31, 2023)* | $1,497 | $2,455 | **$463** | **$4,415** |\n\n**Key Context on AI Capex Growth:**\nThe massive surge in AI capital expenditures (from $463M in 2023 to $7,723M in Q1 2026 alone) is primarily driven by significant investments in the rapid expansion of terrestrial data centers, including the development, construction, and equipping of new facilities and supporting compute infrastructure to capture the $26.5 trillion potential market opportunity for AI."
+          },
+          {
+            "source_call_id": "call_0672cc40b3954e3a877ae79b",
+            "content": "Based on the provided financial tables and disclosures, here is the total capital expenditure and segment breakdown (Space, Connectivity, and AI) for all reported periods. \n\n*(Note: All figures are in millions)*\n\n### **Three Months Ended March 31, 2026**\n* **Space:** $1,052\n* **Connectivity:** $1,332\n* **AI:** $7,723\n* **Total Capital Expenditures:** **$10,107**\n\n### **Three Months Ended March 31, 2025**\n* **Space:** $759\n* **Connectivity:** $814\n* **AI:** $2,567\n* **Total Capital Expenditures:** **$4,140**\n\n### **Year Ended December 31, 2025**\n* **Space:** $3,832\n* **Connectivity:** $4,178\n* **AI:** $12,727\n* **Total Capital Expenditures:** **$20,737**\n\n### **Year Ended December 31, 2024**\n* **Space:** $2,032\n* **Connectivity:** $3,498\n* **AI:** $5,633\n* **Total Capital Expenditures:** **$11,163**\n\n### **Year Ended December 31, 2023**\n* **Space:** $1,497\n* **Connectivity:** $2,455\n* **AI:** $463\n* **Total Capital Expenditures:** **$4,415**"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3747,
+        "completion_tokens": 267,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0080375
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T15:50:41.633338+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have the key data. Let me also retrieve information about the company's financing flexibility, debt, cash balances, and any discussion about internal funding capacity.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c47fed899a6a4abc805fc6ca",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total cash and cash equivalents, debt, credit facilities, and liquidity position as of Q1 2026 and year-end 2025 in {{spacex_s1}}?",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_30a4c1dc136a43e48361f0a3",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about internal funding, cross-subsidization between segments, free cash flow, and financing flexibility in {{spacex_s1}}?",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_495d1663aabb450e95a0888f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total Segment Adjusted EBITDA, consolidated net income, and operating cash flow for all periods in {{spacex_s1}}?",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c47fed899a6a4abc805fc6ca",
+            "content": "Based on the provided financial disclosures, here is the summary of the company's cash, debt, credit facilities, and overall liquidity position as of Q1 2026 (March 31, 2026) and Year-End 2025 (December 31, 2025):\n\n### **1. Cash and Cash Equivalents**\n*   **Q1 2026 (March 31, 2026):** $15,852 million\n*   **Year-End 2025 (December 31, 2025):** $24,747 million\n*   *Note:* In addition to cash and cash equivalents, the company held **$7,823 million** in short-term marketable securities as of March 31, 2026. Total restricted cash included in other assets and prepaid expenses was $756 million as of Q1 2026 and $377 million as of Year-End 2025.\n\n### **2. Debt**\n*   **Q1 2026 (March 31, 2026):**\n    *   **Total Outstanding Indebtedness:** $29,132 million in aggregate principal amount.\n    *   **Current Debt & Finance Leases:** $1,538 million\n    *   **Long-Term Debt & Finance Leases (net of current):** $28,727 million\n    *   *Long-Term Debt Breakdown:* SpaceX Bridge Loan ($20,000 million), Other Financings ($9,105 million), X 2027 and X 2030 Notes ($27 million), less unamortized deferred financing costs ($21 million).\n    *   *Maturity:* No debt principal payments are due until August 28, 2027, unless the company chooses not to extend.\n*   **Year-End 2025 (December 31, 2025):**\n    *   **Current Debt & Finance Leases:** $928 million\n    *   **Long-Term Debt & Finance Leases (net of current):** $21,968 million\n\n### **3. Credit Facilities**\n*   **SpaceX Credit Facility:** A $1,500 million five-year senior unsecured revolving credit agreement (entered into in February 2025, maturing February 7, 2030). \n    *   **Status (Q1 2026 & Year-End 2025):** **$0** was drawn/outstanding. The full **$1,500 million** was available to borrow as of March 31, 2026. \n    *   *Sublimits:* Includes up to $150 million for financial letters of credit and up to $1,000 million for performance letters of credit.\n    *   *Covenants:* Requires maintaining a Consolidated Leverage Ratio of no greater than 3.75 to 1.0 (temporarily increasing to 4.25 to 1.0 following certain qualified acquisitions).\n*   **SpaceX Bridge Loan:** $20,000 million outstanding (as of Q1 2026) with an effective interest rate of 4.58%. The company noted it may seek to refinance this loan using proceeds from notes offerings, bank borrowings, or other financial arrangements.\n*   **Letters of Credit & Surety Bonds (as of Dec 31, 2025):** $348 million in outstanding letters of credit (collateralized by restricted cash) and $51 million in surety bonds.\n\n### **4. Liquidity Position**\n*   **Funding Sufficiency:** Management believes the company has **sufficient sources of funding to meet its business requirements for at least the next twelve months** from the issuance of the consolidated financial statements.\n*   **Primary Liquidity Sources:** Cash flows generated from operations (Operating cash flow was $1,047 million for the three months ended March 31, 2026, and $6,785 million for the full year 2025), cash and marketable securities on hand, and available borrowings under the SpaceX Credit Facility.\n*   **Capital Allocation & Flexibility:** Core operations fund heavy R&D and growth initiatives, including the Starship rocket, next-generation satellites, data center construction, and AI-enabled products. The company retains the flexibility to adjust spending across segments (e.g., reducing and reallocating data center capital expenditures if near-term needs ramp more slowly than expected due to macroeconomic conditions).\n*   **Future Capital Raises:** The company continually evaluates its cash needs and may raise additional capital, seek alternative financing, or draw down on new/existing debt facilities to fund rapid business growth. It may also voluntarily repay certain indebtedness early if deemed in its best interest.\n*   **Lease Obligations (as of March 31, 2026):** Total minimum lease payments were $5,823 million, of which $1,026 million is due within the current fiscal year."
+          },
+          {
+            "source_call_id": "call_30a4c1dc136a43e48361f0a3",
+            "content": "Based on the provided excerpts from the S-1 filing, here is what the document says regarding internal funding, cross-subsidization, free cash flow, and financing flexibility:\n\n### 1. Internal Funding and Cross-Subsidization\nThe filing explicitly outlines a strategy where mature, cash-generating segments fund the development of newer, nascent segments:\n*   **Space Funding Connectivity:** The company notes that it initially used external capital to fund the Space segment. Once the Space segment began generating sustained Segment Adjusted EBITDA (starting in 2018), those internal cash flows\u2014alongside additional external equity\u2014were used to invest in and build out the Connectivity segment (Starlink).\n*   **Core Operations Funding R&D:** Cash generated from core operations is actively used to fund massive research and development projects across the enterprise, including the Starship rocket, next-generation satellites, and AI data centers. \n*   **Dynamic Reallocation:** Management retains the ability to cross-subsidize and shift capital between segments based on real-time needs. For example, if AI data center expansion ramps more slowly than expected due to macroeconomic or trade conditions, the company can reduce capital expenditures in the AI segment and reallocate those funds to other segments.\n\n### 2. Free Cash Flow and Cash Flow Dynamics\nWhile the specific line-item term \"Free Cash Flow\" is not explicitly calculated in these snippets, the filing heavily details the mechanics of the company's cash flow generation and its massive reinvestment cycle:\n*   **Strong Operating Cash Flow:** The company generates substantial cash from its operations (e.g., $6.78 billion for the full year 2025, and $1.04 billion in Q1 2026). The filing states as a core principle: *\"As our businesses scale, they generate significant cash flow, which we reinvest into nascent market opportunities.\"*\n*   **Massive Capital Expenditures (Investing Activities):** The company's capital expenditure demands vastly outpace its operating cash flow. In 2025, net cash used in investing activities was $19.57 billion, driven by $20.73 billion in total capital expenditures (with the AI segment alone consuming $12.72 billion for data centers and infrastructure). \n*   **The Funding Gap:** Because capital expenditures heavily exceed operating cash flows, the company's traditional \"free cash flow\" is deeply negative. To bridge this gap, the company relies heavily on **financing activities**, having raised $26.35 billion in 2025 and $7.12 billion in Q1 2026 through debt issuances (like the SpaceX Bridge Loan) and capital stock sales.\n\n### 3. Financing Flexibility\nThe filing emphasizes that management maintains high flexibility in how it sources, uses, and retains capital:\n*   **Use of Offering Proceeds:** Management states it will have *\"significant flexibility in applying the net proceeds from this offering,\"* noting that the exact timing and allocation of funds will be dictated by cash flows and evolving business priorities rather than rigid mandates.\n*   **Debt and Capital Markets Agility:** The company continually evaluates its cash needs and maintains the flexibility to raise additional capital, draw down on existing or new debt facilities, refinance the $20 billion SpaceX Bridge Loan, or voluntarily repay certain indebtedness early.\n*   **Dividend Policy and Retained Earnings:** To preserve internal financing flexibility, the company explicitly states it does not anticipate declaring or paying cash dividends in the foreseeable future. All future earnings will be retained to finance growth. Furthermore, covenants under existing Credit Agreements legally restrict the company's ability to pay dividends, ensuring cash remains trapped within the business for operational use and debt servicing."
+          },
+          {
+            "source_call_id": "call_495d1663aabb450e95a0888f",
+            "content": "Based on the financial tables and data provided in the text, here are the totals for Segment Adjusted EBITDA, consolidated net income, and operating cash flow across all reported periods. \n\n*(Note: The provided text cuts off at the bottom of the cash flow statement before showing the final \"Net cash provided by operating activities\" totals. The operating cash flow figures below have been manually calculated by summing the net income and all listed adjustments/changes in operating assets and liabilities for those respective years. Additionally, quarterly cash flow data for Q1 2026 and Q1 2025 is not included in the provided excerpt).*\n\n### **1. Total Segment Adjusted EBITDA (Total Reportable Segments)**\n*Note: The sum of the Segment Adjusted EBITDA for Space, Connectivity, and AI matches the Consolidated Adjusted EBITDA exactly.*\n* **Three Months Ended March 31, 2026:** $1,127 million\n* **Three Months Ended March 31, 2025:** $1,730 million\n* **Year Ended December 31, 2025:** $6,584 million\n* **Year Ended December 31, 2024:** $5,350 million\n* **Year Ended December 31, 2023:** $3,821 million\n\n### **2. Consolidated Net Income (Loss)**\n* **Three Months Ended March 31, 2026:** $(4,276) million\n* **Three Months Ended March 31, 2025:** $(528) million\n* **Year Ended December 31, 2025:** $(4,937) million\n* **Year Ended December 31, 2024:** $791 million\n* **Year Ended December 31, 2023:** $(4,628) million\n\n### **3. Operating Cash Flow (Net Cash Provided by Operating Activities)**\n* **Year Ended December 31, 2025:** $5,705 million\n* **Year Ended December 31, 2024:** $5,467 million\n* **Year Ended December 31, 2023:** $4,743 million"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6506,
+        "completion_tokens": 263,
+        "cached_tokens": 0,
+        "cost_usd": 0.018895000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T15:51:53.978166+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also get the operating cash flow for Q1 2026 and any additional information about how Connectivity segment funds the AI segment.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b3a63dd5c328476196d44af6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the operating cash flow for Q1 2026 (three months ended March 31, 2026) and Q1 2025 in {{spacex_s1}}? Also what is the free cash flow or cash flow from operations net of capital expenditures?",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_1f61e71b273441708f0a067f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about the Connectivity segment being the primary source of profit or cash generation, and how it funds other segments including AI in {{spacex_s1}}?",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b3a63dd5c328476196d44af6",
+            "content": "Based on the provided financial statements and summaries, here is the operating cash flow and the calculated free cash flow (cash flow from operations net of capital expenditures) for Q1 2026 and Q1 2025:\n\n**Q1 2026 (Three Months Ended March 31, 2026)**\n* **Operating Cash Flow:** $1,047 million\n* **Capital Expenditures:** $10,107 million\n* **Free Cash Flow:** $1,047 million - $10,107 million = **-$9,060 million**\n\n**Q1 2025 (Three Months Ended March 31, 2025)**\n* **Operating Cash Flow:** $727 million\n* **Capital Expenditures:** $4,140 million\n* **Free Cash Flow:** $727 million - $4,140 million = **-$3,413 million** \n\n*(Note: The substantial negative free cash flow in both periods is heavily driven by the company's massive capital expenditures, particularly the $7.7 billion invested in AI infrastructure and data centers in Q1 2026, as highlighted in the preamble.)*"
+          },
+          {
+            "source_call_id": "call_1f61e71b273441708f0a067f",
+            "content": "Based on the provided filing excerpts, here is what the document says about the Connectivity segment's profitability, cash generation, and the funding strategy for other segments like AI:\n\n**1. Connectivity as a Major Profit and Cash Generator**\nThe filing establishes the Connectivity segment (primarily driven by Starlink) as a massive, highly profitable engine for the company. \n* **Financial Performance:** In 2025, the Connectivity segment generated **$4.4 billion in income from operations** and **$7.1 billion in Segment Adjusted EBITDA**, representing massive year-over-year growth (120.4% and 86.2%, respectively). \n* **Revenue Dominance:** Together with the Space segment, Connectivity contributes the \"substantial majority\" of the company's consolidated revenue, demonstrating the benefits of scale and operating leverage.\n* **Sustained Profitability:** The segment became sustainably Segment Adjusted EBITDA positive in 2023. \n\n**2. The Cycle of Reinvesting Cash Flow into Nascent Segments**\nThe company outlines a core operational principle to *\"Generate significant cash flow and reinvest in the future.\"* \n* **Historical Precedent:** The filing notes a historical cycle where the company used Segment Adjusted EBITDA generated by the **Space segment** (along with externally raised equity) to fund the build-out of the **Connectivity segment**. \n* **Current Reinvestment:** Now that Space and Connectivity are scaled, the company states that \"as our businesses scale, they generate significant cash flow, which we reinvest into nascent market opportunities\u2014driving a self-reinforcing cycle of constant innovation.\"\n\n**3. How the AI Segment is Funded**\nWhile the profitable cash flows from Connectivity and Space are part of the company's broader reinvestment cycle, the filing **does not state that Connectivity alone funds the AI segment**. Because the newly acquired AI segment (xAI) is highly capital-intensive, the company outlines a specific, broader funding strategy:\n* **Massive Capital Needs & Long Horizon:** The AI segment requires \"significant capital expenditures\" for compute infrastructure, power generation, and model training. The company expects a \"multi-year investment horizon\" before the AI segment translates into sustained positive Adjusted EBITDA.\n* **Public Market Financing:** To fund the aggressive scale-up required to capture a \"$26.5 trillion potential market opportunity,\" the company explicitly states its plan to **\"access a range of debt and equity financing solutions available to us as a public company\"** rather than relying solely on internal cash flows from Connectivity. \n\nIn summary, while Connectivity is a massive cash and profit generator that fits into the company's historical model of using mature segments to fund nascent ones, the sheer capital intensity of the AI segment means the company plans to heavily utilize public debt and equity markets to fund its AI infrastructure build-out."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9226,
+        "completion_tokens": 213,
+        "cached_tokens": 5376,
+        "cost_usd": 0.018475000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T15:52:26.911144+00:00",
+      "source": "agent",
+      "message": "Now let me perform the key calculations to quantify the impact.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me now perform the calculations.\n\n**Key Data Points:**\n\n**Connectivity Segment Adjusted EBITDA:**\n- Q1 2026: $2,087 million\n- FY 2025: $7,168 million\n- Q1 2025: $1,618 million\n\n**AI Capex:**\n- Q1 2026: $7,723 million\n- Annualized Q1 2026 AI capex: $7,723 \u00d7 4 = $30,892 million\n\n**Total Segment Adjusted EBITDA:**\n- Q1 2026: $1,127 million (Space: -$351, Connectivity: $2,087, AI: -$609)\n\n**Scenario: Connectivity Segment Adjusted EBITDA declines 25%**\n\nCurrent Q1 2026 Connectivity Adjusted EBITDA: $2,087 million\n25% decline: $2,087 \u00d7 0.25 = $521.75 million reduction\nNew Connectivity Adjusted EBITDA: $2,087 - $521.75 = $1,565.25 million\n\n**Impact on Total Segment Adjusted EBITDA:**\nCurrent Total Segment Adjusted EBITDA (Q1 2026): $1,127 million\nNew Total Segment Adjusted EBITDA: $1,127 - $521.75 = $605.25 million\n\nThat's a reduction of $521.75 million per quarter, or $2,087 million annualized.\n\nWait, let me think about this more carefully. The question asks about \"internal funding capacity\" and \"financing flexibility.\"\n\n**Internal Funding Capacity:**\nThe Connectivity segment is the primary cash generator. Its Adjusted EBITDA represents the internal cash available to fund other segments' capital expenditures (particularly AI).\n\nCurrent state (Q1 2026):\n- Connectivity Adjusted EBITDA: $2,087 million (quarterly)\n- AI capex: $7,723 million (quarterly)\n- The gap between Connectivity Adjusted EBITDA and AI capex: $7,723 - $2,087 = $5,636 million (quarterly)\n\nIf Connectivity Adjusted EBITDA declines 25%:\n- New Connectivity Adjusted EBITDA: $2,087 \u00d7 0.75 = $1,565.25 million (quarterly)\n- AI capex remains at $7,723 million (quarterly)\n- New gap: $7,723 - $1,565.25 = $6,157.75 million (quarterly)\n\nReduction in internal funding capacity: $521.75 million per quarter\nAnnualized reduction: $521.75 \u00d7 4 = $2,087 million\n\nLet me also think about this in terms of the coverage ratio:\n- Current: Connectivity Adj. EBITDA covers what percentage of AI capex? $2,087 / $7,723 = 27.0%\n- After 25% decline: $1,565.25 / $7,723 = 20.3%\n\nLet me also think about total segment Adjusted EBITDA vs total capex:\n- Current Total Segment Adj. EBITDA (Q1 2026): $1,127 million\n- Current Total Capex (Q1 2026): $10,107 million\n- Coverage ratio: $1,127 / $10,107 = 11.2%\n\nAfter 25% Connectivity decline:\n- New Total Segment Adj. EBITDA: $605.25 million\n- Coverage ratio: $605.25 / $10,107 = 6.0%\n\nLet me also think about the annualized picture:\n- Annualized Connectivity Adj. EBITDA (based on Q1 2026): $2,087 \u00d7 4 = $8,348 million\n- 25% decline: $8,348 \u00d7 0.75 = $6,261 million (reduction of $2,087 million annualized)\n- Annualized AI capex (based on Q1 2026): $7,723 \u00d7 4 = $30,892 million\n- Annualized total capex: $10,107 \u00d7 4 = $40,428 million\n\nNow let me also consider the Space segment:\n- Space Adj. EBITDA (Q1 2026): -$351 million\n- Space capex (Q1 2026): $1,052 million\n\nAnd Connectivity capex:\n- Connectivity capex (Q1 2026): $1,332 million\n\nSo the full picture of internal funding:\n- Connectivity generates $2,087 million in Adj. EBITDA but needs $1,332 million in capex for itself\n- Connectivity \"free\" cash generation (Adj. EBITDA - own capex): $2,087 - $1,332 = $755 million\n- This $755 million is available to fund Space and AI segments\n\nAfter 25% decline:\n- New Connectivity Adj. EBITDA: $1,565.25 million\n- Connectivity \"free\" cash: $1,565.25 - $1,332 = $233.25 million\n- Reduction in available internal funding: $755 - $233.25 = $521.75 million\n\nThis is a 69.1% reduction in Connectivity's surplus cash generation capacity ($521.75 / $755).\n\nLet me also think about the leverage covenant:\n- The credit facility requires a Consolidated Leverage Ratio of no greater than 3.75 to 1.0\n- Total debt: $29,132 million\n- If we use Total Segment Adjusted EBITDA as a proxy for consolidated EBITDA for covenant purposes:\n  - Current: $29,132 / ($1,127 \u00d7 4) = $29,132 / $4,508 = 6.46x (already above covenant)\n  \nWait, but the covenant uses a different EBITDA definition likely. Let me not speculate on the exact covenant calculation. Let me focus on what the filing tells us.\n\nActually, let me reconsider. The filing says the Consolidated Leverage Ratio must be no greater than 3.75 to 1.0. The current total debt is $29,132 million. If we use annualized Total Segment Adjusted EBITDA of $4,508 million (Q1 2026 \u00d7 4), the ratio would be 6.46x, which is well above 3.75x. But the covenant EBITDA definition may be different from Segment Adjusted EBITDA, or there may be other adjustments. Let me not make assumptions about the covenant calculation.\n\nLet me also look at the cash burn picture:\n- Q1 2026 operating cash flow: $1,047 million\n- Q1 2026 capex: $10,107 million\n- Free cash flow: -$9,060 million\n- Cash declined from $24,747 million (YE 2025) to $15,852 million (Q1 2026), a decline of $8,895 million\n\nThis is consistent with the massive funding gap.\n\nLet me now structure my analysis properly.\n\n**Analysis Framework:**\n\n1. **Baseline (Q1 2026 actuals):**\n   - Connectivity Segment Adj. EBITDA: $2,087M\n   - AI capex: $7,723M\n   - Total capex: $10,107M\n   - Total Segment Adj. EBITDA: $1,127M\n   - Operating cash flow: $1,047M\n   - Free cash flow: -$9,060M\n\n2. **Stressed Scenario (25% Connectivity decline, AI capex unchanged):**\n   - Connectivity Segment Adj. EBITDA: $1,565.25M (reduction of $521.75M)\n   - AI capex: $7,723M (unchanged)\n   - Total Segment Adj. EBITDA: $605.25M\n   - Reduction in internal funding capacity: $521.75M/quarter, $2,087M annualized\n\n3. **Implications for financing flexibility:**\n   - The funding gap widens significantly\n   - Greater reliance on external capital markets\n   - Potential covenant pressure\n   - Reduced ability to self-fund\n\nLet me now calculate all the key metrics precisely.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_be32adde8f6046c59f9e5d43",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2087 * 0.25"
+          }
+        },
+        {
+          "tool_call_id": "call_c6aa026fd31f49caad8e5c7c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2087 * 0.75"
+          }
+        },
+        {
+          "tool_call_id": "call_cea83df79a8042d8b68e8037",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7723 * 4"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_be32adde8f6046c59f9e5d43",
+            "content": "521.75"
+          },
+          {
+            "source_call_id": "call_c6aa026fd31f49caad8e5c7c",
+            "content": "1565.25"
+          },
+          {
+            "source_call_id": "call_cea83df79a8042d8b68e8037",
+            "content": "30892"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10323,
+        "completion_tokens": 2201,
+        "cached_tokens": 8704,
+        "cost_usd": 0.036937500000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T15:52:31.191128+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me continue with more calculations.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_fe0f4a005f0742e3935b5aae",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2087 - 1332"
+          }
+        },
+        {
+          "tool_call_id": "call_43fd8c92d08f4d9ca6916534",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1565.25 - 1332"
+          }
+        },
+        {
+          "tool_call_id": "call_bc42c7c0fd7e4dcaa223c190",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "521.75 / 755"
+          }
+        },
+        {
+          "tool_call_id": "call_448afb85886b4dd2a49cfc26",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2087 / 7723"
+          }
+        },
+        {
+          "tool_call_id": "call_6bf4a27b0d80463996bd3c30",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1565.25 / 7723"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_fe0f4a005f0742e3935b5aae",
+            "content": "755"
+          },
+          {
+            "source_call_id": "call_43fd8c92d08f4d9ca6916534",
+            "content": "233.25"
+          },
+          {
+            "source_call_id": "call_bc42c7c0fd7e4dcaa223c190",
+            "content": "0.6910596026490067"
+          },
+          {
+            "source_call_id": "call_448afb85886b4dd2a49cfc26",
+            "content": "0.27023177521688463"
+          },
+          {
+            "source_call_id": "call_6bf4a27b0d80463996bd3c30",
+            "content": "0.20267383141266349"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12566,
+        "completion_tokens": 193,
+        "cached_tokens": 9728,
+        "cost_usd": 0.021185
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T15:52:39.673482+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me do a few more calculations for the annualized picture and the total funding gap.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_a1545eb42f0446a7850033c7",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "521.75 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_8257cd311fdb49dc82eb0c8a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1127 - 521.75"
+          }
+        },
+        {
+          "tool_call_id": "call_c26e78cc20334c56b37abd91",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "605.25 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_cecca7d5dba94c2c9b375d6d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "10107 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_d416d532b7464afd843ce448",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "605.25 / 10107"
+          }
+        },
+        {
+          "tool_call_id": "call_b5eec53b2a3b498aaf14585a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1127 / 10107"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_a1545eb42f0446a7850033c7",
+            "content": "2087.0"
+          },
+          {
+            "source_call_id": "call_8257cd311fdb49dc82eb0c8a",
+            "content": "605.25"
+          },
+          {
+            "source_call_id": "call_c26e78cc20334c56b37abd91",
+            "content": "2421.0"
+          },
+          {
+            "source_call_id": "call_cecca7d5dba94c2c9b375d6d",
+            "content": "40428"
+          },
+          {
+            "source_call_id": "call_d416d532b7464afd843ce448",
+            "content": "0.05988423864648264"
+          },
+          {
+            "source_call_id": "call_b5eec53b2a3b498aaf14585a",
+            "content": "0.11150687642228159"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12858,
+        "completion_tokens": 234,
+        "cached_tokens": 11904,
+        "cost_usd": 0.019605
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T15:52:45.733338+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also calculate the external funding gap and the additional external financing needed.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bfb83415eaf640059375ae2b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "10107 - 1127"
+          }
+        },
+        {
+          "tool_call_id": "call_b35b81050a7a42348b8ba1e8",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "10107 - 605.25"
+          }
+        },
+        {
+          "tool_call_id": "call_30636dc31eeb42aeafed0a68",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "9501.75 - 8980"
+          }
+        },
+        {
+          "tool_call_id": "call_b5d2b05636214bbf94a9f560",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "9501.75 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_022046cdb19a4615b8e7fb72",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "8980 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_87c270f338094136830b768c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "29132 / 4508"
+          }
+        },
+        {
+          "tool_call_id": "call_296ecab636bf4f56a9a3cd55",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "29132 / 2421"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bfb83415eaf640059375ae2b",
+            "content": "8980"
+          },
+          {
+            "source_call_id": "call_b35b81050a7a42348b8ba1e8",
+            "content": "9501.75"
+          },
+          {
+            "source_call_id": "call_30636dc31eeb42aeafed0a68",
+            "content": "521.75"
+          },
+          {
+            "source_call_id": "call_b5d2b05636214bbf94a9f560",
+            "content": "38007.0"
+          },
+          {
+            "source_call_id": "call_022046cdb19a4615b8e7fb72",
+            "content": "35920"
+          },
+          {
+            "source_call_id": "call_87c270f338094136830b768c",
+            "content": "6.4622892635315"
+          },
+          {
+            "source_call_id": "call_296ecab636bf4f56a9a3cd55",
+            "content": "12.03304419661297"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13192,
+        "completion_tokens": 271,
+        "cached_tokens": 11904,
+        "cost_usd": 0.020810000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T15:52:50.396388+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also look at the cash runway implications. Let me calculate how long the cash balance would last under the stressed scenario.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8844cc48afc448d79a13988e",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "15852 + 7823"
+          }
+        },
+        {
+          "tool_call_id": "call_74fcc6f981a048fc86aa9c04",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "23675 / 9060"
+          }
+        },
+        {
+          "tool_call_id": "call_2509dd501f5f458d88bdf8ba",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1047 - 521.75"
+          }
+        },
+        {
+          "tool_call_id": "call_55df8127456f45e98dfb0748",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "525.25 - 10107"
+          }
+        },
+        {
+          "tool_call_id": "call_d435ad844aa54fcabc251462",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "23675 / 9581.75"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8844cc48afc448d79a13988e",
+            "content": "23675"
+          },
+          {
+            "source_call_id": "call_74fcc6f981a048fc86aa9c04",
+            "content": "2.613134657836645"
+          },
+          {
+            "source_call_id": "call_2509dd501f5f458d88bdf8ba",
+            "content": "525.25"
+          },
+          {
+            "source_call_id": "call_55df8127456f45e98dfb0748",
+            "content": "-9581.75"
+          },
+          {
+            "source_call_id": "call_d435ad844aa54fcabc251462",
+            "content": "2.47084300884494"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13568,
+        "completion_tokens": 216,
+        "cached_tokens": 13056,
+        "cost_usd": 0.01976
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-09T15:54:44.826861+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me also check if there's any information about the debt covenant and how a decline in EBITDA would affect it.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d354a6b3be8a4148bd4e2bbe",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the debt covenants, consolidated leverage ratio requirements, and how is EBITDA defined for covenant purposes in {{spacex_s1}}? What happens if covenants are breached?",
+            "preserve_document_order": true
+          }
+        },
+        {
+          "tool_call_id": "call_de7fec23562643f98c2d3ec1",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing say about use of IPO proceeds, offering proceeds, and plans for future capital raises or equity issuance in {{spacex_s1}}?",
+            "preserve_document_order": true
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d354a6b3be8a4148bd4e2bbe",
+            "content": "Based on the provided text, here are the details regarding the debt covenants, leverage ratio requirements, EBITDA definitions, and the consequences of a breach.\n\n### 1. Debt Covenants & Consolidated Leverage Ratio Requirements\nThe company is subject to covenants under two primary debt facilities:\n\n**SpaceX Credit Facility ($1.5 Billion Revolving Credit)**\n*   **Consolidated Leverage Ratio:** The company must maintain a maximum ratio of **3.75 to 1.0** as of the end of each fiscal quarter.\n*   **Acquisition Step-Up:** The maximum ratio temporarily increases to **4.25 to 1.0** following certain qualified acquisitions.\n*   **Other Covenants:** Subject to customary representations, warranties, and reporting requirements. \n\n**SpaceX Bridge Loan**\n*   **Consolidated Leverage Ratio:** The sole financial maintenance covenant requires a maximum ratio of **3.75 to 1.0** at the end of each fiscal quarter.\n*   **Acquisition Step-Up:** The ratio temporarily steps up to **4.25 to 1.0** for four fiscal quarters following a qualifying acquisition of at least $1.0 billion.\n*   **Negative Covenants:** Includes restrictions on liens, subsidiary indebtedness, changes in the nature of the business, and fundamental changes. Notably, this includes a **prohibition on the disposition of Starlink assets** and other material businesses outside the consolidated group.\n*   **Mandatory Prepayments:** The company is required to use net cash proceeds from certain debt financings and qualified IPOs to repay outstanding amounts (within six months of receiving IPO proceeds).\n*   **Guarantors:** Obligations are guaranteed on a joint and several basis by X Corp., X.AI LLC, and CTC Property LLC.\n\n### 2. Definition of EBITDA for Covenant Purposes\n*   **Leverage Ratio Definition:** The text defines the Consolidated Leverage Ratio as *\"consolidated funded indebtedness (net of 85% of unrestricted cash) to Consolidated EBITDA (as defined in the SpaceX Bridge Loan).\"*\n*   **Missing Contractual Definition:** The provided excerpts **do not disclose** the specific contractual calculation or adjustments for \"Consolidated EBITDA\" as defined within the credit agreements. \n*   *Note on Non-GAAP EBITDA:* The text extensively defines *\"Adjusted EBITDA\"* and *\"Segment Adjusted EBITDA\"* for financial reporting and executive compensation purposes (calculated by taking Net Income/Operating Income and adding back depreciation, amortization, share-based compensation, impairments, restructuring, interest, and taxes). However, covenant EBITDA definitions often differ from non-GAAP reporting definitions, and the exact contractual formula is omitted from these specific chunks.\n\n### 3. What Happens if Covenants are Breached?\n*   **According to the Provided Text:** The text explicitly states that both facilities contain **\"customary events of default.\"** However, the excerpts **do not detail** the specific consequences, penalties, or remedies that are triggered if a covenant is breached.\n*   **Standard Financial Context (Outside the provided text):** In standard corporate debt agreements, breaching a financial maintenance covenant or triggering an \"event of default\" typically results in the following:\n    1.  **Acceleration:** The lenders can declare all outstanding principal and accrued interest immediately due and payable.\n    2.  **Drawing Restrictions:** The company would be blocked from drawing any further funds from the $1.5B revolving Credit Facility.\n    3.  **Guarantor Enforcement:** Lenders could pursue the joint and several guarantors (X Corp., X.AI LLC, and CTC Property LLC) for repayment.\n    4.  **Cross-Default:** A default on these major facilities could trigger cross-default clauses in the company's other debt instruments. \n    *(Typically, a company in this scenario must negotiate a waiver or covenant amendment with the banking syndicate to avoid acceleration).*"
+          },
+          {
+            "source_call_id": "call_de7fec23562643f98c2d3ec1",
+            "content": "Based on the provided excerpts from the filing, here is what the document states regarding the use of IPO proceeds and plans for future capital raises or equity issuance:\n\n### **Use of IPO / Offering Proceeds**\nThe company outlines both strategic investments and mandatory debt repayments for the net proceeds of the IPO:\n*   **Growth Strategy & Infrastructure:** The primary intended use of proceeds is to fund the company's growth strategy. Specific allocations include:\n    *   Expansion of AI compute infrastructure.\n    *   Enhancements to launch infrastructure and launch vehicles.\n    *   Increases in the scale and capacity of satellite constellations.\n*   **General Corporate Purposes:** Any remaining amounts after funding the growth strategy will be used for general corporate purposes.\n*   **Mandatory Debt Repayment:** The filing explicitly states that the company is required to apply an amount equal to the net proceeds of a \"qualified initial public offering\" (which includes this IPO) to repay outstanding amounts under the **SpaceX Bridge Loan**. \n*   **Management Flexibility:** The expected use of proceeds represents current intentions. Management retains \"significant flexibility\" in applying the funds, and actual expenditures will depend on cash flows and anticipated business growth. If the net proceeds increase or decrease (due to changes in the offering price or share volume), the company will still apply the adjusted amount toward the purposes listed above.\n\n### **Plans for Future Capital Raises & Equity Issuance**\nThe filing details several mechanisms, pending transactions, and corporate policies regarding the future issuance of equity:\n*   **Future Issuances Without Shareholder Approval:** The company's authorized but unissued shares of common and preferred stock will generally be available for future issuance without shareholder approval. These shares may be used for:\n    *   **Future public offerings** to raise additional capital.\n    *   **Corporate acquisitions.**\n    *   **Employee benefit plans.**\n    *   *Note:* Nasdaq listing requirements will still mandate shareholder approval for certain issuances that equal or exceed 20% of the then-outstanding voting power or common stock.\n*   **Pending/Contingent M&A Transactions:** The prospectus excludes certain pending equity issuances from its baseline share counts, indicating future dilution/issuance tied to strategic acquisitions:\n    *   **Cursor Acquisition:** The board holds an option to acquire Cursor, which would be paid for via the issuance of Class A common stock (the exact share count is tied to future trading prices).\n    *   **EchoStar Spectrum Transaction:** The company has an agreement to purchase AWS-3, AWS-4, and H-Block spectrum licenses from EchoStar Corporation, which will be paid for using a combination of cash and shares of Class A common stock.\n*   **Employee Equity Plans (Form S-8):** The company intends to file a Form S-8 registration statement immediately following the IPO's effective date. This will register shares issuable under its various equity plans (including the A&R 2024 Plan, A&R 2017 ESPP, and plans assumed from xAI and Swarm), making these shares available for sale in the open market once vested and lock-up restrictions expire.\n*   **Dividend Policy & Earnings Retention:** The company does not anticipate declaring or paying cash dividends in the foreseeable future. Instead, it intends to retain all future earnings to finance the growth of the business, which is also restricted by covenants under its existing Credit Agreements."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13870,
+        "completion_tokens": 191,
+        "cached_tokens": 13056,
+        "cost_usd": 0.020265000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-09T15:54:49.479580+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me also calculate the net debt for the leverage ratio calculation.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d275fe08e6104fbdb37c1481",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "29132 - (0.85 * 23675)"
+          }
+        },
+        {
+          "tool_call_id": "call_ad6c78d4d5fa40aab4bb212c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "29132 - (0.85 * (15852 + 7823))"
+          }
+        },
+        {
+          "tool_call_id": "call_43a025a3a2644ceb9ce661e3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "8990.75 / 4508"
+          }
+        },
+        {
+          "tool_call_id": "call_8f5401fb1f18468f886bf4ed",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "8990.75 / 2421"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d275fe08e6104fbdb37c1481",
+            "content": "9008.25"
+          },
+          {
+            "source_call_id": "call_ad6c78d4d5fa40aab4bb212c",
+            "content": "9008.25"
+          },
+          {
+            "source_call_id": "call_43a025a3a2644ceb9ce661e3",
+            "content": "1.99439884649512"
+          },
+          {
+            "source_call_id": "call_8f5401fb1f18468f886bf4ed",
+            "content": "3.713651383725733"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15652,
+        "completion_tokens": 196,
+        "cached_tokens": 13056,
+        "cost_usd": 0.02477
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-06-09T15:55:12.448979+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed for a comprehensive analysis. Let me compile the final answer.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Interesting! So the net debt (consolidated funded indebtedness net of 85% of unrestricted cash) is $9,008.25 million.\n\nCurrent leverage ratio (using annualized Q1 2026 Total Segment Adjusted EBITDA as a proxy for Consolidated EBITDA):\n- $9,008.25 / $4,508 = 1.99x (well within the 3.75x covenant)\n\nStressed scenario leverage ratio (with 25% Connectivity decline):\n- $9,008.25 / $2,421 = 3.71x (very close to the 3.75x covenant limit!)\n\nThis is a critical finding. The 25% decline in Connectivity Adjusted EBITDA would push the leverage ratio to approximately 3.71x, which is dangerously close to the 3.75x covenant limit. Any further deterioration could trigger a covenant breach.\n\nWait, but I need to be careful here. The covenant EBITDA definition may differ from Segment Adjusted EBITDA. The filing doesn't disclose the exact contractual definition. But using Total Segment Adjusted EBITDA as a reasonable proxy, this is a very important finding.\n\nLet me also check: is the Total Segment Adjusted EBITDA the same as Consolidated Adjusted EBITDA? The retrieval said \"The sum of the Segment Adjusted EBITDA for Space, Connectivity, and AI matches the Consolidated Adjusted EBITDA exactly.\" So yes, Total Segment Adjusted EBITDA = Consolidated Adjusted EBITDA.\n\nBut the covenant uses \"Consolidated EBITDA\" which may be defined differently. Let me note this caveat.\n\nLet me also calculate what happens if we use the FY2025 EBITDA as a baseline (since covenants may use trailing twelve months):\n- FY2025 Total Segment Adj. EBITDA: $6,584 million\n- Net debt / FY2025 EBITDA: $9,008.25 / $6,584 = 1.37x\n\nBut if we're looking at a forward-looking scenario where Q1 2026 is annualized:\n- Annualized Q1 2026 Total Segment Adj. EBITDA: $4,508 million\n- Stressed annualized: $2,421 million\n\nLet me also think about what the \"reduction in internal funding capacity\" means more precisely.\n\nThe Connectivity segment is the primary internal cash generator. Its Adjusted EBITDA minus its own capital expenditures represents the surplus cash available to fund other segments.\n\nBaseline (Q1 2026):\n- Connectivity Adj. EBITDA: $2,087M\n- Connectivity capex: $1,332M\n- Connectivity surplus: $755M (quarterly), $3,020M (annualized)\n\nStressed (25% decline):\n- Connectivity Adj. EBITDA: $1,565.25M\n- Connectivity capex: $1,332M (assumed unchanged)\n- Connectivity surplus: $233.25M (quarterly), $933M (annualized)\n\nReduction in Connectivity surplus: $521.75M (quarterly), $2,087M (annualized)\nPercentage reduction in surplus: 69.1%\n\nThis is the key insight: a 25% decline in Connectivity Adjusted EBITDA results in a 69.1% reduction in the segment's surplus cash generation capacity, because the segment's own capex is a fixed claim on its cash flow.\n\nNow let me also think about the total funding gap:\n- Total capex (Q1 2026): $10,107M\n- Total Segment Adj. EBITDA (Q1 2026): $1,127M\n- Funding gap: $8,980M (quarterly), $35,920M (annualized)\n\nStressed:\n- Total Segment Adj. EBITDA: $605.25M\n- Funding gap: $9,501.75M (quarterly), $38,007M (annualized)\n\nAdditional external funding needed: $521.75M (quarterly), $2,087M (annualized)\n\nNow let me compile all of this into a comprehensive analysis.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b0bc444d84d443e696d9e5c0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(2087 - 1332) / (7723 + 1052 - (-351))"
+          }
+        },
+        {
+          "tool_call_id": "call_d73120443cb74d788ef422b3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(1565.25 - 1332) / (7723 + 1052 - (-351))"
+          }
+        },
+        {
+          "tool_call_id": "call_b91e0ef90748410896db3ccf",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "755 / (7723 + 1052 + 351)"
+          }
+        },
+        {
+          "tool_call_id": "call_fe2962ea099b4ef19e1ca1a3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "233.25 / (7723 + 1052 + 351)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b0bc444d84d443e696d9e5c0",
+            "content": "0.08273065965373658"
+          },
+          {
+            "source_call_id": "call_d73120443cb74d788ef422b3",
+            "content": "0.025558842866535175"
+          },
+          {
+            "source_call_id": "call_b91e0ef90748410896db3ccf",
+            "content": "0.08273065965373658"
+          },
+          {
+            "source_call_id": "call_fe2962ea099b4ef19e1ca1a3",
+            "content": "0.025558842866535175"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15924,
+        "completion_tokens": 1231,
+        "cached_tokens": 0,
+        "cost_usd": 0.05212
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-06-09T15:55:21.772674+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me also calculate the AI capex coverage ratio more precisely. The question asks about AI capex remaining at Q1 2026 annualized levels.\n\nQ1 2026 AI capex: $7,723M\nAnnualized AI capex: $30,892M\n\nLet me also think about the total external funding requirement.\n\nIn Q1 2026:\n- Operating cash flow: $1,047M\n- Total capex: $10,107M\n- Free cash flow: -$9,060M\n\nIf Connectivity Adj. EBITDA declines 25%, and assuming operating cash flow declines by a similar amount (since Connectivity is the primary cash generator):\n- Reduction in operating cash flow: approximately $521.75M (though this is a simplification since Adj. EBITDA \u2260 operating cash flow)\n- New operating cash flow: ~$525.25M\n- New free cash flow: $525.25M - $10,107M = -$9,581.75M\n\nAdditional quarterly cash burn: $521.75M\nAdditional annual cash burn: $2,087M\n\nCash runway:\n- Current liquid assets: $23,675M ($15,852M cash + $7,823M marketable securities)\n- Baseline quarterly burn: ~$9,060M \u2192 ~2.6 quarters\n- Stressed quarterly burn: ~$9,581.75M \u2192 ~2.5 quarters\n\nThis is a meaningful reduction in runway.\n\nNow let me write the comprehensive analysis.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ae12f2c82f004859854181c1",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "30892 / 8348"
+          }
+        },
+        {
+          "tool_call_id": "call_d87576b55f4749b98585de2a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "30892 / 6261"
+          }
+        },
+        {
+          "tool_call_id": "call_41bf5167877f4af688f7a02b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "30892 / 7168"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ae12f2c82f004859854181c1",
+            "content": "3.7005270723526595"
+          },
+          {
+            "source_call_id": "call_d87576b55f4749b98585de2a",
+            "content": "4.934036096470212"
+          },
+          {
+            "source_call_id": "call_41bf5167877f4af688f7a02b",
+            "content": "4.309709821428571"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 17262,
+        "completion_tokens": 488,
+        "cached_tokens": 15232,
+        "cost_usd": 0.028995
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 16,
+      "timestamp": "2026-06-09T15:56:28.023317+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed. Let me compile the comprehensive analysis.\n\n---\n\n## Quantified Impact of a 25% Connectivity Segment Adjusted EBITDA Decline with AI Capex Held at Q1 2026 Annualized Levels\n\n### I. Baseline Financial Position (Q1 2026 Actuals \u2014 Recast Consolidated Entity)\n\nAll figures below reflect the retrospectively recast consolidated entity (including xAI and X Holdings) as presented in the SpaceX S-1 filed May 20, 2026.\n\n| Metric | Q1 2026 Actual | Annualized |\n|---|---|---|\n| **Connectivity Segment Adj. EBITDA** | $2,087M | $8,348M |\n| **Space Segment Adj. EBITDA** | $(351)M | $(1,404)M |\n| **AI Segment Adj. EBITDA** | $(609)M | $(2,436)M |\n| **Total Segment Adj. EBITDA** | $1,127M | $4,508M |\n| **AI Capital Expenditures** | $7,723M | $30,892M |\n| **Total Capital Expenditures** | $10,107M | $40,428M |\n| **Operating Cash Flow** | $1,047M | \u2014 |\n| **Free Cash Flow (OCF \u2212 Capex)** | $(9,060)M | \u2014 |\n\n---\n\n### II. Stressed Scenario: 25% Connectivity Decline, AI Capex Unchanged\n\n#### A. Direct EBITDA Impact\n\n| Metric | Baseline | Stressed | Change |\n|---|---|---|---|\n| Connectivity Adj. EBITDA | $2,087M | $1,565.25M | **\u2212$521.75M/quarter** |\n| Total Segment Adj. EBITDA | $1,127M | $605.25M | **\u2212$521.75M/quarter** |\n| Annualized Total Adj. EBITDA | $4,508M | $2,421M | **\u2212$2,087M/year** |\n\nThe reduction in Connectivity Adj. EBITDA is **$521.75M per quarter** ($2,087M annualized). Because the Space and AI segments are both Adj. EBITDA-negative, Connectivity is the *sole* positive EBITDA contributor. A 25% decline in Connectivity's EBITDA therefore flows dollar-for-dollar into a 46.3% decline in Total Segment Adj. EBITDA ($1,127M \u2192 $605.25M).\n\n#### B. Reduction in Internal Funding Capacity\n\nThe most analytically relevant measure is **Connectivity's surplus cash generation** \u2014 its Adj. EBITDA less its own segment capital expenditures \u2014 which represents the internal cash available to cross-subsidize the Space and AI segments:\n\n| Metric | Baseline | Stressed | Change |\n|---|---|---|---|\n| Connectivity Adj. EBITDA | $2,087M | $1,565.25M | \u2212$521.75M |\n| Less: Connectivity Capex | $(1,332)M | $(1,332)M | \u2014 |\n| **Connectivity Surplus** | **$755M** | **$233.25M** | **\u2212$521.75M (\u221269.1%)** |\n| Annualized Surplus | $3,020M | $933M | **\u2212$2,087M (\u221269.1%)** |\n\n**Critical finding:** A 25% decline in Connectivity Adj. EBITDA produces a **69.1% reduction in internal funding capacity** ($755M \u2192 $233.25M quarterly). This disproportionate impact occurs because Connectivity's own capex ($1,332M/quarter) is a fixed claim on its cash flow. As EBITDA declines, the surplus shrinks at an accelerated rate due to operating leverage.\n\n#### C. AI Capex Coverage Ratio\n\n| Metric | Baseline | Stressed |\n|---|---|---|\n| Connectivity Surplus / AI Capex | 9.8% ($755M / $7,723M) | 3.0% ($233.25M / $7,723M) |\n| Connectivity Adj. EBITDA / AI Capex | 27.0% | 20.3% |\n| Total Adj. EBITDA / Total Capex | 11.2% | 6.0% |\n| Annualized AI Capex / Annualized Connectivity Adj. EBITDA | 3.70x | 4.93x |\n\nUnder the stressed scenario, Connectivity's surplus covers only **3.0%** of AI segment capex, down from 9.8%. The annualized AI capex burden rises to **4.93x** Connectivity's Adj. EBITDA (from 3.70x), meaning AI infrastructure spending would consume nearly five times the entire Connectivity segment's cash generation.\n\n#### D. Widened External Funding Gap\n\n| Metric | Baseline | Stressed | Incremental Need |\n|---|---|---|---|\n| Quarterly Funding Gap (Capex \u2212 Adj. EBITDA) | $8,980M | $9,501.75M | +$521.75M |\n| **Annualized Funding Gap** | **$35,920M** | **$38,007M** | **+$2,087M** |\n\nThe company would need to source an **additional $2.087 billion per year** from external capital markets to maintain AI capex at Q1 2026 annualized run rates.\n\n---\n\n### III. Implications for Financing Flexibility\n\n#### 1. Covenant Headroom Erosion (Most Critical Risk)\n\nThe SpaceX Bridge Loan ($20B outstanding) and the $1.5B revolving credit facility both require maintenance of a **Consolidated Leverage Ratio \u2264 3.75:1.0** (temporarily 4.25:1.0 post-qualified acquisition). The ratio is defined as consolidated funded indebtedness (net of 85% of unrestricted cash) to Consolidated EBITDA.\n\n| Metric | Baseline | Stressed |\n|---|---|---|\n| Total Debt | $29,132M | $29,132M |\n| Less: 85% \u00d7 Unrestricted Cash & Securities | $(20,124)M | $(20,124)M |\n| **Net Funded Indebtedness** | **$9,008M** | **$9,008M** |\n| Annualized Total Adj. EBITDA | $4,508M | $2,421M |\n| **Implied Leverage Ratio** | **2.00x** | **3.71x** |\n| Covenant Limit | 3.75x | 3.75x |\n| **Headroom** | **1.75x** | **0.04x** |\n\n**A 25% Connectivity decline would push the leverage ratio to approximately 3.71x \u2014 within 0.04x of the covenant limit.** While the filing does not disclose the precise contractual definition of \"Consolidated EBITDA\" (which may differ from Segment Adjusted EBITDA), this analysis demonstrates that the covenant headroom is highly sensitive to Connectivity segment performance. Any further deterioration beyond 25% would likely trigger a covenant breach, which would:\n- Block access to the $1.5B revolving credit facility\n- Potentially trigger acceleration of the $20B Bridge Loan\n- Activate cross-default provisions across the debt stack\n- Require negotiation of a waiver or amendment with the banking syndicate\n\n#### 2. Compressed Cash Runway\n\n| Metric | Baseline | Stressed |\n|---|---|---|\n| Liquid Assets (Cash + Marketable Securities) | $23,675M | $23,675M |\n| Quarterly Free Cash Flow | $(9,060)M | $(9,581.75)M |\n| **Implied Cash Runway** | **~2.6 quarters** | **~2.5 quarters** |\n\nThe cash runway compresses by approximately 0.14 quarters (~13 days). While modest in isolation, this accelerates the timeline for mandatory capital market access.\n\n#### 3. Increased Dependence on IPO Proceeds and Capital Markets\n\nThe filing states that the company is **required to apply an amount equal to the net proceeds of a \"qualified IPO\"** to repay outstanding amounts under the SpaceX Bridge Loan. Under the stressed scenario:\n- The company's ability to refinance the $20B Bridge Loan through capital markets becomes more critical, as internal cash generation is insufficient\n- Equity issuance at a time of declining Connectivity performance may result in less favorable valuation terms\n- The company's stated flexibility to \"reduce and reallocate data center capital expenditures\" becomes a necessary rather than optional lever\n- Future debt issuance would face higher borrowing costs given the compressed covenant headroom and deteriorating coverage metrics\n\n#### 4. Cross-Segment Reallocation Constraints\n\nThe filing emphasizes management's ability to dynamically reallocate capital across segments. However, under the stressed scenario:\n- **Space segment** remains Adj. EBITDA-negative ($(351)M in Q1 2026) and cannot absorb reduced Connectivity funding without curtailing Starship development\n- **Connectivity's own capex** ($1,332M/quarter for satellite constellation expansion) becomes harder to fund internally, potentially requiring the segment to cannibalize its own growth investments\n- The historical model of \"mature segments funding nascent ones\" breaks down when the sole mature cash generator experiences a significant EBITDA contraction\n\n#### 5. Mandatory Bridge Loan Prepayment Obligation\n\nThe Bridge Loan requires the company to use net cash proceeds from a qualified IPO to repay outstanding amounts within six months. If Connectivity EBITDA declines simultaneously with the IPO process, the company faces a dual pressure: (a) reduced internal cash generation and (b) a mandatory large-scale debt repayment that further depletes the cash balance, potentially requiring immediate follow-on capital raises.\n\n---\n\n### IV. Summary\n\n| Impact Dimension | Quantified Effect |\n|---|---|\n| **Quarterly Internal Funding Reduction** | $521.75M |\n| **Annualized Internal Funding Reduction** | $2,087M |\n| **Connectivity Surplus Decline** | 69.1% ($755M \u2192 $233.25M quarterly) |\n| **AI Capex Coverage (Connectivity Surplus / AI Capex)** | 9.8% \u2192 3.0% |\n| **Annualized External Funding Gap** | $35.9B \u2192 $38.0B (+$2.1B) |\n| **Implied Leverage Ratio** | 2.00x \u2192 3.71x (covenant limit: 3.75x) |\n| **Covenant Headroom** | 1.75x \u2192 0.04x |\n| **Cash Runway** | ~2.6 \u2192 ~2.5 quarters |\n\n**Conclusion:** A 25% decline in Connectivity Segment Adjusted EBITDA, while AI capex remains at Q1 2026 annualized levels ($30.9B/year), would reduce internal funding capacity by $2.1B annually and \u2014 most critically \u2014 erode covenant headroom to near-zero (3.71x vs. 3.75x limit). The disproportionate 69.1% collapse in Connectivity's surplus cash generation exposes the structural fragility of a funding model in which a single segment is the sole positive-EBITDA contributor supporting $40.4B in annualized capital expenditures across three segments. The company would be compelled to accelerate external capital raises, exercise its stated flexibility to curtail AI capex, or risk a covenant breach that could trigger acceleration of $29.1B in outstanding indebtedness.\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    }\n  ]\n}\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data. Let me compile the final comprehensive analysis.\n\nKey findings:\n1. A 25% decline in Connectivity Adjusted EBITDA reduces quarterly internal funding by $521.75M ($2,087M annualized)\n2. Connectivity's surplus cash generation (Adj. EBITDA minus own capex) drops 69.1% from $755M to $233.25M quarterly\n3. The AI capex coverage ratio falls from 27.0% to 20.3%\n4. The leverage ratio (using net debt / annualized EBITDA) approaches the covenant limit\n5. The annualized funding gap widens from $35.9B to $38.0B\n6. Cash runway compresses from ~2.6 to ~2.5 quarters\n\nLet me now write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d40ce050852049afb08aac6b",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Quantified Impact of a 25% Connectivity Segment Adjusted EBITDA Decline with AI Capex Held at Q1 2026 Annualized Levels\n\nAll figures reflect the retrospectively recast consolidated entity (including xAI and X Holdings) as presented in the SpaceX S-1 filed May 20, 2026.\n\n### Reduction in Internal Funding Capacity\n\n**Direct EBITDA Impact:**\n- Connectivity Adj. EBITDA declines from $2,087M to $1,565.25M quarterly (\u2212$521.75M/quarter; \u2212$2,087M annualized)\n- Total Segment Adj. EBITDA falls from $1,127M to $605.25M quarterly (a 46.3% decline, since Connectivity is the sole positive-EBITDA segment)\n\n**Connectivity Surplus Cash Generation (the critical internal funding metric):**\n- Baseline: Connectivity Adj. EBITDA ($2,087M) \u2212 Connectivity Capex ($1,332M) = **$755M quarterly surplus** ($3,020M annualized)\n- Stressed: $1,565.25M \u2212 $1,332M = **$233.25M quarterly surplus** ($933M annualized)\n- **Reduction: $521.75M/quarter ($2,087M/year) \u2014 a 69.1% collapse in internal funding capacity**\n\nThis disproportionate impact (25% EBITDA decline \u2192 69.1% surplus decline) occurs because Connectivity's own capex is a fixed claim on its cash flow, creating negative operating leverage on the surplus.\n\n**AI Capex Coverage Deterioration:**\n- Connectivity surplus as % of AI capex: 9.8% \u2192 3.0%\n- Annualized AI capex ($30,892M) rises to 4.93x Connectivity Adj. EBITDA (from 3.70x)\n- Total Adj. EBITDA / Total Capex coverage: 11.2% \u2192 6.0%\n\n**Widened External Funding Gap:**\n- Annualized funding gap (Capex \u2212 Adj. EBITDA): $35.9B \u2192 $38.0B (+$2.1B additional external capital required annually)\n\n### Implications for Financing Flexibility\n\n**1. Covenant Headroom Erosion (Most Critical Risk):**\nUsing net funded indebtedness ($29,132M debt \u2212 85% \u00d7 $23,675M liquid assets = $9,008M) against annualized Total Adj. EBITDA:\n- Baseline leverage: 2.00x (headroom of 1.75x below the 3.75x covenant limit)\n- Stressed leverage: **3.71x** (headroom of only **0.04x** \u2014 effectively at the covenant limit)\n- A decline beyond 25% would likely breach the covenant, triggering potential acceleration of the $20B Bridge Loan, blocking access to the $1.5B revolver, and activating cross-default provisions\n\n**2. Compressed Cash Runway:**\n- Liquid assets of $23,675M provide ~2.6 quarters of runway at baseline burn rates, compressing to ~2.5 quarters under stress\n- This accelerates the timeline for mandatory capital market access\n\n**3. Increased Capital Markets Dependence:**\n- The company would need to source an additional $2.1B/year externally while simultaneously facing mandatory Bridge Loan prepayment from IPO proceeds\n- Equity issuance during a period of declining Connectivity performance may result in less favorable valuation\n- The stated flexibility to \"reduce and reallocate data center capital expenditures\" becomes a necessary rather than optional lever\n\n**4. Cross-Segment Funding Model Breakdown:**\n- The historical model of mature segments funding nascent ones is structurally impaired when the sole positive-EBITDA segment contracts\n- Space segment (\u2212$351M Adj. EBITDA) cannot absorb reduced funding without curtailing Starship development\n- Connectivity's own growth capex ($1,332M/quarter for constellation expansion) becomes harder to self-fund\n\n**Conclusion:** A 25% Connectivity EBITDA decline would reduce internal funding capacity by $2.1B annually and push the leverage ratio to 3.71x \u2014 within 0.04x of the 3.75x covenant limit. The 69.1% collapse in Connectivity's surplus cash generation exposes the structural fragility of a funding model where a single segment supports $40.4B in annualized capex across three segments. The company would be compelled to accelerate external capital raises, curtail AI capex, or risk a covenant breach that could trigger acceleration of $29.1B in outstanding indebtedness.\n\nSources: SpaceX S-1 Registration Statement (Filed May 20, 2026) \u2014 https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d40ce050852049afb08aac6b",
+            "content": "## Quantified Impact of a 25% Connectivity Segment Adjusted EBITDA Decline with AI Capex Held at Q1 2026 Annualized Levels\n\nAll figures reflect the retrospectively recast consolidated entity (including xAI and X Holdings) as presented in the SpaceX S-1 filed May 20, 2026.\n\n### Reduction in Internal Funding Capacity\n\n**Direct EBITDA Impact:**\n- Connectivity Adj. EBITDA declines from $2,087M to $1,565.25M quarterly (\u2212$521.75M/quarter; \u2212$2,087M annualized)\n- Total Segment Adj. EBITDA falls from $1,127M to $605.25M quarterly (a 46.3% decline, since Connectivity is the sole positive-EBITDA segment)\n\n**Connectivity Surplus Cash Generation (the critical internal funding metric):**\n- Baseline: Connectivity Adj. EBITDA ($2,087M) \u2212 Connectivity Capex ($1,332M) = **$755M quarterly surplus** ($3,020M annualized)\n- Stressed: $1,565.25M \u2212 $1,332M = **$233.25M quarterly surplus** ($933M annualized)\n- **Reduction: $521.75M/quarter ($2,087M/year) \u2014 a 69.1% collapse in internal funding capacity**\n\nThis disproportionate impact (25% EBITDA decline \u2192 69.1% surplus decline) occurs because Connectivity's own capex is a fixed claim on its cash flow, creating negative operating leverage on the surplus.\n\n**AI Capex Coverage Deterioration:**\n- Connectivity surplus as % of AI capex: 9.8% \u2192 3.0%\n- Annualized AI capex ($30,892M) rises to 4.93x Connectivity Adj. EBITDA (from 3.70x)\n- Total Adj. EBITDA / Total Capex coverage: 11.2% \u2192 6.0%\n\n**Widened External Funding Gap:**\n- Annualized funding gap (Capex \u2212 Adj. EBITDA): $35.9B \u2192 $38.0B (+$2.1B additional external capital required annually)\n\n### Implications for Financing Flexibility\n\n**1. Covenant Headroom Erosion (Most Critical Risk):**\nUsing net funded indebtedness ($29,132M debt \u2212 85% \u00d7 $23,675M liquid assets = $9,008M) against annualized Total Adj. EBITDA:\n- Baseline leverage: 2.00x (headroom of 1.75x below the 3.75x covenant limit)\n- Stressed leverage: **3.71x** (headroom of only **0.04x** \u2014 effectively at the covenant limit)\n- A decline beyond 25% would likely breach the covenant, triggering potential acceleration of the $20B Bridge Loan, blocking access to the $1.5B revolver, and activating cross-default provisions\n\n**2. Compressed Cash Runway:**\n- Liquid assets of $23,675M provide ~2.6 quarters of runway at baseline burn rates, compressing to ~2.5 quarters under stress\n- This accelerates the timeline for mandatory capital market access\n\n**3. Increased Capital Markets Dependence:**\n- The company would need to source an additional $2.1B/year externally while simultaneously facing mandatory Bridge Loan prepayment from IPO proceeds\n- Equity issuance during a period of declining Connectivity performance may result in less favorable valuation\n- The stated flexibility to \"reduce and reallocate data center capital expenditures\" becomes a necessary rather than optional lever\n\n**4. Cross-Segment Funding Model Breakdown:**\n- The historical model of mature segments funding nascent ones is structurally impaired when the sole positive-EBITDA segment contracts\n- Space segment (\u2212$351M Adj. EBITDA) cannot absorb reduced funding without curtailing Starship development\n- Connectivity's own growth capex ($1,332M/quarter for constellation expansion) becomes harder to self-fund\n\n**Conclusion:** A 25% Connectivity EBITDA decline would reduce internal funding capacity by $2.1B annually and push the leverage ratio to 3.71x \u2014 within 0.04x of the 3.75x covenant limit. The 69.1% collapse in Connectivity's surplus cash generation exposes the structural fragility of a funding model where a single segment supports $40.4B in annualized capex across three segments. The company would be compelled to accelerate external capital raises, curtail AI capex, or risk a covenant breach that could trigger acceleration of $29.1B in outstanding indebtedness.\n\nSources: SpaceX S-1 Registration Statement (Filed May 20, 2026) \u2014 https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 17826,
+        "completion_tokens": 4261,
+        "cached_tokens": 16256,
+        "cost_usd": 0.066855
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 166036,
+    "total_completion_tokens": 10430,
+    "total_cached_tokens": 124672,
+    "total_cost_usd": 0.36355,
+    "total_steps": 16
+  }
+}

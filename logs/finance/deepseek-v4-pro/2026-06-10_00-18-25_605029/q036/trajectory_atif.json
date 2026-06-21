@@ -1,0 +1,504 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "00fdde7d-8c55-477b-b9f0-fd3250ac5d9d",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "deepseek-v4-pro",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-10T00:18:29.101637+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-10T00:18:29.101637+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nSpace segment economics include substantial Starship R&D expense. Calculate Starship R&D as a percentage of FY2025 Space revenue, Segment Adjusted EBITDA, and consolidated revenue. Which denominator provides the most informative view of development burden and why?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-10T00:18:29.101637+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "The user wants me to calculate Starship R&D as a percentage of three different denominators:\n1. FY2025 Space segment revenue\n2. FY2025 Space Segment Adjusted EBITDA\n3. FY2025 consolidated revenue\n\nAnd then determine which denominator provides the most informative view of development burden.\n\nLet me start by parsing the SpaceX S-1 filing to extract the necessary data.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bf05a5f33a014883a729a965",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bf05a5f33a014883a729a965",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3322,
+        "completion_tokens": 171,
+        "cached_tokens": 2944,
+        "cost_usd": 0.006335
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-10T00:19:09.203580+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Good, the filing is parsed. Now I need to find:\n1. Starship R&D expense for FY2025\n2. Space segment revenue for FY2025\n3. Space Segment Adjusted EBITDA for FY2025\n4. Consolidated revenue for FY2025\n\nLet me retrieve these pieces of information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_9cbdbb21e21741b7abc2968a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Starship R&D expense for FY2025 (fiscal year ended December 31, 2025)? Look for any disclosure about Starship-specific research and development costs in {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_4ccd965f3e2e4803abcf32e9",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Space segment revenue for FY2025 (year ended December 31, 2025)? Look for segment revenue disclosures in {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_66fea820258c4d93a5cf480e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Space Segment Adjusted EBITDA for FY2025 (year ended December 31, 2025)? Look for segment profitability or Segment Adjusted EBITDA disclosures in {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_bb4b21356541483aa3b8e936",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the consolidated total revenue for FY2025 (year ended December 31, 2025)? Look for the consolidated income statement or summary financial data in {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_9cbdbb21e21741b7abc2968a",
+            "content": "Based on the provided text, the Starship R&D expense for the fiscal year ended December 31, 2025, is **$3,004 million**.\n\nThis figure is explicitly stated in multiple sections, such as:\n- \"...our Space segment funded $930 million and **$3,004 million** in research and development expense during the three months ended March 31, 2026 and the year ended December 31, 2025, respectively, for our next-generation Starship launch vehicle program.\"\n- \"...in 2025 we accelerated our timeline for Starship development, increasing R&D in our Space segment to **$3,004 million**, compared to $1,835 million in 2024.\""
+          },
+          {
+            "source_call_id": "call_4ccd965f3e2e4803abcf32e9",
+            "content": "The Space segment revenue for the fiscal year ended December 31, 2025, was **$4,086 million**. \n\nThis figure is disclosed in multiple locations within the provided document chunks, including the segment financial results table and the revenue disaggregation table."
+          },
+          {
+            "source_call_id": "call_66fea820258c4d93a5cf480e",
+            "content": "The Space Segment Adjusted EBITDA for the fiscal year ended December 31, 2025, is **$653 million**."
+          },
+          {
+            "source_call_id": "call_bb4b21356541483aa3b8e936",
+            "content": "Based on the provided document chunks, the consolidated total revenue for the year ended December 31, 2025 is $18,674 million.\n\nThis figure is stated in the Consolidated Statements of Operations table:\n|  | Year Ended December 31, |\n|  | 2025 |  | 2024 |  | 2023 |\n| Revenue ........................................................................................ | $18,674 |  | $14,015 |  | $10,387 |"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3518,
+        "completion_tokens": 359,
+        "cached_tokens": 3200,
+        "cost_usd": 0.008385
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-10T00:19:13.386330+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have all the data I need:\n\n- Starship R&D FY2025: $3,004 million\n- Space segment revenue FY2025: $4,086 million\n- Space Segment Adjusted EBITDA FY2025: $653 million\n- Consolidated revenue FY2025: $18,674 million\n\nNow let me calculate the three percentages:\n\n1. Starship R&D / Space segment revenue = 3,004 / 4,086\n2. Starship R&D / Space Segment Adjusted EBITDA = 3,004 / 653\n3. Starship R&D / Consolidated revenue = 3,004 / 18,674\n\nLet me compute these.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_889c4f55f81c44aba43e03f3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3004 / 4086 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_e466682068cc4625a6ca693c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3004 / 653 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_0f8e5091284d43d199e52ef0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3004 / 18674 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_889c4f55f81c44aba43e03f3",
+            "content": "73.51933431228585"
+          },
+          {
+            "source_call_id": "call_e466682068cc4625a6ca693c",
+            "content": "460.030627871363"
+          },
+          {
+            "source_call_id": "call_0f8e5091284d43d199e52ef0",
+            "content": "16.08653743172325"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4225,
+        "completion_tokens": 263,
+        "cached_tokens": 3712,
+        "cost_usd": 0.0085525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-10T00:19:48.414094+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve some additional context on how the company itself frames these relationships to strengthen the analysis.\n\n",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have the three percentages:\n\n1. Starship R&D as % of Space segment revenue: 73.52%\n2. Starship R&D as % of Space Segment Adjusted EBITDA: 460.03%\n3. Starship R&D as % of Consolidated revenue: 16.09%\n\nNow I need to analyze which denominator provides the most informative view of the development burden and why. Let me think about this...\n\nThe question asks which denominator provides the \"most informative view of development burden.\" Let me consider each:\n\n- Space segment revenue ($4,086M): Starship R&D is 73.52% of Space revenue. This shows how much of the Space segment's revenue is consumed by Starship R&D alone. It gives a segment-specific view.\n\n- Space Segment Adjusted EBITDA ($653M): At 460%, this shows that Starship R&D dwarfs the segment's adjusted profitability. It highlights that without Starship R&D, the Space segment would be much more profitable \u2014 Starship R&D expense is 4.6x the segment's adjusted EBITDA.\n\n- Consolidated revenue ($18,674M): At 16.09%, this dilutes the picture because it mixes in revenue from other segments (Starlink, xAI, X Holdings). Since Starship is specifically a Space segment initiative, using consolidated revenue obscures the burden by spreading it across unrelated business lines.\n\nThe most informative view likely depends on the analytical purpose:\n\n- **Space Segment Adjusted EBITDA** arguably provides the most informative view because it directly shows how the development program affects segment profitability and sustainability. The 460% figure starkly illustrates that Starship R&D alone consumes over 4.5x the segment's adjusted operating profit, meaning the Space segment's core operations (excluding Starship R&D) must be generating substantial EBITDA that is being reinvested into Starship. This denominator directly answers the question: \"how heavy is the Starship burden relative to the segment's capacity to fund it?\"\n\n- **Space segment revenue** (73.52%) shows the magnitude of R&D relative to the segment's top line \u2014 useful for understanding R&D intensity.\n\n- **Consolidated revenue** (16.09%) is the least informative because it mixes in unrelated business lines.\n\nThe Space Segment Adjusted EBITDA is probably the most informative because it directly speaks to \"burden\" \u2014 how the development program weighs on the segment's profitability and its ability to generate returns. But I can also see arguments for Space segment revenue.\n\nLet me refine my reasoning and present a clear answer. I think the Space Segment Adjusted EBITDA provides the most informative view because:\n\n1. It directly shows how Starship R&D overwhelms the segment's profitability metric \u2014 the R&D spend is 4.6x the segment's adjusted profit.\n2. It demonstrates that the Space segment would have substantial profitability absent Starship, quantifying the true economic burden of the program.\n3. \"Burden\" implies a weight on financial capacity, and EBITDA is a better measure of capacity to absorb R&D than revenue.\n\nHowever, I should also acknowledge that each denominator serves a different analytical purpose and the \"most informative\" depends on the specific question being asked.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3515c4a785484e3783fe061a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Retrieve the discussion around Starship R&D and its impact on Space segment profitability, including any management commentary about how Starship R&D affects Segment Adjusted EBITDA or segment margins in {{spacex_s1}}."
+          }
+        },
+        {
+          "tool_call_id": "call_80a5562a308f4a98a7c56f65",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the components of Space segment revenue, and what other segments contribute to consolidated revenue? Retrieve the segment breakdown of revenue for FY2025 in {{spacex_s1}}."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3515c4a785484e3783fe061a",
+            "content": "Based on the provided document sections, here is the discussion regarding Starship R&D and its impact on Space segment profitability:\n\n**Starship R&D Expenditure**\nThe Space segment funded significant research and development expenses for the Starship program.\n*   **Q1 2026:** $930 million\n*   **Full Year 2025:** $3,004 million\n\nThe management commentary repeatedly characterizes this as an \"accelerated investment in development of the Starship vehicle as well as launch facilities to support future Starship launches.\" The R&D increase includes higher production, engineering, and test/launch costs.\n\n**Impact on Space Segment Profitability (Loss from Operations and Segment Adjusted EBITDA)**\nThe document directly attributes the decline in Space segment profitability to the Starship investment.\n\n*   **Segment Adjusted EBITDA:** The commentary states the year-over-year decreases were \"primarily driven by an accelerated investment in development of the Starship vehicle.\"\n    *   **Q1 2026:** Segment Adjusted EBITDA decreased by $575 million, from $224 million in Q1 2025 to **$(351) million**.\n    *   **Full Year 2025:** Segment Adjusted EBITDA decreased by $501 million, from $1,154 million in 2024 to **$653 million**.\n\n*   **Loss from Operations:** The same driver is cited for increased operating losses.\n    *   **Q1 2026:** Loss from operations increased by $592 million, to **$(662) million**.\n    *   **Full Year 2025:** Loss from operations was **$(657) million** (which includes the $3,004 million in Starship R&D).\n\n**Management Commentary on Long-Term Strategy vs. Near-Term Margins**\nManagement explicitly frames the Starship investment as a strategic priority that prioritizes long-term value over near-term margins:\n\n*   The program is described as \"the key enabler of our long-term growth strategy by unlocking entirely new categories of missions.\"\n*   The document states a philosophy of prioritizing \"execution speed, capacity expansion, and technological leadership over near\u2011term margin optimization\" and believes this \"approach maximizes long\u2011term value creation.\"\n\n**Future Impact on Profitability**\nThe management commentary provides an expectation for how profitability will change upon commercialization:\n*   The document expects Space R&D to \"moderate both in absolute dollars and as a percentage of revenue once Starship is commercialized by delivering payload to orbit.\"\n*   Upon commercialization, Starship costs will \"generally be capitalized and then depreciated in cost of revenue.\""
+          },
+          {
+            "source_call_id": "call_80a5562a308f4a98a7c56f65",
+            "content": "Based on the provided financial documents, here are the answers to your questions:\n\n**1. Components of Space Segment Revenue**\n\nThe Space segment revenue is broken down into two main components:\n*   **Launch Services**\n*   **Launch & Development**\n\nFor the fiscal year 2025, these components were:\n*   Launch Services: $2,576 million\n*   Launch & Development: $1,510 million\n*   **Total Space Revenue: $4,086 million**\n\n**2. Other Segments Contributing to Consolidated Revenue**\n\nFor fiscal year 2025, the other reportable segments that contributed to the consolidated total revenue of $18,674 million were:\n*   **Connectivity:** $11,387 million\n*   **AI:** $3,201 million\n\nThe document notes that the Space and Connectivity segments contributed the substantial majority of the consolidated revenue for the year."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4535,
+        "completion_tokens": 820,
+        "cached_tokens": 4224,
+        "cost_usd": 0.0142575
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-10T00:20:08.837873+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed. Let me compute and present the full analysis.\n\n---\n\n## Starship R&D as a Percentage of Three Denominators \u2014 FY2025\n\n### The Data\n\n| Metric | FY2025 ($M) |\n|---|---|\n| **Starship R&D expense** | $3,004 |\n| **Space segment revenue** | $4,086 |\n| **Space Segment Adjusted EBITDA** | $653 |\n| **Consolidated revenue** | $18,674 |\n\n### The Calculations\n\n| Denominator | Ratio | Calculation |\n|---|---|---|\n| **Space segment revenue** | **73.52%** | $3,004M \u00f7 $4,086M |\n| **Space Segment Adjusted EBITDA** | **460.03%** | $3,004M \u00f7 $653M |\n| **Consolidated revenue** | **16.09%** | $3,004M \u00f7 $18,674M |\n\n---\n\n### Which Denominator Provides the Most Informative View of Development Burden?\n\n**Space Segment Adjusted EBITDA \u2014 at 460.03% \u2014 provides the most informative view.** Here is the reasoning for each denominator:\n\n---\n\n#### 1. Space Segment Adjusted EBITDA (460.03%) \u2014 **Most Informative**\n\nThe concept of \"development burden\" is fundamentally about how a program weighs on a business's capacity to generate returns and sustain itself. Segment Adjusted EBITDA is the closest proxy for the segment's operational earnings power available in the filing. The 460% figure makes three things starkly clear:\n\n- **Starship R&D alone consumes 4.6\u00d7 the segment's entire adjusted operating profit.** The Space segment would have generated approximately $3,657 million in Segment Adjusted EBITDA absent Starship R&D ($653M + $3,004M), meaning the program is not merely large \u2014 it *overwhelms* segment-level profitability and pushes the segment deep into operating losses ($657M loss from operations in FY2025).\n\n- **The Space segment cannot self-fund Starship from its own current earnings.** The 460% ratio directly quantifies the dependency on either cross-segment subsidization (from Connectivity and AI) or external capital. This is the essence of \"burden\": the program consumes more resources than the segment itself produces.\n\n- **It isolates the economic trade-off.** Management explicitly states it is prioritizing \"execution speed, capacity expansion, and technological leadership over near\u2011term margin optimization.\" The EBITDA ratio quantifies exactly how much near-term margin is being surrendered.\n\n#### 2. Space Segment Revenue (73.52%) \u2014 **Useful but Incomplete**\n\nThis ratio shows that Starship R&D consumes nearly three-quarters of the Space segment's top line \u2014 a classic R&D-intensity metric. It is directionally informative but misses the *economic* dimension of burden: revenue pays for many things besides R&D (cost of revenue, SG&A, etc.). High revenue does not imply capacity to absorb high R&D if gross margins are thin. The revenue-based ratio tells you about R&D ambition relative to commercial scale, but not about financial sustainability.\n\n#### 3. Consolidated Revenue (16.09%) \u2014 **Least Informative, Potentially Misleading**\n\nConsolidated revenue includes $11,387 million from the Connectivity segment (Starlink) and $3,201 million from the AI segment (xAI). Starship R&D is a Space-segment activity with no direct operational nexus to those other segments. Using consolidated revenue:\n\n- Dilutes the apparent burden by a factor of ~4.6\u00d7 compared to Space segment revenue.\n- Obscures the fact that the Space segment is economically underwater because of Starship.\n- Implies \u2014 incorrectly \u2014 that the development program is modest relative to the overall enterprise, when in reality it is the dominant driver of the Space segment's financial profile.\n\nThe 16.09% figure could mislead an analyst into thinking Starship R&D is easily absorbable, when in fact it requires substantial cross-segment support.\n\n---\n\n### Conclusion\n\n**Space Segment Adjusted EBITDA is the most informative denominator** because it directly answers the core question of burden: *How does this development program weigh on the segment's capacity to produce economic returns?* At 460%, the answer is unambiguous \u2014 Starship R&D does not merely reduce Space segment profitability; it consumes it many times over, creating a structural dependence on other segments or capital sources that is the very definition of a development burden. The filing corroborates this: management explicitly attributes both the year-over-year decline in Space Segment Adjusted EBITDA (from $1,154M in FY2024 to $653M in FY2025) and the segment's deepening operating losses \"primarily\" to accelerated Starship investment, and expects R&D to moderate only \"once Starship is commercialized.\"\n\n---\n\n```json\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}\n```",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Excellent. Now I have a thorough picture. Let me also get the Space segment loss from operations figure for completeness, and confirm the adjusted EBITDA reconciliation.\n\nLet me now construct my final answer. I have all the information I need.\n\nSummary:\n- Starship R&D FY2025: $3,004 million\n- Space segment revenue FY2025: $4,086 million\n- Space Segment Adjusted EBITDA FY2025: $653 million\n- Consolidated revenue FY2025: $18,674 million\n\nPercentages:\n1. Starship R&D / Space segment revenue = 73.52%\n2. Starship R&D / Space Segment Adjusted EBITDA = 460.03%\n3. Starship R&D / Consolidated revenue = 16.09%\n\nNow, which denominator provides the most informative view?\n\nThe Space Segment Adjusted EBITDA denominator at 460% is the most informative. Here's why:\n\n1. \"Burden\" implies a weight on profitability and financial capacity. EBITDA is a measure of operational earnings capacity. Starship R&D consuming 4.6x the segment's adjusted EBITDA means the program is not just a large expense \u2014 it's consuming more than the segment's entire adjusted operating profit, pushing it into operating losses ($657M loss from operations in FY2025).\n\n2. Revenue (73.52%) tells you about R&D intensity relative to the top line, but doesn't capture the economic impact. Revenue could be high while margins are thin, or vice versa. The revenue ratio doesn't directly speak to \"burden.\"\n\n3. Consolidated revenue (16.09%) is misleading because it mixes in Connectivity ($11.4B) and AI ($3.2B) segments that have nothing to do with Starship development. This dilutes the apparent burden and obscures the segment-level economic reality.\n\nThe Space Segment Adjusted EBITDA ratio most starkly illustrates that Starship R&D alone consumes over 4.5x the segment's adjusted profit, quantifying the program as an investment that the Space segment's current operations cannot fund from their own profitability \u2014 it requires cross-segment subsidization or external capital. This is the essence of \"development burden.\"\n\nLet me also confirm: the Space segment loss from operations was $(657) million in FY2025. Starship R&D at $3,004 million \u2014 without it, the segment would have had approximately $2,347 million in operating income. That further reinforces the point.",
+      "metrics": {
+        "prompt_tokens": 6070,
+        "completion_tokens": 1554,
+        "cached_tokens": 4992,
+        "cost_usd": 0.024475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-10T00:20:24.716576+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "The user is asking me to call submit_final_result. I have my complete answer ready. Let me submit it.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_77e23a05738f4a46b50b0d4f",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Starship R&D as a Percentage of Three Denominators \u2014 FY2025\n\n### The Data\n\n| Metric | FY2025 ($M) |\n|---|---|\n| **Starship R&D expense** | $3,004 |\n| **Space segment revenue** | $4,086 |\n| **Space Segment Adjusted EBITDA** | $653 |\n| **Consolidated revenue** | $18,674 |\n\n### The Calculations\n\n| Denominator | Ratio | Calculation |\n|---|---|---|\n| **Space segment revenue** | **73.52%** | $3,004M \u00f7 $4,086M |\n| **Space Segment Adjusted EBITDA** | **460.03%** | $3,004M \u00f7 $653M |\n| **Consolidated revenue** | **16.09%** | $3,004M \u00f7 $18,674M |\n\n---\n\n### Which Denominator Provides the Most Informative View of Development Burden?\n\n**Space Segment Adjusted EBITDA \u2014 at 460.03% \u2014 provides the most informative view.** Here is the reasoning for each denominator:\n\n---\n\n#### 1. Space Segment Adjusted EBITDA (460.03%) \u2014 **Most Informative**\n\nThe concept of \"development burden\" is fundamentally about how a program weighs on a business's capacity to generate returns and sustain itself. Segment Adjusted EBITDA is the closest proxy for the segment's operational earnings power available in the filing. The 460% figure makes three things starkly clear:\n\n- **Starship R&D alone consumes 4.6\u00d7 the segment's entire adjusted operating profit.** The Space segment would have generated approximately $3,657 million in Segment Adjusted EBITDA absent Starship R&D ($653M + $3,004M), meaning the program is not merely large \u2014 it *overwhelms* segment-level profitability and pushes the segment deep into operating losses ($657M loss from operations in FY2025).\n\n- **The Space segment cannot self-fund Starship from its own current earnings.** The 460% ratio directly quantifies the dependency on either cross-segment subsidization (from Connectivity and AI) or external capital. This is the essence of \"burden\": the program consumes more resources than the segment itself produces.\n\n- **It isolates the economic trade-off.** Management explicitly states it is prioritizing \"execution speed, capacity expansion, and technological leadership over near\u2011term margin optimization.\" The EBITDA ratio quantifies exactly how much near-term margin is being surrendered.\n\n#### 2. Space Segment Revenue (73.52%) \u2014 **Useful but Incomplete**\n\nThis ratio shows that Starship R&D consumes nearly three-quarters of the Space segment's top line \u2014 a classic R&D-intensity metric. It is directionally informative but misses the *economic* dimension of burden: revenue pays for many things besides R&D (cost of revenue, SG&A, etc.). High revenue does not imply capacity to absorb high R&D if gross margins are thin. The revenue-based ratio tells you about R&D ambition relative to commercial scale, but not about financial sustainability.\n\n#### 3. Consolidated Revenue (16.09%) \u2014 **Least Informative, Potentially Misleading**\n\nConsolidated revenue includes $11,387 million from the Connectivity segment (Starlink) and $3,201 million from the AI segment (xAI). Starship R&D is a Space-segment activity with no direct operational nexus to those other segments. Using consolidated revenue:\n\n- Dilutes the apparent burden by a factor of ~4.6\u00d7 compared to Space segment revenue.\n- Obscures the fact that the Space segment is economically underwater because of Starship.\n- Implies \u2014 incorrectly \u2014 that the development program is modest relative to the overall enterprise, when in reality it is the dominant driver of the Space segment's financial profile.\n\nThe 16.09% figure could mislead an analyst into thinking Starship R&D is easily absorbable, when in fact it requires substantial cross-segment support.\n\n---\n\n### Conclusion\n\n**Space Segment Adjusted EBITDA is the most informative denominator** because it directly answers the core question of burden: *How does this development program weigh on the segment's capacity to produce economic returns?* At 460%, the answer is unambiguous \u2014 Starship R&D does not merely reduce Space segment profitability; it consumes it many times over, creating a structural dependence on other segments or capital sources that is the very definition of a development burden. The filing corroborates this: management explicitly attributes both the year-over-year decline in Space Segment Adjusted EBITDA (from $1,154M in FY2024 to $653M in FY2025) and the segment's deepening operating losses \"primarily\" to accelerated Starship investment, and expects R&D to moderate only \"once Starship is commercialized.\"\n\n---\n\n```json\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}\n```"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_77e23a05738f4a46b50b0d4f",
+            "content": "## Starship R&D as a Percentage of Three Denominators \u2014 FY2025\n\n### The Data\n\n| Metric | FY2025 ($M) |\n|---|---|\n| **Starship R&D expense** | $3,004 |\n| **Space segment revenue** | $4,086 |\n| **Space Segment Adjusted EBITDA** | $653 |\n| **Consolidated revenue** | $18,674 |\n\n### The Calculations\n\n| Denominator | Ratio | Calculation |\n|---|---|---|\n| **Space segment revenue** | **73.52%** | $3,004M \u00f7 $4,086M |\n| **Space Segment Adjusted EBITDA** | **460.03%** | $3,004M \u00f7 $653M |\n| **Consolidated revenue** | **16.09%** | $3,004M \u00f7 $18,674M |\n\n---\n\n### Which Denominator Provides the Most Informative View of Development Burden?\n\n**Space Segment Adjusted EBITDA \u2014 at 460.03% \u2014 provides the most informative view.** Here is the reasoning for each denominator:\n\n---\n\n#### 1. Space Segment Adjusted EBITDA (460.03%) \u2014 **Most Informative**\n\nThe concept of \"development burden\" is fundamentally about how a program weighs on a business's capacity to generate returns and sustain itself. Segment Adjusted EBITDA is the closest proxy for the segment's operational earnings power available in the filing. The 460% figure makes three things starkly clear:\n\n- **Starship R&D alone consumes 4.6\u00d7 the segment's entire adjusted operating profit.** The Space segment would have generated approximately $3,657 million in Segment Adjusted EBITDA absent Starship R&D ($653M + $3,004M), meaning the program is not merely large \u2014 it *overwhelms* segment-level profitability and pushes the segment deep into operating losses ($657M loss from operations in FY2025).\n\n- **The Space segment cannot self-fund Starship from its own current earnings.** The 460% ratio directly quantifies the dependency on either cross-segment subsidization (from Connectivity and AI) or external capital. This is the essence of \"burden\": the program consumes more resources than the segment itself produces.\n\n- **It isolates the economic trade-off.** Management explicitly states it is prioritizing \"execution speed, capacity expansion, and technological leadership over near\u2011term margin optimization.\" The EBITDA ratio quantifies exactly how much near-term margin is being surrendered.\n\n#### 2. Space Segment Revenue (73.52%) \u2014 **Useful but Incomplete**\n\nThis ratio shows that Starship R&D consumes nearly three-quarters of the Space segment's top line \u2014 a classic R&D-intensity metric. It is directionally informative but misses the *economic* dimension of burden: revenue pays for many things besides R&D (cost of revenue, SG&A, etc.). High revenue does not imply capacity to absorb high R&D if gross margins are thin. The revenue-based ratio tells you about R&D ambition relative to commercial scale, but not about financial sustainability.\n\n#### 3. Consolidated Revenue (16.09%) \u2014 **Least Informative, Potentially Misleading**\n\nConsolidated revenue includes $11,387 million from the Connectivity segment (Starlink) and $3,201 million from the AI segment (xAI). Starship R&D is a Space-segment activity with no direct operational nexus to those other segments. Using consolidated revenue:\n\n- Dilutes the apparent burden by a factor of ~4.6\u00d7 compared to Space segment revenue.\n- Obscures the fact that the Space segment is economically underwater because of Starship.\n- Implies \u2014 incorrectly \u2014 that the development program is modest relative to the overall enterprise, when in reality it is the dominant driver of the Space segment's financial profile.\n\nThe 16.09% figure could mislead an analyst into thinking Starship R&D is easily absorbable, when in fact it requires substantial cross-segment support.\n\n---\n\n### Conclusion\n\n**Space Segment Adjusted EBITDA is the most informative denominator** because it directly answers the core question of burden: *How does this development program weigh on the segment's capacity to produce economic returns?* At 460%, the answer is unambiguous \u2014 Starship R&D does not merely reduce Space segment profitability; it consumes it many times over, creating a structural dependence on other segments or capital sources that is the very definition of a development burden. The filing corroborates this: management explicitly attributes both the year-over-year decline in Space Segment Adjusted EBITDA (from $1,154M in FY2024 to $653M in FY2025) and the segment's deepening operating losses \"primarily\" to accelerated Starship investment, and expects R&D to moderate only \"once Starship is commercialized.\"\n\n---\n\n```json\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026)\"\n    }\n  ]\n}\n```"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7649,
+        "completion_tokens": 1110,
+        "cached_tokens": 7296,
+        "cost_usd": 0.0211025
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 29319,
+    "total_completion_tokens": 4277,
+    "total_cached_tokens": 26368,
+    "total_cost_usd": 0.0831075,
+    "total_steps": 8
+  }
+}

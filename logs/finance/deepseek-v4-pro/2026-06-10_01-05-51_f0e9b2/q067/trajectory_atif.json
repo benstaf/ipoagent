@@ -1,0 +1,707 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "48ae7736-182e-4e6b-a0eb-ad7acebb61fc",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "deepseek-v4-pro",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-10T01:05:56.287230+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-10T01:05:56.287230+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nSpaceX's S-1 discloses mass-to-orbit as a key Space segment KPI but does not publish a revenue-per-kilogram figure directly. Using disclosed FY2025 Space segment revenue and any launch volume or mass-to-orbit data in the filing, estimate an implied revenue-per-kilogram proxy. Compare this directionally to publicly available data on legacy launch providers (e.g., ULA, Arianespace) where list prices per kilogram to LEO are publicly known. What does the comparison suggest about SpaceX's pricing power and margin structure, and what filing disclosure gap prevents a precise margin-per-kilogram calculation?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-10T01:05:56.287230+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me analyze this question carefully. The user wants me to:\n\n1. Find SpaceX's FY2025 Space segment revenue from the S-1\n2. Find launch volume or mass-to-orbit data from the S-1\n3. Calculate an implied revenue-per-kilogram proxy\n4. Compare this to legacy launch providers (ULA, Arianespace) with publicly known list prices per kg to LEO\n5. Interpret what this suggests about SpaceX's pricing power and margin structure\n6. Identify what disclosure gap prevents a precise margin-per-kilogram calculation\n\nLet me start by parsing the S-1 filing and then retrieving the relevant data.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e97628198c3b4a578d6d912a",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e97628198c3b4a578d6d912a",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3400,
+        "completion_tokens": 227,
+        "cached_tokens": 2944,
+        "cost_usd": 0.00709
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-10T01:06:25.067797+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me now retrieve the relevant sections. I need:\n1. FY2025 Space segment revenue\n2. Mass-to-orbit data / launch volume data\n3. Any KPI disclosures about mass-to-orbit\n\nLet me do multiple retrievals.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1fe3258602fc4a5b99af3a56",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the FY2025 Space segment revenue in {{spacex_s1}}? Also retrieve any segment revenue breakdown for FY2025 and FY2024."
+          }
+        },
+        {
+          "tool_call_id": "call_bd74e3710dbf4947bd6b1f3b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the mass-to-orbit KPI disclosed in {{spacex_s1}}? Retrieve all mass-to-orbit figures, launch count data, and any launch volume metrics for FY2024 and FY2025."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1fe3258602fc4a5b99af3a56",
+            "content": "Based on the provided document chunks, here is the requested information:\n\nThe FY2025 Space segment revenue was **$4,086 million**.\n\nHere is the segment revenue breakdown for FY2025 and FY2024, as detailed in the provided tables:\n\n| Segment & Type | FY2025 (Year Ended Dec 31, 2025) | FY2024 (Year Ended Dec 31, 2024) |\n| :--- | :--- | :--- |\n| **Space** | **$4,086 million** | **$3,796 million** |\n| Launch Services | $2,576 million | $2,584 million |\n| Launch & Development | $1,510 million | $1,212 million |\n| **Connectivity** | **$11,387 million** | **$7,599 million** |\n| **AI** | **$3,201 million** | **$2,620 million** |\n| Advertising | $1,844 million | $1,728 million |\n| AI Solutions & Infrastructure | $1,357 million | $892 million |\n| **Total Revenues** | **$18,674 million** | **$14,015 million** |"
+          },
+          {
+            "source_call_id": "call_bd74e3710dbf4947bd6b1f3b",
+            "content": "Based on the provided text, here are the mass-to-orbit figures, launch count data, and launch volume metrics for FY2024 and FY2025.\n\n### Mass to Orbit (in metric tons)\n*   **FY2025:** 2,213 metric tons\n*   **FY2024:** 1,699 metric tons\n\nThe text provides a breakdown of these totals:\n*   **FY2025:** 312 metric tons attributable to customer payloads, 1,901 metric tons attributable to internal payloads.\n*   **FY2024:** 282 metric tons attributable to customer payloads, 1,418 metric tons attributable to internal payloads.\n\n### Launch Counts\nThe data includes total launches and a breakdown for Falcon launches only.\n\n*   **Total Launches (Falcon and Starship):**\n    *   **FY2025:** 170\n    *   **FY2024:** 138\n\n*   **Falcon Launches:**\n    *   **FY2025:** 165 total (43 customer launches, 122 internal launches)\n    *   **FY2024:** 134 total (45 customer launches, 89 internal launches)\n\n### Launch Volume Metrics\n*   In 2025, SpaceX launched over 2,200 metric tons, representing over 80% of mass to orbit for the world.\n*   In 2025, SpaceX completed 170 missions across Falcon and Starship vehicles and 159 flight-proven booster launches."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3652,
+        "completion_tokens": 204,
+        "cached_tokens": 0,
+        "cost_usd": 0.01117
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-10T01:07:31.392144+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have the key data:\n- Space segment revenue FY2025: $4,086 million\n- Total mass to orbit FY2025: 2,213 metric tons\n- Customer payload mass: 312 metric tons\n- Internal payload mass: 1,901 metric tons\n\nNow, the question is how to calculate revenue-per-kilogram. The total Space segment revenue is $4,086 million. But this includes Launch Services ($2,576M) and Launch & Development ($1,510M). \n\nThe total mass-to-orbit is 2,213 metric tons. But a good portion of this is internal (Starlink satellites). The customer payload mass is only 312 metric tons.\n\nFor a revenue-per-kilogram proxy, I think the most meaningful calculation would be:\n- Using total Space revenue / total mass-to-orbit\n- Using Launch Services revenue / total mass-to-orbit\n- Using Launch Services / customer payload mass (but this would be very high since internal launches probably generate some revenue through the connectivity segment)\n\nLet me think about what makes sense. The question says \"Using disclosed FY2025 Space segment revenue and any launch volume or mass-to-orbit data in the filing, estimate an implied revenue-per-kilogram proxy.\"\n\nI think using Space segment revenue / total mass-to-orbit gives a blended proxy:\n$4,086M / 2,213 metric tons = $4,086M / 2,213,000 kg = approximately $1,846 per kg\n\nBut let me also consider using just Launch Services revenue / total mass:\n$2,576M / 2,213,000 kg = $1,164 per kg\n\nOr Launch Services / customer payload mass:\n$2,576M / 312,000 kg = $8,256 per kg\n\nI think the most reasonable proxy is total Space revenue / total mass to orbit = $4,086M / 2,213 metric tons.\n\nNow I need to find publicly available data on legacy launch providers like ULA and Arianespace. Let me search for that.\n\nBut first, let me also check if the S-1 has any additional details about pricing or cost of revenue for the Space segment.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5a4341661c2e42d5a0dfc5e4",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the cost of revenue or gross margin for the Space segment in {{spacex_s1}}? Also retrieve any segment-level profitability data, including operating income or margins for Space, Connectivity, and AI segments for FY2024 and FY2025."
+          }
+        },
+        {
+          "tool_call_id": "call_0098fb31f16641c1a85cc093",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Does {{spacex_s1}} disclose any information about launch pricing, price per kilogram, revenue per launch, or Falcon 9 / Falcon Heavy / Starship list prices? Also check for any discussion of competitive pricing or pricing power."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_5a4341661c2e42d5a0dfc5e4",
+            "content": "Based on the provided text, here is the requested data for the Space segment:\n\n**FY2024 (Year Ended December 31, 2024)**\n*   **Cost of Revenue:** $1,541 million\n*   **Gross Margin Calculation:** Revenue ($3,796 million) - Cost of Revenue ($1,541 million) = $2,255 million. Gross margin percentage is approximately 59.4%.\n*   **Operating Income:** $21 million\n*   **Operating Margin:** Approximately 0.6%\n\nThe data is derived from the 2024 consolidated segment financial table:\n| Revenue ............................................................. | $3,796 |\n| Cost of revenue ................................................. | 1,541 |\n| Income (loss) from operations ......................... | 21 |\n\n**FY2025 (Year Ended December 31, 2025)**\n*   **Cost of Revenue:** $1,352 million\n*   **Gross Margin Calculation:** Revenue ($4,086 million) - Cost of Revenue ($1,352 million) = $2,734 million. Gross margin percentage is approximately 66.9%.\n*   **Operating Loss:** $(657) million\n*   **Operating Margin:** Approximately -16.1%\n\nThe data is derived from the 2025 consolidated segment financial table:\n| Revenue ............................................................. | $4,086 |\n| Cost of revenue ................................................. | 1,352 |\n| Income (loss) from operations ......................... | (657) |"
+          },
+          {
+            "source_call_id": "call_0098fb31f16641c1a85cc093",
+            "content": "The document discloses **specific historical price-per-kilogram figures** for Falcon 9 and Falcon Heavy but does **not** provide current list prices, revenue per launch, or Starship pricing. It also includes a general statement about offering competitive prices, but no detailed discussion of pricing power.\n\n### Pricing disclosures found:\n\n- **Falcon 9 (2010):**  \n  \u201cAccording to NASA, the first version of Falcon 9 in 2010 reduced launch cost to approximately **$2,700 per kilogram**, approximately 85% less than the historical average launch cost of $18,500 per kilogram.\u201d\n\n- **Falcon Heavy (2018):**  \n  \u201cThe first version of Falcon Heavy in 2018 further reduced this cost to approximately **$1,400 per kilogram**, a reduction of approximately 92% compared to the historical average cost.\u201d\n\n- **Future Starship goal:**  \n  \u201cWith the future deployment of Starship \u2026 we aim to reduce the cost to reach orbit by 99% or more relative to the historical average launch cost.\u201d  \n  (No specific dollar-per-kg figure is given for Starship.)\n\n### What is not disclosed:\n\n- **Current list prices** for Falcon 9, Falcon Heavy, or Starship.  \n- **Revenue per launch** \u2013 the MD&A states that \u201caverage price per launch remained relatively flat year over year\u201d but never provides an actual number.  \n- **Starship pricing** beyond the aspirational 99% reduction statement.\n\n### Discussion of competitive pricing / pricing power:\n\n- One sentence in the business overview states, \u201cAs a result, we can offer **competitive launch prices**,\u201d but this is qualitative.  \n- The competition section lists price as one factor among many (reliability, cadence, payload capacity, etc.) and emphasizes SpaceX\u2019s advantage in \u201cbreadth of launch solutions and cadence\u201d rather than pricing power specifically. There is no quantitative or detailed analysis of pricing power."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4425,
+        "completion_tokens": 628,
+        "cached_tokens": 3712,
+        "cost_usd": 0.0127025
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-10T01:07:44.327859+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a good picture. Let me compile the data:\n\nSpace Segment FY2025:\n- Revenue: $4,086M\n- Cost of Revenue: $1,352M\n- Gross Margin: 66.9%\n- Operating Loss: $(657)M\n- Mass to orbit: 2,213 metric tons (312 customer, 1,901 internal)\n- Total launches: 170\n\nLegacy launch providers (from the S-1):\n- Historical average: $18,500/kg\n- Falcon 9 (2010): ~$2,700/kg\n- Falcon Heavy (2018): ~$1,400/kg\n\nNow I need to calculate revenue-per-kilogram proxy:\n$4,086M / 2,213 metric tons = $4,086,000,000 / 2,213,000 kg = ?\n\nLet me compute this.\n\n$4,086,000,000 / 2,213,000 = $1,846.36 per kg approximately.\n\nBut also, we need to consider the split between Launch Services revenue ($2,576M) and Launch & Development ($1,510M). Launch & Development may include development contracts that aren't directly tied to mass-to-orbit.\n\nUsing Launch Services only: $2,576M / 2,213,000 = $1,164.03/kg\n\nUsing Space Revenue / Customer Payload: $4,086M / 312,000 = $13,096.15/kg\nUsing Launch Services / Customer Payload: $2,576M / 312,000 = $8,256.41/kg\n\nActually, the most defensible \"revenue-per-kilogram proxy\" depends on interpretation. The Space segment revenue includes both Launch Services ($2,576M) and Launch & Development ($1,510M). Launch & Development likely includes NASA development contracts, Starship development, etc. These may not be directly tied to mass-to-orbit.\n\nBut the question says \"Using disclosed FY2025 Space segment revenue and any launch volume or mass-to-orbit data in the filing, estimate an implied revenue-per-kilogram proxy.\" It seems to want a blended figure.\n\nI think the most reasonable approach is to use total Space segment revenue divided by total mass-to-orbit, which gives ~$1,846/kg. But I should also discuss alternative calculations.\n\nNow for the comparison: I need publicly available data on ULA and Arianespace list prices. Let me search for that.\n\nActually, the S-1 itself references that historical average launch cost was $18,500/kg. And Falcon 9 was at $2,700/kg in 2010, Falcon Heavy at $1,400/kg in 2018.\n\nLet me search for ULA and Arianespace pricing data.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4b616d1ef2da46f89585d267",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "ULA Atlas V Delta IV launch cost per kilogram LEO 2024 2025",
+            "number_of_results": 10
+          }
+        },
+        {
+          "tool_call_id": "call_3f12c4a6122b4ef5a91b2b02",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Arianespace Ariane 6 launch cost per kilogram LEO list price 2024 2025",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4b616d1ef2da46f89585d267",
+            "content": "[{\"url\": \"https://www.americaspace.com/2015/07/13/ula-atlas-v-and-delta-iv-poised-to-launch-air-force-gps-and-wgs-satellites-july-15-and-22\", \"title\": \"ULA Atlas-V and Delta-IV Poised to Launch Air Force GPS and WGS Satellites July 15 and 22 - AmericaSpace\", \"content\": \"There are about $4 billion in Air Force, Navy and National Reconnaissance Office space assets involved in the military space surge over the next six months. Atlas V launches cost about $100 million, while Delta IV Medium flights cost about $164 million. Costs involved with the sveven U. S. spacecraft involved in the surge are:\\n\\n\\u2014July 15,  the $245 million USAF GPS 2F-10 on an Atlas V from the Cape.\\n\\n\\u2014July 22, the $566 million USAF WGS-7 on a Delta IV Medium from the Cape.\", \"score\": 0.63234437, \"raw_content\": null}, {\"url\": \"https://www.quora.com/Will-SpaceX-potentially-create-a-competitor-to-ULAs-Atlas-V-or-Delta-IV-heavy-in-order-to-offer-a-lower-price\", \"title\": \"Will SpaceX potentially create a competitor to ULA's Atlas V or Delta IV heavy in order to offer a lower price? - Quora\", \"content\": \"ULA's Delta price point of $200 million per launch can't compete with SpaceX Falcon Heavy at $90 million per launch.\", \"score\": 0.5996498, \"raw_content\": null}, {\"url\": \"https://www.spacelaunchschedule.com/launch/atlas-v-551-amazon-leo-la-04\", \"title\": \"ULA Amazon Leo (LA-04) Atlas V 551 Rocket Launch\", \"content\": \"## About the Amazon Leo (LA-04) Mission\\n\\n Type: Communications\\n Orbit: Low Earth Orbit\\n Launch Cost: $153,000,000\", \"score\": 0.55883324, \"raw_content\": null}, {\"url\": \"http://www.ulalaunch.com/docs/default-source/human-rating/enabling-crew-launch-on-atlas-v-and-delta-iv.pdf\", \"title\": \"Enabling Crew Launch on Atlas V and Delta IV\", \"content\": \"pay a life cycle cost premium of 25% if there are two guaranteed launches a year. If the NASA launch rate drops to 1 launch a year that premium jumps to over 100%. ULA has been intimately involved with a number of companies interested in developing a mutually beneficial commercial space market for our respective products. We have worked together to understand the commercial space market and the enablers for that market to gain a foothold. These on-going relationships have provided us with\", \"score\": 0.43223172, \"raw_content\": null}, {\"url\": \"https://www.quora.com/How-does-the-Falcon-9-launch-cost-as-well-as-weight-to-orbit-compare-to-the-Atlas-V\", \"title\": \"How does the Falcon 9 launch cost as well as weight to orbit compare to the Atlas V? - Quora\", \"content\": \"How does the Falcon 9 launch cost as well as weight to orbit compare to the Atlas V? A Falcon 9 launch costs $67 million. What is the difference in cost between a SpaceX Falcon 9 launch and a ULA Atlas V launch? How much does it cost to launch a Falcon 9? What is the cost difference between launching a payload on an Atlas V rocket and other modern rockets such as the Falcon 9, Ariane, and Delta IV? Rodney Price's answer to How much ($) does it cost to produce a Falcon 9 rocket, that is the\", \"score\": 0.3977518, \"raw_content\": null}, {\"url\": \"https://www.ulalaunch.com/about/news/2012/06/21/united-launch-alliance-launches-50th-successful-commercially-developed-atlas-v-and-delta-iv-rocket\", \"title\": \"United Launch Alliance Launches 50th Successful Commercially Developed Atlas V and Delta IV Rocket\", \"content\": \"In addition to the new acquisition strategy, ULA continues to work toward reducing costs, with programs in development to include implementation of a common set of next-generation avionics for both Atlas V and Delta IV, implementation of substantial reductions in production and launch span times, and development of a dual launch capability which can achieve a 40 percent savings per mission launched.\", \"score\": 0.38984904, \"raw_content\": null}, {\"url\": \"https://www.ulalaunch.com/about/news-detail/2012/06/21/united-launch-alliance-launches-50th-successful-commercially-developed-atlas-v-and-delta-iv-rocket\", \"title\": \"United Launch Alliance Launches 50th Successful Commercially Developed Atlas V and Delta IV Rocket\", \"content\": \"In addition to the new acquisition strategy, ULA continues to work toward reducing costs, with programs in development to include implementation of a common set of next-generation avionics for both Atlas V and Delta IV, implementation of substantial reductions in production and launch span times, and development of a dual launch capability which can achieve a 40 percent savings per mission launched.\", \"score\": 0.38984904, \"raw_content\": null}, {\"url\": \"https://www.prnewswire.com/news-releases/united-launch-alliance-launches-50th-successful-commercially-developed-atlas-v-and-delta-iv-rocket-159892775.html\", \"title\": \"United Launch Alliance Launches 50th Successful Commercially Developed Atlas V and Delta IV Rocket\", \"content\": \"and the companies contributed 80 percent of the development funding,\\\" said Gass. In addition to the new acquisition strategy, ULA continues to work toward reducing costs, with programs in development to include implementation of a common set of next-generation avionics for both Atlas V and Delta IV, implementation of substantial reductions in production and launch span times, and development of a dual launch capability which can achieve a 40 percent savings per mission launched.\", \"score\": 0.34973314, \"raw_content\": null}, {\"url\": \"https://www.americaspace.com/americaspace-atlas-v-nrol-101-launch-tracker\", \"title\": \"ULA Delta IV Heavy \\u2013 NROL-82 Launch Tracker - AmericaSpace\", \"content\": \"- Atlas V Successfully Launches Classified NROL-39 Payload Into Orbit for National Reconnaissance Office\\n- ULA Prepares for Fifth Atlas V 501 Mission to Deliver Classified NROL-39 Payload to Orbit\\n- Giant Delta IV Heavy Boosts Classified NROL-65 Payload into Orbit\\n- Mammoth Delta IV Heavy Primed for Wednesday Mission to Launch Classified NROL-65 Satellite\", \"score\": 0.20938922, \"raw_content\": null}, {\"url\": \"https://www.quora.com/How-will-the-ULA-Vulcan-Centaur-be-much-cheaper-than-the-Atlas-V-and-Delta-IV\", \"title\": \"How will the ULA Vulcan Centaur be much cheaper than the Atlas V and Delta IV? - Quora\", \"content\": \"designs for the Peregrine Mission One lander? At even that time, ULA was limiting the use of the Delta IV, and since Atlas V rockets were cheaper to build and had plenty of delta V to get to the ISS, it was decided that the Atlas V would be the launch vehicle. Why doesn't ULA focus on lowering the manufacturing cost for the Atlas V rocket instead of designing an entirely new Vulcan rocket? Which rocket will the CST-100 Starliner use the most often to launch into orbit; the Atlas V, Delta IV,\", \"score\": 0.18072791, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_3f12c4a6122b4ef5a91b2b02",
+            "content": "[{\"url\": \"https://spacenews.com/ariane-6-rocket-designers-say-theyll-match-or-beat-todays-spacex-prices-on-per-kilogram-basis\", \"title\": \"Ariane 6 designers say they'll beat SpaceX prices on per-kilogram basis - SpaceNews\", \"content\": \"You\\u2019ll also receive our weekly Editor\\u2019s Choice, SpaceNews This Week and Opinions newsletters. Opt-out at any time.\\n\\nSign in to an existing account\\n\\nGet unlimited access to read on  \\nSpaceNews.com, our SpaceNews mobile app and SpaceNews digital magazine.\\n\\n$125 ~~$250~~\\n\\nUse code SUMMER50 and get your first year of SpaceNews for 50% off\\\\\", \"score\": 0.5602773, \"raw_content\": null}, {\"url\": \"https://orbysa.com/news/misc/2026-01-16-arianespace-prepares-for-ariane-6-launches-with-amazon-leo-satellites-in-2026\", \"title\": \"Arianespace Prepares for Ariane 6 Launches with Amazon Leo Satellites in 2026 | Aerospace & Defense News\", \"content\": \"7. ESA - Ariane 6: safety first - European Space Agency (www.esa.int) - 11/1/2025 Ariane 6 consists of over 300 000 parts, all of which work seamlessly together for a safe launch. To ensure the rocket doesn\\u2019t pose a risk \\u2026\\n8. Newsroom Arianespace: Home (newsroom.arianespace.com) - 9/20/2024 Arianespace to launch first batch of Amazon Leo satellites with the first Ariane 64, on February 12, 2026 \\u00b7 With Ariane 6, Arianespace successfully launches EU\\u2019s \\u2026\", \"score\": 0.41591915, \"raw_content\": null}, {\"url\": \"https://www.spacelaunchschedule.com/launch/ariane-64-amazon-leo-le-02-2\", \"title\": \"Arianespace Amazon Leo (LE-02) Ariane 64 Rocket Launch\", \"content\": \"Login with Patreon to Remove Ads. # Amazon Leo (LE-02). ## Ariane 64. ### Arianespace. ## Mission. ### Amazon Leo (LE-02).  Launch Cost: $90,000,000. Amazon Leo, formerly known as Project Kuiper, is a mega constellation of satellites in Low Earth Orbit that will offer broadband internet access, this constellation will be managed by Kuiper Systems LLC, a subsidiary of Amazon. This constellation is planned to be composed of 3,276 satellites. The satellites are projected to be placed in 98 orbital\", \"score\": 0.41307515, \"raw_content\": null}, {\"url\": \"https://www.bcsatellite.net/blog/arianespace-prepares-first-ariane-6-launch-for-amazon-leo\", \"title\": \"Arianespace Prepares First Ariane 6 Launch for Amazon Leo | BusinessCom Networks\", \"content\": \"Dec 15, 2025\\n\\nShare this post:\", \"score\": 0.3831801, \"raw_content\": null}, {\"url\": \"https://newsroom.arianespace.com/arianespace-to-launch-eus-galileo-l14-on-december-17-2025-with-ariane-6?lang=eng\", \"title\": \"Arianespace to launch EU\\u2019s Galileo L14 on December 17, 2025, with Ariane 6 | Newsroom Arianespace\", \"content\": \"On December 17, 2025 at 2:01 a.m. local time (5:01 a.m. UTC, 6:01 a.m. CET), Arianespace will launch Galileo L14, a pair of satellites, with Ariane 6 from Europe's Spaceport in French Guiana.\\n\\nThe mission, called VA266, will be the fifth flight for Ariane 6, Europe's heavy-lift launcher. It will be performed with an Ariane 6 with two boosters, the Ariane 62, which has successfully flown in this version since its inaugural flight in 2024.\", \"score\": 0.34125364, \"raw_content\": null}, {\"url\": \"https://newsroom.arianespace.com/arianespace-to-launch-eus-galileo-l14-on-december-17-2025-with-ariane-6\", \"title\": \"Arianespace to launch EU\\u2019s Galileo L14 on December 17, 2025, with Ariane 6 | Newsroom Arianespace\", \"content\": \"On December 17, 2025 at 2:01 a.m. local time (5:01 a.m. UTC, 6:01 a.m. CET), Arianespace will launch Galileo L14, a pair of satellites, with Ariane 6 from Europe's Spaceport in French Guiana.\\n\\nThe mission, called VA266, will be the fifth flight for Ariane 6, Europe's heavy-lift launcher. It will be performed with an Ariane 6 with two boosters, the Ariane 62, which has successfully flown in this version since its inaugural flight in 2024.\", \"score\": 0.34125364, \"raw_content\": null}, {\"url\": \"https://spacemagz.com/arianespace-to-launch-first-amazon-leo-satellites-on-ariane-6-in-february-2026\", \"title\": \"Arianespace to Launch First Amazon LEO Satellites on Ariane 6 in February 2026\", \"content\": \"Previous ArticleParsons Strikes $375 Million Deal for Altamira Technologies\\n\\nNext Article Spanish Start-Up\\u2019s Reentry Capsule Survives PSLV Failure, Sends Back Flight Data\\n\\nMichael Turner\", \"score\": 0.30856565, \"raw_content\": null}, {\"url\": \"https://newsroom.arianespace.com/arianespace-ariane-6-to-launch-intelsat-satellites\", \"title\": \"Arianespace Ariane 6 to launch Intelsat satellites | Newsroom Arianespace\", \"content\": \"Arianespace signed a contract with longtime customer Intelsat to launch two satellite payloads, IS-41 and IS-44, using the heavy-lift Ariane 64 from Europe\\u2019s Spaceport in French Guiana in 2025. This agreement repurposes a previous launch contract and adds one additional satellite.\", \"score\": 0.2846759, \"raw_content\": null}, {\"url\": \"https://www.satnow.com/news/details/4548-arianespace-to-launch-amazon-leo-satellites-on-ariane-64\", \"title\": \"Arianespace to Launch Amazon LEO Satellites on Ariane 64\", \"content\": \"On February 12, 2026 local time, Arianespace will launch 32 Amazon LEO satellites with Ariane 64 from Europe's Spaceport in French Guiana. The precise launch window will be announced in the coming weeks. The mission, called VA267 (LE-01 for Amazon Leo), will initiate the first of 18 Ariane 6 launches booked to support the deployment of the Amazon Leo constellation. It will also mark the first launch for the constellation performed by a European launcher.\", \"score\": 0.23855947, \"raw_content\": null}, {\"url\": \"https://satnow.com/news/details/4548-arianespace-to-launch-amazon-leo-satellites-on-ariane-64\", \"title\": \"Arianespace to Launch Amazon LEO Satellites on Ariane 64\", \"content\": \"On February 12, 2026 local time, Arianespace will launch 32 Amazon LEO satellites with Ariane 64 from Europe's Spaceport in French Guiana. The precise launch window will be announced in the coming weeks. The mission, called VA267 (LE-01 for Amazon Leo), will initiate the first of 18 Ariane 6 launches booked to support the deployment of the Amazon Leo constellation. It will also mark the first launch for the constellation performed by a European launcher.\", \"score\": 0.23855947, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5778,
+        "completion_tokens": 726,
+        "cached_tokens": 4736,
+        "cost_usd": 0.015785
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-10T01:07:50.142734+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "The web search results aren't giving me great direct data on ULA or Arianespace pricing per kilogram. Let me try more targeted searches.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_680f84b731a44584ae1a776f",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 10,
+            "search_query": "ULA Vulcan Centaur launch price per kilogram to LEO 2024 2025 per kg cost"
+          }
+        },
+        {
+          "tool_call_id": "call_7ddff2ea439147e694bbb6f3",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 10,
+            "search_query": "Ariane 6 price per kg launch cost per kilogram low earth orbit 2025"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_680f84b731a44584ae1a776f",
+            "content": "[{\"url\": \"https://spaceodysseyhub.com/articles/launch-cost-comparison-2025\", \"title\": \"Launch Cost Comparison 2026: Falcon 9 vs Vulcan vs New Glenn vs Neutron | SpaceOdysseyHub\", \"content\": \"| Vulcan Centaur VC6 | ULA | Operational; 4+ flights since Jan 2024 | ~27,200 kg | ~$5,000\\u20138,000 | ~14,400 kg | ~$8,000 | ~12,100 kg | Expendable |\\n| New Glenn | Blue Origin | Operational; multiple flights since Jan 2025 | ~45,000 kg | ~$2,000\\u20132,500 (target) | ~13,600 kg | ~$5,000\\u20137,000 | ~7,000 kg (est.) | First stage |\\n| Neutron | Rocket Lab | Maiden launch window (late 2025 / early 2026) | ~13,000 kg (exp) / ~8,000 kg (reuse) | ~$6,000\\u20137,000 | ~1,500 kg | n/a primary | n/a | First stage |\", \"score\": 0.8066246, \"raw_content\": null}, {\"url\": \"https://gizmodo.com/ula-vulcan-centaur-rocket-first-launch-space-nasa-1851133937\", \"title\": \"ULA's Vulcan Centaur Rocket Set to Launch Monday, a Challenge to SpaceX\", \"content\": \"Vulcan Centaur could make serious waves in the spaceflight industry, with ULA potentially matching SpaceX\\u2019s lower launch prices, according to the Motley Fool. SpaceX, known for revolutionizing space travel with affordable launches like the $67 million Falcon 9, prompted ULA to respond with a more affordable option. Vulcan, set to launch at under $100 million, marks a substantial cost reduction from the company\\u2019s $400 million Delta IV Heavy. This strategic pricing means ULA can stay somewhat\", \"score\": 0.58862966, \"raw_content\": null}, {\"url\": \"https://en.wikipedia.org/wiki/Vulcan_Centaur\", \"title\": \"Vulcan Centaur - Wikipedia\", \"content\": \"IV launch vehicles, with an aim to achieve better performance and lower production costs. As of October 2018, the US government had committed about $1.2 billion in a public\\u2013private partnership to Vulcan Centaur development, with plans for more once ULA concluded a National Security Space Launch contract. In October 2023, ULA announced they aimed to launch Vulcan Centaur by year's end. During the Vulcan Cert-2 mission broadcast on October 4, 2024, ULA announced plans to develop a \\\"LEO Optimized\", \"score\": 0.47694567, \"raw_content\": null}, {\"url\": \"https://theregister.com/2024/10/04/ula_vulcan_centaur_launch\", \"title\": \"ULA preps to launch second Vulcan Centaur\", \"content\": \"If all goes well, ULA aims to launch two more Vulcan Centaur rockets in 2024 before ramping up the cadence in 2025. ULA is planning for an ambitious 20 launches, split between the outgoing Atlas V and the Vulcan Centaur. These aren't SpaceX-level numbers, but considerably more than ULA has managed in the past.\", \"score\": 0.44941738, \"raw_content\": null}, {\"url\": \"https://www.theregister.com/2024/10/04/ula_vulcan_centaur_launch\", \"title\": \"ULA preps to launch second Vulcan Centaur\", \"content\": \"If all goes well, ULA aims to launch two more Vulcan Centaur rockets in 2024 before ramping up the cadence in 2025. ULA is planning for an ambitious 20 launches, split between the outgoing Atlas V and the Vulcan Centaur. These aren't SpaceX-level numbers, but considerably more than ULA has managed in the past.\", \"score\": 0.44941738, \"raw_content\": null}, {\"url\": \"https://www.metaculus.com/questions/4390/lowest-cost-per-kg-for-leo-launch-by-2025\", \"title\": \"Lowest Cost per kg for LEO Launch by 2025\", \"content\": \"Lowest Cost per kg for LEO Launch by 2025\", \"score\": 0.37346497, \"raw_content\": null}, {\"url\": \"https://www.ulalaunch.com/docs/default-source/evolution/vulcan-centaur-overview-17may2018.pdf\", \"title\": \"ULA vulcan centaur system briefing\", \"content\": \"From Both Coasts Supports Full Range of Orbits 12 VULCAN CENTAUR PERFORMANCE Vehicle Orbit  Vulcan Centaur (2-solid) Vulcan Centaur (6-solid) Vulcan Centaur Heavy (2023) LEO ER 28.7\\u00b0 (Ref.) 200 km circular 17800 kg [39200 lb] 27400 kg [60300 lb] 34900 kg [76900 lb] LEO ER 51.6\\u00b0 (ISS) 407 km circular 15300 kg [33800 lb] 24200 kg [53400 lb] 31400 kg [69300 lb] LEO WR 90\\u00b0 (Polar) 200 km circular 14300 kg [31500 lb] 22300 kg [49200 lb] 27900 kg [61500 lb] GTO 1800 m/s 35,786 km x 185 km @ 27.0 deg\", \"score\": 0.35776997, \"raw_content\": null}, {\"url\": \"https://www.potomacofficersclub.com/news/ula-vulcan-centaur-issue-delays-nts-3-launch-to-2024\", \"title\": \"ULA Vulcan Centaur Issue Delays NTS-3 Launch To 2024 - Potomac Officers Club\", \"content\": \"The Air Force Research Laboratory has postponed the launch of its Navigation Technology Satellite-3 to the second quarter of 2024 because of the delayed debut of United Launch Alliance\\u2019s Vulcan Centaur rocket.\\n\\nAccording to ULA, it delayed the Vulcan Centaur\\u2019s debut to fix a testing issue discovered in March. ULA CEO Tory Bruno said the corrective action will be straightforward, but addressing the issue could mean that the rocket would not launch before the end of 2023.\", \"score\": 0.2672562, \"raw_content\": null}, {\"url\": \"https://www.theregister.com/2026/02/13/ula_vulcan_centaur_anomaly\", \"title\": \"Booster nozzle anomaly fails to stop ULA Vulcan Centaur reaching orbit - theregister.com\", \"content\": \"'s Vulcan Centaur reached orbit on February 12 despite \\\"a significant performance anomaly\\\" that saw one of its four solid rocket boosters burn through its nozzle during ascent. It was the fourth launch of ULA's replacement for the Atlas V and Delta IV rocket, and the second in which an anomaly was noted with the booster. A nozzle was shed during the second launch of the rocket in 2024 in a configuration featuring twin solid rocket boosters, although all appeared to go well on the third in 2025.\", \"score\": 0.25860015, \"raw_content\": null}, {\"url\": \"https://www.nextbigfuture.com/2024/01/ula-first-vulcan-centaur-rocket-launch-might-be-an-hour-away.html\", \"title\": \"ULA First Vulcan Centaur Rocket Launch Two Minutes Away | NextBigFuture.com\", \"content\": \"Peregrine is an Astrobotics lunar lander, delivering 16 customers to the moon\\u2019s surface and several NASA payloads. The total mass of the payload is 1,283 kg. As a secondary payload, the mission also flies the Celestis Enterprise Flight. It contains more than 150 flight capsules with cremated remains, DNA samples, and messages of greetings from clients worldwide, that will be sent on a journey into space. A United Launch Alliance (ULA) Vulcan VC2S rocket launch is the first certification mission\", \"score\": 0.24946138, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_7ddff2ea439147e694bbb6f3",
+            "content": "[{\"url\": \"https://www.quora.com/According-to-Europeans-Ariane-6-will-lower-the-cost-of-space-launches-by-40-to-50-Is-this-goal-really-possible\", \"title\": \"According to Europeans, Ariane 6 will lower the cost of space launches by 40 to 50%. Is this goal really possible? - Quora\", \"content\": \"According to Europeans, Ariane 6 will lower the cost of space launches by 40 to 50%.  Ariane 5 has a launch cost between 150 to 200 million euro - which is about $8,900 per kg to LEO (Low Earth Orbit).  Ariane 6 is predicted to have a launch cost of 75 to 90 million euro - which is about $4,700/kg to LEO.  Ariane 5 has a launch cost between 150 to 200 million euro - which is about $8,900 per kg to LEO (Low Earth Orbit). \\u201cAriane 6 will lower the cost of space launches by 40 to 50% compared to\", \"score\": 0.8464638, \"raw_content\": null}, {\"url\": \"https://grokipedia.com/page/Launch_costs_to_low_Earth_orbit\", \"title\": \"Launch costs to low Earth orbit \\u2014 Grokipedia\", \"content\": \"Arianespace operates the Ariane 5, delivering payloads of up to 21 metric tons to LEO at approximately $8,000 to $12,000 per kilogram, with the transition to Ariane 6 expected to sustain comparable rates through optimized production.(#ref-9)](#ref-9) These European providers emphasize guaranteed access and international partnerships, often bundling insurance and integration services into fixed-price contracts. China's Long March family, managed by the China Aerospace Science and Technology\", \"score\": 0.8124067, \"raw_content\": null}, {\"url\": \"https://theorkneynews.scot/2023/11/12/rockets-2-launch-costs-per-vehicle\", \"title\": \"Rockets 2:  Launch Costs Per Vehicle \\u2013 The Orkney News\", \"content\": \"| Ariane VI-62 (1st launch pending) | 10,250 kg  (LEO) 4,250 kg  (GTO) 7,250 kg   (SSO) | $ 7,758 $ 18,882 $ 11,057 | Kourou |\\n| Ariane VI-64 (in preparation) | 21,650 kg  (LEO) 11,500 kg (GTO) 15,500 kg  (SSO) | $ 5,683 $ 10,700 $ 7,938 | Kourou |\\n| H-III (entering service) | 4.000 \\u2013 7,000 kg  (GTO) | $ 7,142 | Tanegashima Space Centre |\\n| Long March 3 | 10,500 kg  (LEO) 5,500 kg  (GTO) | $ 4,761 $ 12,727 | Jiuquan Satellite Launch Centre |\", \"score\": 0.58123237, \"raw_content\": null}, {\"url\": \"https://www.netizen.page/2025/05/cost-per-kilogram-to-low-earth-orbit.html\", \"title\": \"Netizen: Cost per Kilogram to Low Earth Orbit (LEO) Over Time\", \"content\": \"launch for Starlink missions, translating to ~$1,600\\u2013$2,000 per kg for a reusable Falcon 9 with a 16,250\\u201322,800 kg payload.  Reduction Ratio: Compared to the Space Shuttle, Falcon 9 reduced costs by a factor of ~27\\u201334 ($54,500 \\u00f7 $1,600\\u2013$2,000). Compared to early Falcon 9, reusability lowered costs by ~1.4\\u20131.7 times ($2,720 \\u00f7 $1,600\\u2013$2,000).  Reduction Ratio: Compared to the Space Shuttle, Falcon Heavy reduced costs by ~39 times ($54,500 \\u00f7 $1,400).  Current Estimates (2025): Starship, with a\", \"score\": 0.5174983, \"raw_content\": null}, {\"url\": \"https://www.quora.com/What-is-the-minimum-launch-cost-that-can-be-achieved-Less-than-100-per-kilo\", \"title\": \"What is the minimum launch cost that can be achieved? Less than $100 per kilo? - Quora\", \"content\": \"this is the cost of launching a kg to low earth orbit where you need a couple hundred miles altitude and some velocity to stay in orbit. Launch costs to low Earth orbit, 1980-2100. this is the cost of launching a kg to low earth orbit where you need a couple hundred miles altitude and some velocity to stay in orbit. How much does a Rocket Lab launch cost? How much does a single SpaceX rocket cost to make and launch? How much does it cost to launch a rocket?  The cost of launching a kilogram\", \"score\": 0.44521654, \"raw_content\": null}, {\"url\": \"https://web.nutritionjobs.com/strategic-field/spacex-starship-the-true-cost-per-kilogram-1764800565\", \"title\": \"SpaceX Starship: The True Cost Per Kilogram\", \"content\": \"what is the actual SpaceX Starship launch cost per kg? Musk has stated that the ultimate goal is to make the cost of launching a Starship less than $10 million per flight. To put that into perspective, current launch costs using Falcon 9 (SpaceX\\u2019s workhorse rocket) are estimated to be around \\\\(2,700 per kilogram to low Earth orbit. By carrying significantly more mass to orbit per launch, the SpaceX Starship launch cost per kg is spread over a much larger amount of payload. Okay, so we\\u2019ve talked\", \"score\": 0.31472462, \"raw_content\": null}, {\"url\": \"https://www.quora.com/What-is-the-cost-per-kg-or-unit-volume-M3-to-launch-something-into-orbit-using-current-rockets\", \"title\": \"What is the cost per kg or unit volume (M3) to launch something into orbit using current rockets? - Quora\", \"content\": \"What is the cost per kg or unit volume (M3) to launch something into orbit using current rockets? How much does it cost to launch rockets by Space X in LEO (Low Earth Orbit) per kgs of payload capacity? What is the cost of launching a rocket into orbit? How much does it cost to launch a rocket into space? How much does it cost to launch one ton of payload into space using SpaceX's Falcon 9 rocket? A dedicated Falcon 9 launch these days would cost $67 M, but that would let you launch maybe 16 to\", \"score\": 0.27675697, \"raw_content\": null}, {\"url\": \"https://www.quora.com/How-much-does-it-cost-to-launch-rockets-by-Space-X-in-LEO-Low-Earth-Orbit-per-kgs-of-payload-capacity\", \"title\": \"How much does it cost to launch rockets by Space X in LEO (Low Earth Orbit) per kgs of payload capacity? - Quora\", \"content\": \"How much does it cost to launch rockets by Space X in LEO (Low Earth Orbit) per kgs of payload capacity? What is the current estimated cost per kg for launching a payload on SpaceX's Super Heavy/Starship system? How much does it cost to launch one ton of payload into space using SpaceX's Falcon 9 rocket? A dedicated Falcon 9 launch these days would cost $67 M, but that would let you launch maybe 16 to 18 tonnes to various low Earth orbits. How much does a SpaceX rocket cost per launch? How much\", \"score\": 0.26221836, \"raw_content\": null}, {\"url\": \"https://www.quora.com/What-will-be-the-cost-per-kilogram-of-payload-delivered-to-a-low-Earth-orbit-for-SpaceXs-new-rocket-Starship\", \"title\": \"What will be the cost per kilogram of payload delivered to a low Earth orbit for SpaceX's new rocket Starship? - Quora\", \"content\": \"SpaceX to launch one pound or kilogram of cargo into orbit? What is the estimated price that SpaceX\\u2019s Starship will cost? What does it cost to fully fuel a SpaceX Starship and orbital booster? What is the estimated cost of traveling from Earth to the International Space Station using SpaceX's Starship rocket system? What is SpaceX's launch cost and price per kilogram to LEO? How much would it cost to put a very low Earth orbit satellite into space right now, including launch services as well as\", \"score\": 0.19710459, \"raw_content\": null}, {\"url\": \"https://www.quora.com/How-does-Starships-cost-per-kilogram-to-orbit-compare-to-other-launch-vehicles-and-why-is-it-considered-potentially-unbeatable\", \"title\": \"How does Starship's cost per kilogram to orbit compare to other launch vehicles, and why is it considered potentially unbeatable? - Quora\", \"content\": \"How accurate are the cost predictions for the Starship, and what challenges could SpaceX face in achieving these low costs per kilogram to orbit? How much will a Starship launch cost compared to a Falcon rocket? How much does it cost to launch one kilogram into low Earth orbit by Space X's Starship? How much would it cost per kilogram to launch a payload on Starship Super Heavy right now? What is the current estimated cost per kg for launching a payload on SpaceX's Super Heavy/Starship system?\", \"score\": 0.14520046, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10066,
+        "completion_tokens": 180,
+        "cached_tokens": 3456,
+        "cost_usd": 0.022645000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-10T01:07:55.528829+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Let me now get the specific data from the launch cost comparison article, which looks quite useful. Let me also get the Grokipedia article.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ebca75303d1e4afdbe9185a1",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 10,
+            "search_query": "Falcon 9 list price per launch 2025 $67 million cost per kg LEO"
+          }
+        },
+        {
+          "tool_call_id": "call_9b6c8f7e1d6a47e1a70463da",
+          "function_name": "web_search",
+          "arguments": {
+            "number_of_results": 10,
+            "search_query": "\"launch cost\" \"per kilogram\" LEO comparison 2025 ULA Arianespace SpaceX Falcon 9 Vulcan"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ebca75303d1e4afdbe9185a1",
+            "content": "[{\"url\": \"https://spacenexus.us/guide/space-launch-cost-comparison\", \"title\": \"Space Launch Cost Comparison 2026: Prices by Vehicle & Provider | SpaceNexus Guide | SpaceNexus Guide\", \"content\": \"On a cost-per-kilogram basis, SpaceX's Falcon 9 is currently the cheapest operational orbital launch vehicle, with commercial rideshare pricing starting at approximately $5,500 per kilogram to LEO. For dedicated missions, the Falcon 9 list price of $67 million translates to roughly $3,000 per kilogram for a full 22,800 kg payload to LEO. SpaceX's Starship, once fully operational, is expected to reduce costs further, potentially to $100-$500 per kilogram.\\n\\nHow much does a Falcon 9 launch cost?+\", \"score\": 0.8732259, \"raw_content\": null}, {\"url\": \"https://en.fmyly.com/article/how-much-is-falcon-9-per-kg\", \"title\": \"How much is Falcon 9 per kg? - Fmyly\", \"content\": \"The advertised cost of a dedicated Falcon 9 launch is approximately $67 million. When considering its maximum payload capacity of 22,800 kg to Low Earth Orbit (LEO) in an expendable configuration, this translates to roughly $2,939 per kilogram. However, for a reusable configuration, where the first stage lands back on Earth, the payload capacity to LEO is reduced to about 15,600 kg, making the cost around $4,295 per kilogram. It\\u2019s important to understand that these figures are theoretical\", \"score\": 0.84858394, \"raw_content\": null}, {\"url\": \"https://www.nextbigfuture.com/2026/02/spacex-falcon-9-true-cost-to-launch-is-about-300-per-pound-which-is-25-of-selling-price-to-customers.html\", \"title\": \"SpaceX Falcon 9 True Cost to Launch is About $300 per Pound Which is 25% of Selling Price to Customers | NextBigFuture.com\", \"content\": \"# SpaceX Falcon 9 True Cost to Launch is About $300 per Pound Which is 25% of Selling Price to Customers. There are many sources like Our World in Data describe the cost to launch with SpaceX Falcon 9 as $2600 per kilogram or $1200 per pound but the cost to SpaceX is $629 per kilogram or $285 per pound. The ~$67\\u201370 million external selling price is for about 30 out of the 170 missions in 2025 while the sub -$15 million. Multiple sources, including old 2020-2023 Elon Musk\\u2019s statements in\", \"score\": 0.8342047, \"raw_content\": null}, {\"url\": \"https://www.nextbigfuture.com/2026/02/spacex-falcon-9-true-cost-to-launch-is-about-300-per-pound-which-is-25-of-selling-price-to-customers.html#comment-221432\", \"title\": \"SpaceX Falcon 9 True Cost to Launch is About $300 per Pound Which is 25% of Selling Price to Customers | NextBigFuture.com\", \"content\": \"Skip to content\\n\\nNextBigFuture.com\\n\\n  \\n\\n# SpaceX Falcon 9 True Cost to Launch is About $300 per Pound Which is 25% of Selling Price to Customers\\n\\nby Brian Wang\\n\\nThere are many sources like Our World in Data describe the cost to launch with SpaceX Falcon 9 as $2600 per kilogram or $1200 per pound but the cost to SpaceX is $629 per kilogram or $285 per pound. The ~$67\\u201370 million external selling price is for about 30 out of the 170 missions in 2025 while the sub -$15 million.\", \"score\": 0.82492816, \"raw_content\": null}, {\"url\": \"https://spaceodysseyhub.com/articles/launch-cost-comparison-2025\", \"title\": \"Launch Cost Comparison 2026: Falcon 9 vs Vulcan vs New Glenn vs Neutron | SpaceOdysseyHub\", \"content\": \"Payload to LEO: ~45,000 kg\\n Payload to GTO: ~13,600 kg\\n Published price: estimated $70\\u2013100 million (commercial pricing not fully public)\\n Estimated cost per kg to LEO: ~$2,000\\u20132,500 (target, once cadence ramps)\\n Status (mid-2026): Multiple flights completed since January 2025; cadence ramping into Project Kuiper deployment manifest and NSSL Phase 3 missions\\n Reusability: First stage designed for downrange droneship recovery; reuse demonstrated on early flights\", \"score\": 0.8232293, \"raw_content\": null}, {\"url\": \"https://www.netizen.page/2025/05/cost-per-kilogram-to-low-earth-orbit.html\", \"title\": \"Netizen: Cost per Kilogram to Low Earth Orbit (LEO) Over Time\", \"content\": \"SpaceX has significantly reduced the cost per kilogram of payload to orbit through innovations in rocket design, particularly with the Falcon 9, Falcon Heavy, and Starship.  Initial Cost (2010\\u20132015): Early Falcon 9 launches cost around $62 million for a 22,800 kg payload to LEO, equating to approximately $2,720 per kg. By 2022, Falcon 9 launches were priced at $67 million (adjusted for inflation), with some estimates suggesting internal costs as low as $28 million per launch for Starlink\", \"score\": 0.734139, \"raw_content\": null}, {\"url\": \"https://www.quora.com/How-much-does-it-cost-to-launch-rockets-by-Space-X-in-LEO-Low-Earth-Orbit-per-kgs-of-payload-capacity\", \"title\": \"How much does it cost to launch rockets by Space X in LEO (Low Earth Orbit) per kgs of payload capacity? - Quora\", \"content\": \"How much does it cost to launch rockets by Space X in LEO (Low Earth Orbit) per kgs of payload capacity? What is the current estimated cost per kg for launching a payload on SpaceX's Super Heavy/Starship system? How much does it cost to launch one ton of payload into space using SpaceX's Falcon 9 rocket? A dedicated Falcon 9 launch these days would cost $67 M, but that would let you launch maybe 16 to 18 tonnes to various low Earth orbits. How much does a SpaceX rocket cost per launch? How much\", \"score\": 0.6852132, \"raw_content\": null}, {\"url\": \"https://www.quora.com/What-is-the-average-cost-per-pound-for-a-SpaceX-launch-to-LEO\", \"title\": \"What is the average cost per pound for a SpaceX launch to LEO?\", \"content\": \"is the average cost per pound for a SpaceX launch to LEO? The price that SpaceX charges for a Falcon 9 launch is in the range of $50M, which works out to a price-per-pound of about $1500/pound, with that price going up the less full the launch is.  Falcon Heavy (per-launch price / large-payload case): roughly 670\\u2013670\\u20131,350 per pound to LEO.  Falcon Heavy (per-launch price / large-payload case): roughly 670\\u2013670\\u20131,350 per pound to LEO. Using 150 M/112,000 l b(t y p i c a l p u b l i s h e d L E O\", \"score\": 0.58976424, \"raw_content\": null}, {\"url\": \"https://www.nextbigfuture.com/2026/02/spacex-falcon-9-true-cost-to-launch-is-about-300-per-pound-which-is-25-of-selling-price-to-customers.html/feed\", \"title\": \"Comments on: SpaceX Falcon 9 True Cost to Launch is About $300 per Pound Which is 25% of Selling Price to Customers\", \"content\": \"found between $800 and $1000 per kg, very far from some financial newspaper that was claiming $3000 per kg. And not so far from your number ! ]]>\", \"score\": 0.5855047, \"raw_content\": null}, {\"url\": \"https://www.reddit.com/r/SpaceXLounge/comments/15zxwu3/for_sending_per_kilogram_of_mass_to_leo_is_falcon\", \"title\": \"For sending per kilogram of mass to LEO, is Falcon 9 or ...\", \"content\": \"rockets for sending payloads to LEO Falcon Heavy cost per kg to LEO SpaceX cost per kg for launches Falcon 9 cost per kg to LEO Comparison of Falcon 9 and Falcon Heavy costs Create your account and connect with a world of communities. By continuing, you agree to ourUser Agreementand acknowledge that you understand thePrivacy Policy. Anyone can view, post, and comment to this community  Reddit reReddit: Top posts of August 24, 2023     Reddit reReddit: Top posts of August 2023     Reddit\", \"score\": 0.444059, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_9b6c8f7e1d6a47e1a70463da",
+            "content": "[{\"url\": \"https://spaceodysseyhub.com/articles/launch-cost-comparison-2025\", \"title\": \"Launch Cost Comparison 2026: Falcon 9 vs Vulcan vs New Glenn vs Neutron | SpaceOdysseyHub\", \"content\": \"Payload to LEO: ~45,000 kg\\n Payload to GTO: ~13,600 kg\\n Published price: estimated $70\\u2013100 million (commercial pricing not fully public)\\n Estimated cost per kg to LEO: ~$2,000\\u20132,500 (target, once cadence ramps)\\n Status (mid-2026): Multiple flights completed since January 2025; cadence ramping into Project Kuiper deployment manifest and NSSL Phase 3 missions\\n Reusability: First stage designed for downrange droneship recovery; reuse demonstrated on early flights\", \"score\": 0.8684817, \"raw_content\": null}, {\"url\": \"https://www.quora.com/Can-ULA-with-the-Vulcan-and-Arianespace-with-the-Ariane6-compete-on-prices-with-the-SpaceX-Falcon\", \"title\": \"Can ULA (with the Vulcan) and Arianespace (with the Ariane6) compete on prices with the SpaceX Falcon? - Quora\", \"content\": \"when SpaceX is threatening to lower the launch cost down to $40 million. ULA's Delta price point of $200 million per launch can't compete with SpaceX Falcon Heavy at $90 million per launch. ULA will take too long to get Vulcan flying and even longer to recover the engines, by which time SpaceX will be even cheaper with Falcon-9 block 5 or BFR. Why does ULA management even imagine that they can actually sell Vulcan booster launches for essentially twice the price of the most reliable booster in\", \"score\": 0.7440808, \"raw_content\": null}, {\"url\": \"https://spaceinsider.tech/2024/07/31/ula-vs-spacex\", \"title\": \"ULA vs SpaceX - A Detailed Comparison in 2024\", \"content\": \"ULA: ULA\\u2019s current launch costs are unknown, and its prices aren\\u2019t the clearest either, with estimates for Atlas V ranging from $100 million to $200 million. As of 2016, customers would pay anywhere from $109 million for the lowest-lift configuration to around $153 million for the most powerful version. At 9,797 to 18,814 kilos to LEO, that comes out to anywhere from $8,185/kg to $11,126/kg. Vulcan, meanwhile, is can lift 27,200kg to LEO with a price of at least $110 million (more for\", \"score\": 0.7253574, \"raw_content\": null}, {\"url\": \"http://hm-fleur.co.jp/ghnx80d/spacex-launch-cost-comparison\", \"title\": \"spacex launch cost comparison\", \"content\": \"that had been anticipated to follow the various satellite fleets being substantially upgraded. All adjustments for inflation in this data repository are made using the GDP Chained Price Index published by the Office of Management and Budget in Historical Table 10.1. This move further strengthens SpaceXs competitiveness in the commercial launch market. The Falcon 9 rocket would cost roughly $62 million to launch, while the Falcon . In those cases, the reported cost-per-kilogram figure is\", \"score\": 0.62770075, \"raw_content\": null}, {\"url\": \"https://www.reddit.com/r/SpaceXLounge/comments/15zxwu3/for_sending_per_kilogram_of_mass_to_leo_is_falcon\", \"title\": \"For sending per kilogram of mass to LEO, is Falcon 9 or ...\", \"content\": \"is mentioned on the Wikipedia pages of all rockets), I believe the cost per launch per 1kg payload to LEO would be a better comparison. I have just taken a few of the rockets and data from Wikipedia, for a quick comparison. If I am wrong with some numbers, please let me know. Which other rockets should I consider? Please tell and I will edit the table. Any rocket you believe would come close to Falcon Heavy? Is Proton-M really cheaper than Falcon 9 (reusable version)? Cheapest rockets for\", \"score\": 0.5855047, \"raw_content\": null}, {\"url\": \"https://www.quora.com/What-is-the-average-cost-per-pound-for-a-SpaceX-launch-to-LEO\", \"title\": \"What is the average cost per pound for a SpaceX launch to LEO?\", \"content\": \"is the average cost per pound for a SpaceX launch to LEO? The price that SpaceX charges for a Falcon 9 launch is in the range of $50M, which works out to a price-per-pound of about $1500/pound, with that price going up the less full the launch is.  Falcon Heavy (per-launch price / large-payload case): roughly 670\\u2013670\\u20131,350 per pound to LEO.  Falcon Heavy (per-launch price / large-payload case): roughly 670\\u2013670\\u20131,350 per pound to LEO. Using 150 M/112,000 l b(t y p i c a l p u b l i s h e d L E O\", \"score\": 0.5246632, \"raw_content\": null}, {\"url\": \"https://medium.com/predict/visualizing-the-spacex-falcon-9-launch-history-6c68124b22c3\", \"title\": \"The SpaceX Falcon 9 Revolution - Medium\", \"content\": \"than either ULA or Arianespace since 2010, and it has cumulatively launched over 1,000 tons to space, or just over one hundredth the mass of a Ford-class aircraft carrier.  Because of reuse, SpaceX has accomplished 143 launches with only 67 first-stage boosters. ULA and Arianespace are technically outproducing SpaceX in boosters; they\\u2019re just doing less with them.\", \"score\": 0.3450175, \"raw_content\": null}, {\"url\": \"https://www.quora.com/What-is-the-cost-difference-between-launching-with-SpaceX-and-other-companies-like-NASA-or-United-Launch-Alliance-ULA\", \"title\": \"What is the cost difference between launching with SpaceX and other companies like NASA or United Launch Alliance (ULA)? - Quora\", \"content\": \"What is the cost difference between launching with SpaceX and other companies like NASA or United Launch Alliance (ULA)? How does SpaceX launch their Falcon Heavy for such a low price compared to other companies like United Launch Alliance (ULA) who charge hundreds of millions of dollars per launch? How does SpaceX afford to launch its rockets at such low prices compared to other companies like Arianespace or United Launch Alliance (ULA)? How does SpaceX keep the cost of their launches lower\", \"score\": 0.32283598, \"raw_content\": null}, {\"url\": \"https://www.quora.com/Knowing-exactly-what-SpaceX-has-done-with-the-Falcon-9-and-none-of-its-features-were-patented-why-cant-Arianespace-or-the-ULA-design-and-build-a-cheaper-rocket\", \"title\": \"Knowing exactly what SpaceX has done with the Falcon 9 and none of its features were patented, why can't Arianespace or the ULA design and build a cheaper rocket? - Quora\", \"content\": \"reusable rockets after SpaceX's success with the Falcon 9? Why was NASA not able to build reusable rockets like Falcon 9 of SpaceX? How does ULA's Vulcan Centaur rocket differ from SpaceX's Falcon 9 rocket? What is the outlook for ULA's Vulcan rocket compared to SpaceX's Falcon 9? How does the cost-effectiveness of ULA's Vulcan Centaur rocket compare to SpaceX's Falcon 9? Why are aerospace companies like ULA and Blue Origin pushing for reusable rockets after SpaceX's success with the Falcon 9?\", \"score\": 0.31403002, \"raw_content\": null}, {\"url\": \"https://www.quora.com/How-does-SpaceX-afford-to-launch-its-rockets-at-such-low-prices-compared-to-other-companies-like-Arianespace-or-United-Launch-Alliance-ULA\", \"title\": \"How does SpaceX afford to launch its rockets at such low prices compared to other companies like Arianespace or United Launch Alliance (ULA)? - Quora\", \"content\": \"in comparison to other companies, such as United Launch Alliance (ULA)? How much does a rocket cost for SpaceX or United Launch Alliance (ULA)? What is the cost difference between launching with SpaceX and other companies like NASA or United Launch Alliance (ULA)? How does the cost of launching a rocket with SpaceX compare to other companies like United Launch Alliance (ULA) or Arianespace? How does SpaceX keep the cost of their launches lower than those of other companies, like United Launch\", \"score\": 0.291798, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14250,
+        "completion_tokens": 187,
+        "cached_tokens": 10112,
+        "cost_usd": 0.024855
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-10T01:09:00.176270+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have good data. Let me also look for the specific launch cost comparison article from spaceodysseyhub for more details.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_808a04235bab415392a17191",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the breakdown of Space segment operating expenses, R&D, and SG&A in {{spacex_s1}}? Retrieve any discussion of what drives operating loss in the Space segment despite high gross margins."
+          }
+        },
+        {
+          "tool_call_id": "call_3770236aabe0492cbefa6999",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Does {{spacex_s1}} disclose cost of revenue separately for Launch Services vs Launch & Development within the Space segment? Also retrieve any discussion of whether internal launch costs (for Starlink) are allocated to the Space segment or Connectivity segment."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_808a04235bab415392a17191",
+            "content": "Based on the provided text, here is the breakdown of the Space segment's operating expenses, R&D, and SG&A, along with the explanation for the operating loss.\n\n### Breakdown of Space Segment Operating Expenses\nThe following tables show the Space segment's expense breakdown for the periods available in the text.\n\n**Three Months Ended March 31, 2026 (Q1 2026)**\n| Expense Category | Amount (in millions) |\n| :--- | :--- |\n| Cost of revenue | $281 |\n| Research and development | $930 |\n| Selling, general and administrative | $70 |\n| **Total costs and expenses** | **$1,281** |\n\n**Year Ended December 31, 2025 (FY 2025)**\nThe text provides the total R&D expense funded for the Starship program and details year-over-year changes, but does not provide a complete FY 2025 income statement for the Space segment in a single table like Q1 2026. However, it does state:\n> \"our Space segment funded... $3,004 million in research and development expense during the... year ended December 31, 2025, respectively, for our next-generation Starship launch vehicle program.\"\n\n**Year Ended December 31, 2024 (FY 2024)**\n| Expense Category | Amount (in millions) |\n| :--- | :--- |\n| Cost of revenue | $1,541 |\n| Research and development | $1,835 |\n| Selling, general, and administrative | $375 |\n| Impairment | $24 |\n| **Total costs and expenses** | **$3,775** |\n\n**Year Ended December 31, 2023 (FY 2023)**\n| Expense Category | Amount (in millions) |\n| :--- | :--- |\n| Cost of revenue | $1,669 |\n| Research and development | $1,538 |\n| Selling, general, and administrative | $351 |\n| **Total costs and expenses** | **$3,558** |\n\n### Drivers of Q1 2026 R&D and SG&A Variance\nThe text provides a detailed breakdown of the year-over-year changes for the three months ended March 31, 2026, compared to the same period in 2025.\n\n- **Research and Development (R&D) Increase ($404 million, or 76.8%):**\n    - Higher production costs: **$194 million**\n    - Higher engineering costs: **$95 million**\n    - Higher test and launch costs: **$62 million**\n    - *Primary Driver:* \"accelerated investment in development of the Starship vehicle and continued development of production and launch facilities to support future Starship launches.\"\n\n- **Selling, General, and Administrative (SG&A) Decrease ($18 million, or 20.5%):**\n    - Lower allocated general and administrative overhead: **$13 million**\n\n### Why the Space Segment Has an Operating Loss Despite High Gross Margins\nThe text directly addresses what drives the operating loss, pointing exclusively to the massive investment in the Starship program. The Starship R&D costs far outweigh the segment's gross profit.\n\n- **Direct Explanation:** The primary driver for the operating loss is repeatedly stated as the **\"accelerated investment in development of the Starship vehicle as well as launch facilities to support future Starship launches.\"**\n- **Scale of Investment:** In Q1 2026, the Space segment's R&D expense was **$930 million**, while its revenue was only **$619 million**. The R&D expense alone exceeded revenue by $311 million, making an operating loss inevitable.\n- **Accounting Treatment:** The text clarifies that these enormous R&D costs are expensed immediately. It states that only once Starship is \"commercialized by delivering payload to orbit\" will its costs \"generally be capitalized and then depreciated in cost of revenue.\" Until that milestone, all development costs flow directly to the R&D expense line, creating a significant operating loss despite a high gross margin on the Falcon launch business."
+          },
+          {
+            "source_call_id": "call_3770236aabe0492cbefa6999",
+            "content": "**1. Cost of revenue breakdown for Launch Services vs. Launch & Development within the Space segment**  \nNo. The document does **not** disclose cost of revenue separately for Launch Services versus Launch & Development. It reports Space segment cost of revenue only as a single aggregated line (e.g., \u201cCost of revenue for the year ended December 31, 2024 decreased by $128 million\u2026\u201d), and it explains the components of that cost (second stages, launch operations, depreciation, etc.) without splitting them by contract type. Revenue is disaggregated between Launch Services and Launch & Development in several tables, but cost of revenue is not. The MD&A does mention that cost trends are affected by the mix of Launch Services and Launch & Development, but no separate figures are provided.\n\n**2. Allocation of internal launch costs (Starlink launches) to the Space or Connectivity segment**  \nThe document explicitly states that internal launch costs for Starlink payloads are **capitalized in the Connectivity segment** and **not recognized as Space segment revenue**:\n\n> \u201cFor launches dedicated to deploying our Starlink satellites, we capitalize the associated costs within our Connectivity segment and depreciate them over time, and we do not recognize revenue for those launches in our Space segment.\u201d  \n\nThis means the costs of vehicles, operations, and overhead involved in Starlink-only launches are attributed to the Connectivity segment (as satellite property, plant, and equipment), not to the Space segment. The Space segment\u2019s revenue and costs only reflect external customer launches and activities."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 18419,
+        "completion_tokens": 194,
+        "cached_tokens": 14208,
+        "cost_usd": 0.0302275
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-10T01:09:19.931488+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have a very rich picture. Let me assemble the final answer.\n\nKey data points:\n\n**SpaceX Space Segment FY2025:**\n- Space Revenue: $4,086M\n  - Launch Services: $2,576M\n  - Launch & Development: $1,510M\n- Cost of Revenue: $1,352M\n- Gross Margin: 66.9% ($2,734M)\n- R&D: $3,004M (Starship program)\n- Operating Loss: $(657)M\n\n**Mass-to-Orbit FY2025:**\n- Total: 2,213 metric tons\n  - Customer payloads: 312 metric tons\n  - Internal payloads: 1,901 metric tons\n\n**Implied Revenue per Kilogram:**\n- Total Space Revenue / Total Mass = $4,086M / 2,213 MT = $1,846.36/kg\n- Launch Services Revenue / Total Mass = $2,576M / 2,213 MT = $1,164.03/kg\n- Launch Services Revenue / Customer Payload = $2,576M / 312 MT = $8,256.41/kg\n- Total Space Revenue / Customer Payload = $4,086M / 312 MT = $13,096.15/kg\n\nWait, but internal launches are for Starlink, and the costs are capitalized in Connectivity. But the mass is counted for Space. This creates an inherent distortion. The mass-to-orbit includes internal Starlink payloads (1,901 MT) but the Space segment doesn't recognize revenue for those launches.\n\nThe most meaningful comparison would be Launch Services revenue against customer payload mass, but Launch & Development revenue is also part of the space segment and may relate to both customer and non-customer activities.\n\nActually, let me think about this more carefully. The question says \"estimate an implied revenue-per-kilogram proxy.\" I think the best approach is to use total Space segment revenue divided by total mass-to-orbit, while clearly noting the distortion caused by internal vs. customer payload mix. I could also present alternatives.\n\nLet me compute:\n\n$4,086,000,000 / 2,213,000 kg = $1,846.36/kg\n\nUsing Launch Services only: $2,576,000,000 / 2,213,000 = $1,164.03/kg\n\nLet me also consider: what if we only use customer payload mass:\n$2,576,000,000 / 312,000 = $8,256.41/kg (this seems too high)\n\nActually the most intellectually honest approach: The Space segment revenue is $4,086M and Launch & Development ($1,510M) includes development contracts (like NASA HLS, etc.) that aren't directly tied to mass delivered in FY2025. So maybe Launch Services revenue over total mass is the cleanest comparison. But even that includes revenue from missions that may not be directly proportional to mass.\n\nThe blended figure of $4,086M / 2,213 MT = ~$1,846/kg is probably the best headline, with a clear discussion of the internal vs. external mix.\n\nFor comparison:\n- Legacy average (per S-1): $18,500/kg\n- Falcon 9 (2010, per S-1): ~$2,700/kg\n- Falcon Heavy (2018, per S-1): ~$1,400/kg\n- ULA Atlas V: ~$8,000-$11,000/kg\n- ULA Vulcan Centaur: ~$5,000-$8,000/kg\n- Ariane 5: ~$8,900/kg (or $8,000-$12,000/kg)\n- Ariane 6: ~$4,700/kg (target)\n- Falcon 9 list price: ~$67M \u2192 ~$2,900-$4,300/kg depending on reusable vs expendable\n\nNow, for the disclosure gap on margin-per-kilogram calculation:\n- Cost of revenue is not split between Launch Services and Launch & Development\n- Internal launch costs are capitalized in Connectivity, so Space segment COGS doesn't reflect all launch activity\n- We can't isolate the per-kg cost of launches because Starship R&D (which is massive - $3,004M in FY2025) is expensed, not yet capitalized\n- The mass-to-orbit includes internal payloads that generate no Space revenue\n- No per-launch cost data is disclosed\n\nLet me now finalize the calculations.\n\n$4,086M / 2,213 MT:\n= 4,086,000,000 / 2,213,000\n= let me use the calculator\n\n$4,086M in thousands = 4,086,000 thousands\n2,213 MT = 2,213,000 kg\n4,086,000 / 2,213 = ?\n\nLet me compute this properly.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8abd2fd7917843f5b6c6ae92",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4086000000 / 2213000"
+          }
+        },
+        {
+          "tool_call_id": "call_94a997ee6c074f168ff73eea",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2576000000 / 2213000"
+          }
+        },
+        {
+          "tool_call_id": "call_b12f21923a354693a5aaf395",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2576000000 / 312000"
+          }
+        },
+        {
+          "tool_call_id": "call_7eec842017474f7ead379b70",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4086000000 / 312000"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8abd2fd7917843f5b6c6ae92",
+            "content": "1846.3624039765025"
+          },
+          {
+            "source_call_id": "call_94a997ee6c074f168ff73eea",
+            "content": "1164.0307275192047"
+          },
+          {
+            "source_call_id": "call_b12f21923a354693a5aaf395",
+            "content": "8256.410256410256"
+          },
+          {
+            "source_call_id": "call_7eec842017474f7ead379b70",
+            "content": "13096.153846153846"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 19773,
+        "completion_tokens": 1186,
+        "cached_tokens": 18304,
+        "cost_usd": 0.0384125
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-10T01:09:23.566088+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now let me also compute the gross profit per kg to see what we can say:\n- Space gross profit FY2025: $2,734M\n- $2,734M / 2,213 MT = ?",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0c6cb696438d44f0b9769d0c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2734000000 / 2213000"
+          }
+        },
+        {
+          "tool_call_id": "call_629917eb60574c3596905977",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1352000000 / 2213000"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0c6cb696438d44f0b9769d0c",
+            "content": "1235.4270221418888"
+          },
+          {
+            "source_call_id": "call_629917eb60574c3596905977",
+            "content": "610.9353818346136"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21024,
+        "completion_tokens": 134,
+        "cached_tokens": 20608,
+        "cost_usd": 0.028140000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-10T01:09:58.508645+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "deepseek-v4-pro",
+      "reasoning_content": "Now I have all the numbers I need. Let me compile the final answer.\n\nSummary of calculations:\n- Space Revenue / Total Mass: $1,846.36/kg\n- Launch Services Revenue / Total Mass: $1,164.03/kg\n- Space Gross Profit / Total Mass: $1,235.43/kg\n- Space Cost of Revenue / Total Mass: $610.94/kg\n- Launch Services / Customer Payload: $8,256.41/kg\n- Space Revenue / Customer Payload: $13,096.15/kg\n\nFor comparison:\n- Legacy average (S-1): $18,500/kg\n- Falcon 9 (2010, S-1): $2,700/kg (85% less than $18,500)\n- Falcon Heavy (2018, S-1): $1,400/kg (92% less than $18,500)\n- ULA Atlas V: ~$8,000-$11,000/kg\n- ULA Vulcan: ~$5,000-$8,000/kg\n- Ariane 5: ~$8,900/kg\n- Ariane 6: target ~$4,700/kg\n- Falcon 9 list price: ~$67M \u2192 ~$2,900-$4,300/kg\n\nNow, the implied $1,846/kg is significantly lower than these legacy prices.\n\nDisclosure gaps:\n1. Cost of revenue not split between Launch Services and Launch & Development\n2. Internal launches (1,901 MT of 2,213 MT total) are capitalized in Connectivity, so Space revenue and costs don't reflect the full launch activity\n3. Starship R&D ($3,004M) is expensed, not capitalized, distorting operating margins\n4. No per-launch revenue or cost data disclosed\n5. No disclosure of how launch costs are allocated between internal and external missions\n6. Mixed nature of Launch & Development revenue (includes development contracts not tied to mass delivered in period)\n\nLet me write the final answer now.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_9590ec76a289484cb69e678b",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Implied Revenue-per-Kilogram Proxy for SpaceX (FY2025)\n\n### Data Extracted from the S-1\n\n| Metric | FY2025 | Source |\n|---|---|---|\n| Space Segment Revenue | $4,086M | Segment disclosure |\n| \u2014 Launch Services | $2,576M | Revenue disaggregation |\n| \u2014 Launch & Development | $1,510M | Revenue disaggregation |\n| Space Cost of Revenue | $1,352M | Segment disclosure |\n| Space Gross Profit | $2,734M | Calculated |\n| Space Gross Margin | 66.9% | Calculated |\n| Total Mass to Orbit | 2,213 metric tons | KPI disclosure |\n| \u2014 Customer payloads | 312 MT | KPI disclosure |\n| \u2014 Internal payloads (Starlink) | 1,901 MT | KPI disclosure |\n| Total Launches | 170 (Falcon + Starship) | KPI disclosure |\n| \u2014 Falcon launches | 165 (43 customer, 122 internal) | KPI disclosure |\n\n### Implied Revenue-per-Kilogram Calculations\n\nBecause the S-1 does not publish a revenue-per-kilogram figure, four defensible proxies emerge \u2014 each with significant limitations:\n\n| Proxy | Calculation | $/kg |\n|---|---|---|\n| **A. Total Space Revenue \u00f7 Total Mass** | $4,086M \u00f7 2,213,000 kg | **$1,846.36/kg** |\n| B. Launch Services Revenue \u00f7 Total Mass | $2,576M \u00f7 2,213,000 kg | $1,164.03/kg |\n| C. Launch Services Revenue \u00f7 Customer Payload | $2,576M \u00f7 312,000 kg | $8,256.41/kg |\n| D. Total Space Revenue \u00f7 Customer Payload | $4,086M \u00f7 312,000 kg | $13,096.15/kg |\n\n**Proxy A ($1,846/kg)** is the most holistic headline figure \u2014 it captures all Space segment revenue divided by all mass delivered. However, it is heavily distorted by the internal/external payload mix: 86% of mass (1,901 MT) consists of Starlink satellites for which **the Space segment recognizes zero revenue** (internal launch costs are capitalized in the Connectivity segment). This means the denominator is inflated by non-revenue-generating mass, pulling the implied $/kg figure *downward*.\n\n**Proxy B ($1,164/kg)** narrows the numerator to Launch Services only, excluding Launch & Development revenue (which includes NASA HLS, crew, and cargo development contracts not directly tied to per-kilogram pricing). But it suffers the same denominator distortion as Proxy A.\n\n**Proxy C ($8,256/kg)** uses only customer mass but is arguably *too high*, because Launch & Development revenue is excluded and some of that revenue relates to customer-directed development activities.\n\n**Overall**, the blended proxy in the range of **$1,200\u2013$1,850/kg** is the most reasonable \u2014 but the S-1 itself notes that Falcon 9 historically achieved ~$2,700/kg (2010) and Falcon Heavy ~$1,400/kg (2018), suggesting the blended FY2025 implied figure is directionally consistent with the known trajectory of SpaceX's cost reduction.\n\n---\n\n## Directional Comparison to Legacy Launch Providers\n\n### Legacy List Prices per Kilogram to LEO\n\n| Provider / Vehicle | Approx. Price per kg to LEO | Source / Basis |\n|---|---|---|\n| Historical industry average | ~$18,500/kg | S-1 disclosure (NASA-cited benchmark) |\n| ULA Atlas V | ~$8,000\u2013$11,000/kg | $109\u2013153M per launch \u00f7 9.8\u201318.8 MT |\n| ULA Delta IV Heavy | ~$12,000\u2013$14,000/kg | ~$350\u2013400M \u00f7 ~28 MT |\n| ULA Vulcan Centaur | ~$5,000\u2013$8,000/kg | ~$100\u2013150M \u00f7 17.8\u201327.2 MT (LEO-optimized) |\n| Ariane 5 | ~$8,000\u2013$12,000/kg | \u20ac150\u2013200M \u00f7 ~16\u201321 MT |\n| Ariane 64 (target) | ~$4,700\u2013$5,700/kg | ~\u20ac75\u201390M \u00f7 ~21.7 MT |\n| Falcon 9 (list price, expandable) | ~$2,900/kg | ~$67M \u00f7 22.8 MT |\n| Falcon 9 (list price, reusable) | ~$4,300/kg | ~$67M \u00f7 15.6 MT |\n\n### Interpretation\n\n**SpaceX's implied $1,200\u2013$1,850/kg (blended) is 70\u201393% below the legacy industry average of ~$18,500/kg and 60\u201375% below ULA's Vulcan Centaur at $5,000\u2013$8,000/kg.** Even compared to Falcon 9's own public list price of ~$2,900\u2013$4,300/kg, the blended implied figure is lower by 35\u201357%. This reflects the dominance of internal Starlink launches \u2014 which are high-cadence, high-mass, lower-marginal-cost missions that compress the blended average well below external list pricing.\n\nThe comparison suggests:\n\n1. **Extraordinary pricing power in the external market:** SpaceX can offer external customer launches at Falcon 9 list prices (~$2,900\u2013$4,300/kg) that already undercut all legacy competitors, while earning a Space segment gross margin of **66.9%**. This indicates that SpaceX's internal cost structure is so far below market-clearing prices that it can simultaneously underprice competitors and maintain high unit profitability on external missions.\n\n2. **Starlink as a structural cost advantage:** The 122 internal Falcon launches (vs. 43 customer launches) provide massive scale and cadence that amortize fixed infrastructure, supply chain, and booster manufacturing across far more flights than any competitor. This scale-driven cost reduction benefits both internal and external missions but is invisible in per-unit pricing to competitors.\n\n3. **Starship will disrupt further:** The S-1 explicitly targets a 99%+ cost reduction versus the $18,500/kg legacy baseline. Even a partial realization would make legacy providers' economics untenable.\n\n---\n\n## Disclosure Gaps Preventing a Precise Margin-per-Kilogram Calculation\n\nThe S-1 does not provide sufficient information to calculate a reliable margin per kilogram. The following disclosure gaps are material:\n\n1. **Cost of revenue is aggregated.** The Space segment reports a single cost-of-revenue line ($1,352M in FY2025), with no split between Launch Services and Launch & Development. Without this split, one cannot attribute COGS to mass-delivery activities versus development contracts.\n\n2. **Internal launches generate no Space revenue or COGS.** Starlink-dedicated launches (122 of 165 Falcon launches, representing 1,901 MT of 2,213 MT total mass) have their costs capitalized in the Connectivity segment as PP&E and depreciated over time. The Space segment neither records revenue nor cost of revenue for these missions. This means 86% of mass-to-orbit has no associated Space segment P&L, rendering any per-kg margin calculation fundamentally incomplete.\n\n3. **Starship R&D dwarfs operating economics.** The Space segment incurred $3,004M in Starship R&D in FY2025 \u2014 nearly 75% of Space revenue. All of this is expensed as incurred (not capitalized), producing a $(657)M operating loss despite a 66.9% gross margin. Until Starship is \"commercialized by delivering payload to orbit\" (at which point costs will be capitalized and depreciated), the operating margin is dominated by development spending rather than launch economics.\n\n4. **No per-launch revenue or cost data.** The MD&A states that \"average price per launch remained relatively flat year over year\" but provides no actual figure. Without per-launch unit economics, per-kg economics cannot be triangulated from launch-level data.\n\n5. **Mixed revenue types in Space segment.** Launch & Development revenue ($1,510M) includes milestone-based development contracts (e.g., NASA HLS, commercial crew) whose revenue recognition is not proportional to mass delivered in any given period, further complicating any per-kg attribution.\n\n**In sum, the S-1 supports a directional revenue-per-kilogram proxy of approximately $1,200\u2013$1,850/kg and a gross-profit-per-kilogram proxy of approximately $1,235/kg (using total mass), but the absence of cost disaggregation, the capitalization of internal launch costs in a separate segment, and the expensing of massive Starship R&D prevent any precise margin-per-kilogram calculation.**"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_9590ec76a289484cb69e678b",
+            "content": "## Implied Revenue-per-Kilogram Proxy for SpaceX (FY2025)\n\n### Data Extracted from the S-1\n\n| Metric | FY2025 | Source |\n|---|---|---|\n| Space Segment Revenue | $4,086M | Segment disclosure |\n| \u2014 Launch Services | $2,576M | Revenue disaggregation |\n| \u2014 Launch & Development | $1,510M | Revenue disaggregation |\n| Space Cost of Revenue | $1,352M | Segment disclosure |\n| Space Gross Profit | $2,734M | Calculated |\n| Space Gross Margin | 66.9% | Calculated |\n| Total Mass to Orbit | 2,213 metric tons | KPI disclosure |\n| \u2014 Customer payloads | 312 MT | KPI disclosure |\n| \u2014 Internal payloads (Starlink) | 1,901 MT | KPI disclosure |\n| Total Launches | 170 (Falcon + Starship) | KPI disclosure |\n| \u2014 Falcon launches | 165 (43 customer, 122 internal) | KPI disclosure |\n\n### Implied Revenue-per-Kilogram Calculations\n\nBecause the S-1 does not publish a revenue-per-kilogram figure, four defensible proxies emerge \u2014 each with significant limitations:\n\n| Proxy | Calculation | $/kg |\n|---|---|---|\n| **A. Total Space Revenue \u00f7 Total Mass** | $4,086M \u00f7 2,213,000 kg | **$1,846.36/kg** |\n| B. Launch Services Revenue \u00f7 Total Mass | $2,576M \u00f7 2,213,000 kg | $1,164.03/kg |\n| C. Launch Services Revenue \u00f7 Customer Payload | $2,576M \u00f7 312,000 kg | $8,256.41/kg |\n| D. Total Space Revenue \u00f7 Customer Payload | $4,086M \u00f7 312,000 kg | $13,096.15/kg |\n\n**Proxy A ($1,846/kg)** is the most holistic headline figure \u2014 it captures all Space segment revenue divided by all mass delivered. However, it is heavily distorted by the internal/external payload mix: 86% of mass (1,901 MT) consists of Starlink satellites for which **the Space segment recognizes zero revenue** (internal launch costs are capitalized in the Connectivity segment). This means the denominator is inflated by non-revenue-generating mass, pulling the implied $/kg figure *downward*.\n\n**Proxy B ($1,164/kg)** narrows the numerator to Launch Services only, excluding Launch & Development revenue (which includes NASA HLS, crew, and cargo development contracts not directly tied to per-kilogram pricing). But it suffers the same denominator distortion as Proxy A.\n\n**Proxy C ($8,256/kg)** uses only customer mass but is arguably *too high*, because Launch & Development revenue is excluded and some of that revenue relates to customer-directed development activities.\n\n**Overall**, the blended proxy in the range of **$1,200\u2013$1,850/kg** is the most reasonable \u2014 but the S-1 itself notes that Falcon 9 historically achieved ~$2,700/kg (2010) and Falcon Heavy ~$1,400/kg (2018), suggesting the blended FY2025 implied figure is directionally consistent with the known trajectory of SpaceX's cost reduction.\n\n---\n\n## Directional Comparison to Legacy Launch Providers\n\n### Legacy List Prices per Kilogram to LEO\n\n| Provider / Vehicle | Approx. Price per kg to LEO | Source / Basis |\n|---|---|---|\n| Historical industry average | ~$18,500/kg | S-1 disclosure (NASA-cited benchmark) |\n| ULA Atlas V | ~$8,000\u2013$11,000/kg | $109\u2013153M per launch \u00f7 9.8\u201318.8 MT |\n| ULA Delta IV Heavy | ~$12,000\u2013$14,000/kg | ~$350\u2013400M \u00f7 ~28 MT |\n| ULA Vulcan Centaur | ~$5,000\u2013$8,000/kg | ~$100\u2013150M \u00f7 17.8\u201327.2 MT (LEO-optimized) |\n| Ariane 5 | ~$8,000\u2013$12,000/kg | \u20ac150\u2013200M \u00f7 ~16\u201321 MT |\n| Ariane 64 (target) | ~$4,700\u2013$5,700/kg | ~\u20ac75\u201390M \u00f7 ~21.7 MT |\n| Falcon 9 (list price, expandable) | ~$2,900/kg | ~$67M \u00f7 22.8 MT |\n| Falcon 9 (list price, reusable) | ~$4,300/kg | ~$67M \u00f7 15.6 MT |\n\n### Interpretation\n\n**SpaceX's implied $1,200\u2013$1,850/kg (blended) is 70\u201393% below the legacy industry average of ~$18,500/kg and 60\u201375% below ULA's Vulcan Centaur at $5,000\u2013$8,000/kg.** Even compared to Falcon 9's own public list price of ~$2,900\u2013$4,300/kg, the blended implied figure is lower by 35\u201357%. This reflects the dominance of internal Starlink launches \u2014 which are high-cadence, high-mass, lower-marginal-cost missions that compress the blended average well below external list pricing.\n\nThe comparison suggests:\n\n1. **Extraordinary pricing power in the external market:** SpaceX can offer external customer launches at Falcon 9 list prices (~$2,900\u2013$4,300/kg) that already undercut all legacy competitors, while earning a Space segment gross margin of **66.9%**. This indicates that SpaceX's internal cost structure is so far below market-clearing prices that it can simultaneously underprice competitors and maintain high unit profitability on external missions.\n\n2. **Starlink as a structural cost advantage:** The 122 internal Falcon launches (vs. 43 customer launches) provide massive scale and cadence that amortize fixed infrastructure, supply chain, and booster manufacturing across far more flights than any competitor. This scale-driven cost reduction benefits both internal and external missions but is invisible in per-unit pricing to competitors.\n\n3. **Starship will disrupt further:** The S-1 explicitly targets a 99%+ cost reduction versus the $18,500/kg legacy baseline. Even a partial realization would make legacy providers' economics untenable.\n\n---\n\n## Disclosure Gaps Preventing a Precise Margin-per-Kilogram Calculation\n\nThe S-1 does not provide sufficient information to calculate a reliable margin per kilogram. The following disclosure gaps are material:\n\n1. **Cost of revenue is aggregated.** The Space segment reports a single cost-of-revenue line ($1,352M in FY2025), with no split between Launch Services and Launch & Development. Without this split, one cannot attribute COGS to mass-delivery activities versus development contracts.\n\n2. **Internal launches generate no Space revenue or COGS.** Starlink-dedicated launches (122 of 165 Falcon launches, representing 1,901 MT of 2,213 MT total mass) have their costs capitalized in the Connectivity segment as PP&E and depreciated over time. The Space segment neither records revenue nor cost of revenue for these missions. This means 86% of mass-to-orbit has no associated Space segment P&L, rendering any per-kg margin calculation fundamentally incomplete.\n\n3. **Starship R&D dwarfs operating economics.** The Space segment incurred $3,004M in Starship R&D in FY2025 \u2014 nearly 75% of Space revenue. All of this is expensed as incurred (not capitalized), producing a $(657)M operating loss despite a 66.9% gross margin. Until Starship is \"commercialized by delivering payload to orbit\" (at which point costs will be capitalized and depreciated), the operating margin is dominated by development spending rather than launch economics.\n\n4. **No per-launch revenue or cost data.** The MD&A states that \"average price per launch remained relatively flat year over year\" but provides no actual figure. Without per-launch unit economics, per-kg economics cannot be triangulated from launch-level data.\n\n5. **Mixed revenue types in Space segment.** Launch & Development revenue ($1,510M) includes milestone-based development contracts (e.g., NASA HLS, commercial crew) whose revenue recognition is not proportional to mass delivered in any given period, further complicating any per-kg attribution.\n\n**In sum, the S-1 supports a directional revenue-per-kilogram proxy of approximately $1,200\u2013$1,850/kg and a gross-profit-per-kilogram proxy of approximately $1,235/kg (using total mass), but the absence of cost disaggregation, the capitalization of internal launch costs in a separate segment, and the expensing of massive Starship R&D prevent any precise margin-per-kilogram calculation.**"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21192,
+        "completion_tokens": 2314,
+        "cached_tokens": 20864,
+        "cost_usd": 0.050039999999999994
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 121979,
+    "total_completion_tokens": 5980,
+    "total_cached_tokens": 98944,
+    "total_cost_usd": 0.24106750000000002,
+    "total_steps": 12
+  }
+}

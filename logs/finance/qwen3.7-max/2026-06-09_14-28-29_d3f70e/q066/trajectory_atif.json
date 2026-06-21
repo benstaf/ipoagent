@@ -1,0 +1,760 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "c79fea32-633a-48b3-a325-c75a0e184a5d",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T14:28:36.270955+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T14:28:36.270955+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe S-1 discloses 550 million MAUs across X and Grok as of March 31, 2026, with 117 million using Grok AI features. Standalone AI subscription businesses such as OpenAI's ChatGPT have disclosed user bases in the hundreds of millions without embedded social-platform distribution. The S-1 does not disclose Grok standalone subscription revenue separately. Using the disclosed MAU penetration rate (Grok users as a percentage of total MAUs) and the total AI segment revenue of $3,201 million for FY2025, construct a range of implied per-Grok-user revenue. What does this range suggest about Grok's current monetization density relative to the implied ARPU of standalone AI subscription businesses, and what specific disclosure gap prevents a precise comparison?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T14:28:36.270955+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me break down this question:\n\n1. The S-1 discloses 550 million MAUs across X and Grok as of March 31, 2026\n2. 117 million using Grok AI features\n3. I need to find the Grok MAU penetration rate (117M / 550M)\n4. Total AI segment revenue of $3,201 million for FY2025\n5. I need to construct a range of implied per-Grok-user revenue\n6. Compare to standalone AI subscription businesses' implied ARPU\n7. Identify the specific disclosure gap\n\nLet me first parse the S-1 filing to get the exact figures and context, then do the calculations.\n\nLet me start by parsing the filing and searching for relevant information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_11f395e7ba5c4872841bee2b",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        },
+        {
+          "tool_call_id": "call_10d5117deb5447b489f8aea5",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "OpenAI ChatGPT weekly active users 2025 2026 revenue ARPU",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_11f395e7ba5c4872841bee2b",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          },
+          {
+            "source_call_id": "call_10d5117deb5447b489f8aea5",
+            "content": "[{\"url\": \"https://www.shopifreaks.com/openai-doubles-revenue-to-12b-surpasses-700m-weekly-chatgpt-users\", \"title\": \"OpenAI Doubles Revenue to $12B, Surpasses 700M Weekly ChatGPT Users\", \"content\": \"The Internet\\u2019s #1 Rated E-commerce News Curation. # OpenAI Doubles Revenue to $12B, Surpasses 700M Weekly ChatGPT Users. by Paul Drecksler | Aug 1, 2025 | E-commerce News. OpenAI has reached $12 billion in annualized revenue and 700 million weekly active ChatGPT users, doubling its revenue in just seven months. The company is finalizing $7.5 billion in new funding commitments as part of a larger $40 billion round, with investors like Sequoia, Tiger, and SoftBank leading the charge. To support\", \"score\": 0.87782305, \"raw_content\": null}, {\"url\": \"https://archive.ph/o/X8JHw/https://www.theinformation.com/articles/openai-hits-12-billion-annualized-revenue-breaks-700-million-chatgpt-weekly-active-users\", \"title\": \"OpenAI Hits $12 Billion in Annualized Revenue, Breaks 700 Million ChatGPT Weekly Active Users \\u2014 The Information\", \"content\": \"is in talks to raise a new round of funding that would value it at $170 billion, triple its valuation from a funding round earlier this year. Anthropic previously told investors it will burn $3 billion this year after burning $5.6 billion last year, and it projected rapid growth to as high as $12 billion in revenue in 2026 on the strength of its market-leading AI for coding-related tasks. However, blocking some types of cookies may impact your experience of the site and the services we are able\", \"score\": 0.8703443, \"raw_content\": null}, {\"url\": \"https://www.robertodiasduarte.com.br/en/openai-preve-220-milhoes-de-assinantes-do-chatgpt-ate-2030\", \"title\": \"OpenAI predicts 220 million ChatGPT subscribers by 2030 - RDD10+\", \"content\": \"ARPU (Average Revenue Per User) is a key indicator for assessing the financial health of any subscription-based business. According to OpenAI projections, the annual ARPU for 2025 is estimated at approximately US$285 per subscriber, which equates to about US$24 per month. This value is consistent with the current mix of plans, which includes ChatGPT Plus at US$20 per month and some corporate or Pro plan subscriptions with higher prices. The proximity between the calculated ARPU and the price of\", \"score\": 0.8652358, \"raw_content\": null}, {\"url\": \"https://archive.ph/o/m45Gf/https://www.theinformation.com/articles/openai-hits-12-billion-annualized-revenue-breaks-700-million-chatgpt-weekly-active-users\", \"title\": \"OpenAI Hits $12 Billion in Annualized Revenue, Breaks 700 Million ChatGPT Weekly Active Users \\u2014 The Information\", \"content\": \"## OpenAI Hits $12 Billion in Annualized Revenue, Breaks 700 Million Cha\\u2026\\n\\n|  |  |  |  |  |  |\\n ---  ---  --- |\\n| archive.today  webpage capture | Saved from | |  |  |  --- | | history\\u2190prior next\\u2192 |  | | 5 Aug 2025 18:24:34 UTC |\\n| All snapshots | from host www.theinformation.com | |\\n| WebpageScreenshot | |\\n| sharedownload .zipreport bug or abuseBuy me a coffee | |\\n\\n|  |  |\\n --- |\\n| history\\u2190prior next\\u2192 |  |\\n\\nclose\\n\\n## Data Tools\\n\\n## Special Projects\\n\\n## SPECIAL PROJECTS\", \"score\": 0.8286204, \"raw_content\": null}, {\"url\": \"https://www.roic.ai/news/chatgpt-nears-900-million-weekly-active-users-as-openai-targets-billion-user-milestone-12-09-2025\", \"title\": \"ChatGPT Nears 900 Million Weekly Active Users as OpenAI Targets Billion-User Milestone | Roic News\", \"content\": \"ChatGPT has surged to nearly 900 million weekly active users, according to people familiar with the matter, putting OpenAI on track to potentially hit its ambitious target of 1 billion users by the end of 2025. This growth, from 800 million users reported in October 2025, reflects the platform's accelerating adoption across demographics and income levels, with usage now approaching parity between genders and expanding in lower-income categories.\", \"score\": 0.796562, \"raw_content\": null}, {\"url\": \"https://www.theinformation.com/articles/openai-hits-12-billion-annualized-revenue-breaks-700-million-chatgpt-weekly-active-users\", \"title\": \"OpenAI Hits $12 Billion in Annualized Revenue, Breaks 700 Million ChatGPT Weekly Active Users\", \"content\": \"OpenAI Hits $12 Billion in Annualized Revenue, Breaks 700 Million ChatGPT Weekly Active Users\", \"score\": 0.78749067, \"raw_content\": null}, {\"url\": \"https://www.agiyes.com/ainews/openai-revenue-soars-to-12-billion\", \"title\": \"OpenAI Revenue Soars to $12 Billion ,700M Weekly Users in 2025\", \"content\": \"achieved product premium pricing, raising the average revenue per user by about 30% compared to the previous generation, directly improving revenue quality. ## ChatGPT\\u2019s Market Contribution to OpenAI Revenue. As OpenAI\\u2019s flagship product, ChatGPT continues to lead the global AI market in user scale and brand influence. ChatGPT\\u2019s powerful brand effect also creates a significant \\u201chalo effect\\u201d\\u2014many users try other OpenAI products and services because of their positive ChatGPT experience, further\", \"score\": 0.78670514, \"raw_content\": null}, {\"url\": \"https://www.allaboutai.com/ai-news/openai-hits-12b-annualized-revenue-with-700m-weekly-users\", \"title\": \"OpenAI hits $12\\u202fBillion annualized revenue with 700M weekly users\", \"content\": \"a weekly AI briefing for busy readers.  > OpenAI reaches $12 billion annualized revenue in July 2025.. > OpenAI hits $12 billion in annualized revenue, driven by ChatGPT and enterprise AI adoption. OpenAI reported a staggering $12 billion in annualized revenue, nearly doubling from $5.5 billion in December 2024, according to The Information. This milestone, reflecting $1 billion monthly revenue, underscores OpenAI\\u2019s dominance in the AI sector, fueled by ChatGPT\\u2019s 700 million weekly active users\", \"score\": 0.78631157, \"raw_content\": null}, {\"url\": \"https://www.techforus.in/openai-ceo-india-100-million-weekly-active-chatgpt-users\", \"title\": \"India reaches 100M weekly ChatGPT users, says OpenAI CEO\", \"content\": \"OpenAI CEO says India hits 100\\u202fmillion weekly active ChatGPT users. # OpenAI CEO says India hits 100\\u202fmillion weekly active ChatGPT users. OpenAI CEO Sam Altman reports 100\\u202fmillion weekly active ChatGPT users in India, detailing growth, pricing strategy, and future AI plans ahead of the India AI Impact Summit. NEW DELHI, India \\u2014 In a statement published Sunday, Feb. 15, 2026, at 02:15\\u202fIST, OpenAI chief executive Sam Altman announced that India now has 100\\u202fmillion weekly active users of ChatGPT,\", \"score\": 0.72768575, \"raw_content\": null}, {\"url\": \"https://technoingg.com/openai-sees-explosive-growth-in-users-and-revenue-in-2025\", \"title\": \"OpenAI sees explosive growth in users and revenue in 2025\", \"content\": \"Skip to content\\n\\n in 2025 from 0.6 GW in 2024, Friar noted in the blog she wrote. OpenAI\\u2019s weekly and daily active users figures continue to produce all-time highs.\\n\\n## OpenAI is \\u2018on track.\\u2019\\n\\nThe company is on track and generating full-blown revenue. Axios reported on Monday that OpenAI\\u2019s policy chief, Chris Lehane, said that the company is \\u201con track\\u201d to unveil its first device in the second half of 2026.\", \"score\": 0.7161595, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3640,
+        "completion_tokens": 327,
+        "cached_tokens": 3200,
+        "cost_usd": 0.00837
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T14:30:10.828777+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me now retrieve the specific information from the SpaceX S-1 filing about MAUs, Grok users, AI segment revenue, and any related disclosures.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_95b9a568c4904882924ff27f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the disclosed MAU (monthly active users) figures for X and Grok, and how many users are using Grok AI features in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_fd7c9ab80e8147a09fc871f1",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the AI segment revenue for FY2025 and the breakdown of AI segment revenue components in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_3befb22063214477ac85fe59",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Grok subscription revenue, standalone AI subscription revenue, or Grok monetization details in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_95b9a568c4904882924ff27f",
+            "content": "Based on the provided document, here are the disclosed user metrics for X and Grok:\n\n**Combined MAUs (Monthly Active Users) for X and Grok:**\n* **~550 million MAUs** for the twelve-month period ended March 31, 2026 (an increase from approximately 520 million MAUs as of December 31, 2025). \n* *Note:* The company reports these as \"combined MAUs,\" meaning they actively deduplicate users who access both platforms so they are not double-counted. Across both platforms, there are over **1.3 billion supported accounts** active in the last twelve months.\n\n**Users Utilizing Grok AI Features:**\n* **~117 million MAUs** specifically used Grok\u2019s AI features as of March 31, 2026."
+          },
+          {
+            "source_call_id": "call_fd7c9ab80e8147a09fc871f1",
+            "content": "Based on the provided financial tables and text, the AI segment revenue for the fiscal year ended December 31, 2025 (FY2025), along with its breakdown, is as follows:\n\n**Total AI Segment Revenue (FY2025):** $3,201 million\n\n**Breakdown of AI Revenue Components:**\n*   **Advertising:** $1,844 million\n*   **AI Solutions & Infrastructure:** $1,357 million *(which includes subscription-related offerings like X and Grok, data licensing arrangements, and API access)*"
+          },
+          {
+            "source_call_id": "call_3befb22063214477ac85fe59",
+            "content": "Based on the provided MD&A and prospectus excerpts, here are the detailed financial metrics, subscriber data, and monetization strategies regarding Grok, standalone AI subscriptions, and the broader AI segment:\n\n### 1. Financial Performance & Revenue Growth\nThe company groups Grok and X subscriptions under \"AI solutions and infrastructure revenue.\"\n*   **Full Year 2025:** \n    *   **X and Grok Subscription Revenue:** Increased by **$365 million** year-over-year.\n    *   **Total AI Solutions & Infrastructure Revenue:** Increased by **$465 million** (driven by the $365M subscription increase and an $88M increase in data licensing arrangements).\n*   **Q1 2026 (Three months ended March 31, 2026):** \n    *   **Grok and X Subscription Revenue:** Increased by **$177 million** compared to Q1 2025.\n    *   **Total AI Solutions & Infrastructure Revenue:** Increased by **$191 million** (driven by the $177M subscription increase and a $12M increase in data licensing).\n\n### 2. Subscriber Metrics & User Engagement\n*   **Paid Subscribers (as of March 31, 2026):** The company reached approximately **6.3 million** active paid subscribers across its ecosystem. This includes:\n    *   **~1.9 million** standalone Grok paid subscribers (SuperGrok, SuperGrok Heavy, and SuperGrok Lite).\n    *   **~4.4 million** X Premium and Premium+ paid subscribers.\n*   **Monthly Active Users (MAUs):** Out of ~550 million monthly active AI users across Grok and X, approximately **117 million MAUs** specifically used Grok\u2019s AI features as of March 31, 2026.\n\n### 3. Subscription Tiers, Pricing, & Market Sizing\n*   **Product Tiers:** Grok subscriptions are offered on a monthly or annual basis across tiers including **Basic, SuperGrok, SuperGrok Heavy, and SuperGrok Lite**. Higher tiers unlock advanced models, higher usage limits, and priority compute.\n*   **Pricing Strategy & Assumptions:** \n    *   **$30/month** for SuperGrok in high-income countries.\n    *   **$8/month** in upper-middle and lower-middle-income countries.\n    *   Significantly lower costs in low-income countries.\n*   **Total Addressable Market (TAM):** The company estimates the consumer AI subscription market opportunity at **~$760 billion annually**. This is based on the global population aged 10+ (~5.5 billion) multiplied by a weighted average monthly subscription revenue assumption of $12.\n\n### 4. Grok & AI Monetization Strategies\nBeyond consumer subscriptions, the company is diversifying its AI monetization through several channels:\n*   **Standalone Grok Advertising:** While Grok is currently integrated into X's ad ecosystem to help advertisers with campaign creation and creative optimization, management noted a future **\"incremental monetization opportunity by introducing advertising into our stand-alone Grok offering.\"**\n*   **API Access & Data Licensing:** \n    *   The company generates revenue by providing **API access to Grok models** (recognized ratably over contract terms or as services are consumed).\n    *   **Data Licensing:** Selling licensed data to third parties generated $88M in 2025 and $12M in Q1 2026.\n*   **Enterprise & Government Deployments:** The company offers **Grok Business and Grok Enterprise**, which are tailored deployments customized to specific workflows and security needs, sold on license-, consumption-, or outcome-based pricing models.\n*   **Compute Infrastructure Monetization:** The company monetizes its massive gigawatt-scale AI compute infrastructure (e.g., COLOSSUS and COLOSSUS II) by leasing unused capacity to third parties. Notably, they signed a Cloud Services Agreement with **Anthropic** worth **$1.25 billion per month** through May 2029.\n\n### 5. Cost of Revenue & R&D Context\n*   **Cost of Revenue:** AI segment costs are heavily driven by data center facilities, public cloud hosting, and GPU depreciation. In 2025, infrastructure and cloud computing costs rose by $412M due to increased subscriber revenue.\n*   **R&D Expenses:** Q1 2026 saw a massive **$1.47 billion increase** in AI segment R&D expenses, primarily driven by the depreciation of GPU hardware and data center expansion costs required to train frontier models like Grok 5 and multi-trillion parameter future models."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6158,
+        "completion_tokens": 207,
+        "cached_tokens": 3200,
+        "cost_usd": 0.013465
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T14:31:57.839213+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have the key data points. Let me also search for more specific information about the AI segment revenue breakdown and any additional details about Grok standalone revenue.\n\nKey data points:\n1. 550 million MAUs across X and Grok (as of March 31, 2026)\n2. 117 million MAUs using Grok AI features\n3. AI segment revenue FY2025: $3,201 million\n   - Advertising: $1,844 million\n   - AI Solutions & Infrastructure: $1,357 million (includes subscriptions, data licensing, API)\n4. 6.3 million paid subscribers total:\n   - ~1.9 million standalone Grok paid subscribers\n   - ~4.4 million X Premium/Premium+ subscribers\n5. Grok subscription pricing: $30/month (high-income), $8/month (middle-income)\n\nNow let me construct the analysis:\n\n**Grok MAU Penetration Rate:**\n117M / 550M = 21.27%\n\n**Implied per-Grok-user revenue range:**\n\nThe question asks me to use the total AI segment revenue of $3,201 million and the Grok user base to construct a range.\n\nRange construction:\n- Upper bound: If we attribute ALL AI segment revenue ($3,201M) to the 117M Grok users \u2192 $3,201M / 117M = $27.36 per Grok user per year\n- Lower bound: If we attribute only the AI Solutions & Infrastructure revenue ($1,357M) to the 117M Grok users \u2192 $1,357M / 117M = $11.60 per Grok user per year\n\nBut wait - the AI segment revenue includes advertising ($1,844M) which is largely X-platform advertising, not directly Grok-related. And the AI Solutions & Infrastructure ($1,357M) includes X subscriptions, data licensing, and API access - not just Grok subscriptions.\n\nSo the range should be:\n- Upper bound: Total AI segment revenue / Grok MAUs = $3,201M / 117M = $27.36\n- Lower bound: Only AI Solutions & Infrastructure / Grok MAUs = $1,357M / 117M = $11.60\n\nBut even the lower bound overstates because AI Solutions & Infrastructure includes X Premium subscriptions (4.4M subscribers), data licensing, and API access - not just Grok.\n\nActually, let me think about this more carefully. The question says \"construct a range of implied per-Grok-user revenue\" using the total AI segment revenue of $3,201M. So:\n\nRange:\n- High end: $3,201M / 117M Grok MAUs = $27.36 per user per year\n- Low end: $1,357M / 117M Grok MAUs = $11.60 per user per year (using only AI Solutions & Infrastructure)\n\nBut we could also consider an even lower bound. We know there are 1.9M standalone Grok paid subscribers. If we assume average subscription of ~$30/month = $360/year, that's 1.9M \u00d7 $360 = $684M. But some are in lower-income countries at $8/month = $96/year. So the actual Grok subscription revenue is somewhere between $182M (1.9M \u00d7 $96) and $684M (1.9M \u00d7 $360).\n\nLet me think about what the question is really asking. It says \"Using the disclosed MAU penetration rate (Grok users as a percentage of total MAUs) and the total AI segment revenue of $3,201 million for FY2025, construct a range of implied per-Grok-user revenue.\"\n\nSo the range should be:\n- Upper bound: All AI segment revenue attributed to Grok users = $3,201M / 117M = $27.36\n- Lower bound: Proportional allocation based on penetration rate. Grok penetration is 21.27%, so 21.27% of $3,201M = $680.9M. Then $680.9M / 117M = $5.82 per user.\n\nWait, that doesn't make sense either. If we allocate 21.27% of revenue to 21.27% of users, the per-user revenue is the same as total revenue / total MAUs = $3,201M / 550M = $5.82.\n\nLet me reconsider. The question asks for a \"range of implied per-Grok-user revenue.\" I think the range should be:\n\n1. Upper bound: Total AI segment revenue / Grok MAUs = $3,201M / 117M = $27.36 per Grok user\n   (This assumes ALL AI segment revenue is attributable to Grok users)\n\n2. Lower bound: AI segment revenue \u00d7 Grok penetration rate / Grok MAUs\n   = ($3,201M \u00d7 21.27%) / 117M\n   = $680.9M / 117M\n   = $5.82 per Grok user\n   (This assumes Grok's share of revenue is proportional to its share of MAUs)\n\nActually, the lower bound is just total AI revenue / total MAUs = $3,201M / 550M = $5.82.\n\nOr alternatively:\n- Upper bound: $3,201M / 117M = $27.36 (all AI revenue attributed to Grok users only)\n- Lower bound: $1,357M / 117M = $11.60 (only AI Solutions & Infrastructure attributed to Grok users)\n\nOr even lower: $1,357M / 550M = $2.47 (AI Solutions revenue spread across all MAUs)\n\nI think the most logical range construction is:\n- High: Total AI segment revenue / Grok MAUs = $27.36\n- Low: Total AI segment revenue / Total MAUs = $5.82 (i.e., Grok users generate the same per-user revenue as non-Grok users)\n\nThis gives a range of $5.82 to $27.36 per Grok user per year.\n\nNow for comparison with standalone AI subscription businesses:\n\nOpenAI/ChatGPT:\n- ~700M weekly active users (as of mid-2025), approaching 900M by late 2025\n- $12B annualized revenue (as of mid-2025)\n- Implied ARPU: $12B / 700M = ~$17.14 per WAU per year (but this is weekly active, not monthly)\n- Or if we use the 220M projected subscribers \u00d7 $285 ARPU = that's subscriber ARPU, not user ARPU\n\nActually, let me be more careful. OpenAI has:\n- 700M weekly active users (mid-2025)\n- $12B annualized revenue\n- ARPU per WAU: $12B / 700M = $17.14/year\n\nBut the more relevant comparison is subscriber ARPU:\n- OpenAI projected ~220M subscribers by 2030\n- ARPU ~$285/year (~$24/month)\n- Current paid subscribers are a fraction of total WAUs\n\nFor Grok:\n- 1.9M standalone Grok paid subscribers\n- If we estimate Grok subscription revenue: the filing says X and Grok subscription revenue increased by $365M YoY in FY2025. But we don't know the absolute level.\n- 6.3M total paid subscribers (1.9M Grok + 4.4M X Premium)\n\nLet me search for more specific data on the OpenAI comparison and also look for the exact subscription revenue figures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b40cb0f410914d27a0712a2a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the exact total subscription revenue for X and Grok combined for FY2025 and FY2024, and what are the year-over-year changes in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_9daa60cf005e4c13ac1a6342",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the AI segment revenue breakdown table showing advertising, subscriptions, data licensing, and API revenue for all periods in {{spacex_s1}}?"
+          }
+        },
+        {
+          "tool_call_id": "call_a2a6e32a910b46239fb3f10a",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "OpenAI ChatGPT paid subscribers 2025 2026 total number paying users",
+            "number_of_results": 10
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b40cb0f410914d27a0712a2a",
+            "content": "Based on the provided text, the **exact total subscription revenue** for X and Grok combined for FY2025 and FY2024 is **not disclosed**. The document only provides the total overall revenue by geography and the year-over-year *changes* (increases) for specific revenue streams. \n\nHowever, the text does detail the **year-over-year changes** in subscription revenue for those fiscal years:\n\n*   **FY2025 (vs. FY2024):** X and Grok subscription revenue **increased by $365 million**. (This was a primary driver of the broader $465 million increase in \"AI solutions and infrastructure revenue\").\n*   **FY2024 (vs. FY2023):** X subscription revenue **increased by $157 million**. (This helped partially offset a $595 million decline in advertising revenue). \n\n*(Note: For additional context, the text also mentions that for the three months ended March 31, 2026, Grok and X subscription revenue increased by $177 million compared to the same quarter in 2025).*"
+          },
+          {
+            "source_call_id": "call_9daa60cf005e4c13ac1a6342",
+            "content": "Based on the provided text, **there is no table that breaks down the AI segment revenue into the specific granular categories of advertising, subscriptions, data licensing, and API revenue.** \n\nInstead, the financial tables group subscriptions, data licensing, and API access into a single broader category called **\"AI Solutions & Infrastructure.\"** \n\nBelow are the actual revenue breakdown tables provided in the text for the AI segment, followed by the specific textual disclosures regarding the sub-components you asked about.\n\n### 1. AI Segment Revenue Breakdown (Full Years)\n*(Amounts in millions)*\n\n| Revenue Category | 2025 | 2024 | 2023 |\n| :--- | :--- | :--- | :--- |\n| **Advertising** | $1,844 | $1,728 | $2,323 |\n| **AI Solutions & Infrastructure** | $1,357 | $892 | $638 |\n| **Total AI Segment Revenue** | **$3,201** | **$2,620** | **$2,961** |\n\n### 2. AI Segment Revenue Breakdown (Quarters)\n*(Amounts in millions)*\n\n| Revenue Category | Q1 2026 | Q1 2025 |\n| :--- | :--- | :--- |\n| **Advertising** | $343 | $443 |\n| **AI Solutions & Infrastructure** | $475 | $284 |\n| **Total AI Segment Revenue** | **$818** | **$727** |\n\n---\n\n### Textual Breakdown of \"AI Solutions & Infrastructure\" Sub-Components\nWhile exact tabular figures for the sub-components are not provided, the Management's Discussion and Analysis (MD&A) section outlines the year-over-year financial drivers for subscriptions and data licensing:\n\n*   **Subscriptions (X and Grok):** \n    *   **2025 vs. 2024:** Increased by **$365 million**.\n    *   **2024 vs. 2023:** Increased by **$157 million**.\n    *   **Q1 2026 vs. Q1 2025:** Increased by **$177 million**.\n*   **Data Licensing:** \n    *   **2025 vs. 2024:** Increased by **$88 million**.\n    *   **2024 vs. 2023:** Increased by **$90 million**.\n    *   **Q1 2026 vs. Q1 2025:** Increased by **$12 million**.\n*   **API Revenue:** The text notes that revenue is generated from \"providing API access to Grok models\" (recognized ratably or based on usage), but **no specific dollar amounts or period-over-period growth figures** are disclosed for API revenue in the provided excerpts.\n*   **Historical Context:** The text notes that in 2023 and 2024, *\"substantially all of our AI segment revenue consisted of advertising, subscriptions, and data licensing revenue generated from X, formerly known as Twitter\"* (indicating API/Grok infrastructure revenue became a more notable factor in 2025/2026)."
+          },
+          {
+            "source_call_id": "call_a2a6e32a910b46239fb3f10a",
+            "content": "[{\"url\": \"https://www.digitalinformationworld.com/2026/02/openai-reports-900m-weekly-chatgpt.html\", \"title\": \"OpenAI Reports 900M Weekly ChatGPT Users, 50M Subscribers, 9M Paying Business Users\", \"content\": \"OpenAI, on a February 27, 2026 announcement post, reported continued growth across its AI platforms, with weekly active users of ChatGPT reaching 900 million and more than 50 million consumer subscribers. Based on previous The Information (via Reuters) reporting and our calculations, the number of paying ChatGPT subscribers increased from roughly 35 million in July 2025 to 50 million in February 2026, an estimated increase of about 15 million users, averaging roughly 433,000 new paying users\", \"score\": 0.9655668, \"raw_content\": null}, {\"url\": \"https://www.linkedin.com/news/story/openai-projects-over-200m-paid-subscribers-by-2030-6790244\", \"title\": \"OpenAI projects over 200M paid subscribers by 2030 | LinkedIn\", \"content\": \"wants 220 million paying ChatGPT users by 2030. In July 2025, about 35 million people reportedly paid $20/month for ChatGPT Plus or $200/month for ChatGPT Pro subscriptions, amounting to 5% of ChatGPT\\u2019s weekly active users. OpenAI is projecting that it will have about 220 million paying ChatGPT Plus subscribers by 2030, representing 8.5% of an estimated 2.6 billion weekly active users: This means that over the next five years, OpenAI is expecting to more than triple its weekly active users and\", \"score\": 0.8863518, \"raw_content\": null}, {\"url\": \"https://coinlive.com/news/openai-predicts-220-million-paying-chatgpt-users-by-2030-as\", \"title\": \"OpenAI Predicts 220 Million Paying ChatGPT Users by 2030 as Subscription Revenue Aims for $20 Billion\", \"content\": \"Log in/Sign up\\n\\n# OpenAI Predicts 220 Million Paying ChatGPT Users by 2030 as Subscription Revenue Aims for $20 Billion\\n\\nimage\\n\\nAnais\\n\\n2025/11/27 17:30\\n\\nFollow\\n\\n## OpenAI Eyes 220 Million Paying ChatGPT Users By 2030 As AI Competition Intensifies\\n\\nOpenAI is setting its sights on a dramatic expansion of ChatGPT\\u2019s paying user base, projecting that by 2030 around 220 million people could subscribe to its service.\", \"score\": 0.8380581, \"raw_content\": null}, {\"url\": \"https://www.digit.fyi/openai-hits-1-million-paid-business-users-for-chatgpt\", \"title\": \"OpenAI hits 1 million paid business users for ChatGPT\", \"content\": \"Facebook\\nFacebook\\nX (Twitter)\\\")\\nX (Twitter)\\\")\\nLinkedIn\\nLinkedIn\\n\\n# DigitDigit\\n\\nDigit\\nDigit\\n\\n\\u00a9 2026 DIGIT\", \"score\": 0.8335554, \"raw_content\": null}, {\"url\": \"https://www.facebook.com/TechBizHubOfficial/posts/openai-projects-220-million-paying-chatgpt-users-by-2030-ambitious-growth-target/859102516646692\", \"title\": \"TechBiz Hub - OpenAI Projects 220 Million Paying ChatGPT...\", \"content\": \"Reuters - November 26, 2025.\", \"score\": 0.80070794, \"raw_content\": null}, {\"url\": \"https://content.techgig.com/technology/openai-projects-220-million-paying-chatgpt-users-by-2030-report/articleshow/125586595.cms\", \"title\": \"OpenAI Projects 220 Million Paying ChatGPT Users by 2030 | Why ChatGPT\", \"content\": \"AI assistant for millions, leaving alternative LLMs less visible or less adopted despite strong technical performance. In the first half of 2025 alone, OpenAI generated $4.3 billion in revenue but burned $2.5 billion, driven by R&D and the high cost of running ChatGPT at a global scale. READ MORE:#### 7 AI Models That Just Surpassed ChatGPT -The New AI Power Ranking. GPT Set to Hit 220 Million Subscribers by 2030: Here\\u2019s everything you need to know.&news\\\\_sec=Technology&tags=global AI adoption,\", \"score\": 0.79939574, \"raw_content\": null}, {\"url\": \"https://lotofbits.com/openai-projects-220-million-paying-chatgpt-users-by-2030\", \"title\": \"OpenAI Projects 220 Million Paying ChatGPT Users by 2030\", \"content\": \"### Apple Foldable iPhone: Flip-Style Design Could Signal a Major Shift in Apple\\u2019s Smartphone Strategy\\n\\nFebruary 2, 2026\\n\\n Read More \\u00bb\\n\\nOracle plans to raise $45\\u2013$50 billion in 2026\\n\\n### Oracle Plans to Raise $45\\u2013$50 Billion in 2026: A Strategic Move for AI and Cloud Dominance\\n\\nFebruary 2, 2026\\n\\n Read More \\u00bb\\n\\nPerplexity Microsoft AI cloud deal\\n\\n### Perplexity Microsoft AI Cloud Deal Signals a New Phase in the Global AI Infrastructure Race\\n\\nJanuary 30, 2026\\n\\n Read More \\u00bb\\n\\n#### Table of Contents\", \"score\": 0.79522943, \"raw_content\": null}, {\"url\": \"https://techpression.com/openai-extends-deep-research-feature-to-all-paid-chatgpt-subscribers\", \"title\": \"OpenAI extends deep research feature to all paid ChatGPT subscribers - Techpression\", \"content\": \"As of February 2025, the ChatGPT creator had more than 400 million weekly active users, a noteworthy accomplishment in the face of growing competition from DeepSeek, a Chinese AI business.\\n\\nThe sharp rise in users is a reflection of the growing need for AI-powered automation and research tools such as Operator and Deep Research.\\n\\nOluwatosin Adeyemi\\n\\n### Oluwatosin Adeyemi\", \"score\": 0.67140645, \"raw_content\": null}, {\"url\": \"https://mukundmohan.blog/2023/03/05/how-many-paying-subscribers-does-chatgpt-have\", \"title\": \"How many paying subscribers does ChatGPT have? | Mukund Mohan\", \"content\": \"According to a survey of developers on Feb 6th, nearly 7% of them were willing to pay for ChatGPT . Multiple surveys reveal the number of paying subscribers it far less than 1%. Doing the math with number of people by role and the conversion rate, I estimate the number of paying users to be 215K, which is more than Twitter Blue subscribers.. ### Discover more from Mukund Mohan. Subscribe to get the latest posts sent to your email. ### Related. ## The personal blog of Mukund Mohan.\", \"score\": 0.5914643, \"raw_content\": null}, {\"url\": \"https://www.engadget.com/ai/openai-rolls-out-gpt-41-to-all-chatgpt-paying-subscribers-200049384.html\", \"title\": \"OpenAI rolls out GPT-4.1 to all ChatGPT paying subscribers\", \"content\": \"OpenAI is making GPT-4.1, the latest addition to its collection of AI models, available to all of its paid users. The rollout to ChatGPT Plus, Pro and Team members begins today, while Enterprise and Edu subscriptions will have to wait a few weeks to get access. Once available, GPT-4.1 can be chosen from the \\\"more models\\\" dropdown menu in the model picker.\", \"score\": 0.32953247, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7710,
+        "completion_tokens": 2044,
+        "cached_tokens": 5376,
+        "cost_usd": 0.032995
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T14:32:16.675838+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a much clearer picture. Let me compile the data:\n\n**SpaceX S-1 Data:**\n- 550M MAUs across X and Grok (March 31, 2026)\n- 117M MAUs using Grok AI features\n- Grok penetration rate: 117M / 550M = 21.27%\n- AI segment revenue FY2025: $3,201M\n  - Advertising: $1,844M\n  - AI Solutions & Infrastructure: $1,357M (includes subscriptions, data licensing, API)\n- 6.3M paid subscribers total:\n  - ~1.9M standalone Grok paid subscribers\n  - ~4.4M X Premium/Premium+ subscribers\n- X and Grok subscription revenue increased by $365M YoY in FY2025\n- Grok subscription pricing: $30/month (high-income), $8/month (middle-income)\n\n**OpenAI/ChatGPT Data:**\n- 900M weekly active users (February 2026)\n- 50M consumer subscribers (February 2026)\n- 9M paying business users\n- ~35M paying subscribers in July 2025\n- $12B annualized revenue (mid-2025)\n- ChatGPT Plus: $20/month, Pro: $200/month\n- ARPU estimated at ~$285/year per subscriber (~$24/month)\n- Projecting 220M paid subscribers by 2030\n\nNow let me construct the range:\n\n**Implied per-Grok-user revenue range:**\n\nThe question asks to use the MAU penetration rate and total AI segment revenue.\n\nRange construction:\n1. **Upper bound (full attribution):** Total AI segment revenue / Grok MAUs\n   = $3,201M / 117M = $27.36 per Grok user per year\n\n2. **Lower bound (proportional attribution):** If Grok's revenue contribution is proportional to its MAU share:\n   = ($3,201M \u00d7 21.27%) / 117M = $680.9M / 117M = $5.82 per Grok user per year\n   This is equivalent to: $3,201M / 550M = $5.82 per total MAU\n\nSo the range is $5.82 to $27.36 per Grok user per year.\n\nBut we can also construct a more refined range:\n- If we use only AI Solutions & Infrastructure ($1,357M) as the more Grok-relevant revenue:\n  - Upper: $1,357M / 117M = $11.60 per Grok user\n  - Lower: $1,357M / 550M = $2.47 per total MAU\n\n**OpenAI/ChatGPT implied ARPU:**\n- Per WAU: $12B / 900M = $13.33 per WAU per year (using 900M WAUs and $12B annualized)\n- Per paid subscriber: ~$285/year (as estimated by analysts)\n- Or: $12B / 50M subscribers = $240 per subscriber per year (if we attribute all revenue to subscribers)\n\nWait, but OpenAI also has enterprise/API revenue, so not all $12B comes from consumer subscriptions. Let me be more careful.\n\nActually, the question asks about \"implied ARPU of standalone AI subscription businesses.\" The key comparison is:\n\nFor OpenAI:\n- Revenue per WAU: $12B / 900M \u2248 $13.33/year\n- Revenue per paid subscriber: $12B / 50M = $240/year (but this overstates because enterprise revenue is included)\n- Estimated subscriber ARPU: ~$285/year (based on plan mix)\n\nFor Grok (range):\n- $5.82 to $27.36 per Grok MAU per year\n\nThe comparison suggests that Grok's monetization density (revenue per user) is in a broadly similar or potentially lower range compared to OpenAI's per-WAU revenue of ~$13.33.\n\nBut the critical disclosure gap is that the S-1 does not separately disclose:\n1. Grok standalone subscription revenue\n2. The breakdown of \"AI Solutions & Infrastructure\" into subscriptions vs. data licensing vs. API\n3. How much of the $1,357M AI Solutions & Infrastructure revenue is specifically from Grok vs. X Premium subscriptions\n\nThis prevents a precise comparison because we cannot isolate Grok's direct revenue contribution from the bundled AI segment revenue that includes X platform advertising, X Premium subscriptions, data licensing, and API access.\n\nLet me now do the precise calculations.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ae47a5577e544490b8cf2fc4",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "117 / 550 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_28e3db31b9014844a5c1fda8",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3201 / 117"
+          }
+        },
+        {
+          "tool_call_id": "call_64bbed3888ee4e879c77b510",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3201 / 550"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ae47a5577e544490b8cf2fc4",
+            "content": "21.272727272727273"
+          },
+          {
+            "source_call_id": "call_28e3db31b9014844a5c1fda8",
+            "content": "27.358974358974358"
+          },
+          {
+            "source_call_id": "call_64bbed3888ee4e879c77b510",
+            "content": "5.82"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12698,
+        "completion_tokens": 1226,
+        "cached_tokens": 7552,
+        "cost_usd": 0.034565
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T14:32:20.556429+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me calculate the additional range points and the OpenAI comparison metrics.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_10c53f41d0e5488991deaa23",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1357 / 117"
+          }
+        },
+        {
+          "tool_call_id": "call_f8e89137996c41faa59c10c0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1357 / 550"
+          }
+        },
+        {
+          "tool_call_id": "call_b47b83b3b7fb4c669025aa05",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "12000 / 900"
+          }
+        },
+        {
+          "tool_call_id": "call_05d76e6d167e42b9b2809fb4",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "12000 / 50"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_10c53f41d0e5488991deaa23",
+            "content": "11.598290598290598"
+          },
+          {
+            "source_call_id": "call_f8e89137996c41faa59c10c0",
+            "content": "2.4672727272727273"
+          },
+          {
+            "source_call_id": "call_b47b83b3b7fb4c669025aa05",
+            "content": "13.333333333333334"
+          },
+          {
+            "source_call_id": "call_05d76e6d167e42b9b2809fb4",
+            "content": "240.0"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13988,
+        "completion_tokens": 156,
+        "cached_tokens": 11904,
+        "cost_usd": 0.021650000000000003
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T14:32:32.276224+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also calculate the Grok subscriber-level ARPU to provide a more complete picture. We know there are 1.9M standalone Grok paid subscribers. If we try to estimate Grok subscription revenue:\n\nThe filing says X and Grok subscription revenue increased by $365M YoY in FY2025. But we don't know the absolute level.\n\nLet me also calculate what the implied Grok subscription revenue would be at various price points:\n- 1.9M subscribers \u00d7 $30/month \u00d7 12 = $684M (if all at high-income pricing)\n- 1.9M subscribers \u00d7 $8/month \u00d7 12 = $182.4M (if all at middle-income pricing)\n- A blended rate might be around $15-20/month = $342M-$456M\n\nFor X Premium: 4.4M subscribers\n- X Premium is typically $8/month, Premium+ is $16/month\n- If blended at ~$12/month: 4.4M \u00d7 $12 \u00d7 12 = $633.6M\n\nCombined subscription revenue estimate: ~$524M to $1,318M\n\nBut the filing says subscription revenue increased by $365M in FY2025. If FY2024 subscription revenue was, say, X, then FY2025 = X + $365M.\n\nWe know AI Solutions & Infrastructure was $892M in FY2024 and $1,357M in FY2025 (increase of $465M). The subscription increase was $365M and data licensing increase was $88M, totaling $453M. The remaining $12M could be API or other.\n\nSo if we try to back into the subscription revenue:\n- FY2025 AI Solutions & Infrastructure: $1,357M\n- Subscription increase: $365M\n- Data licensing increase: $88M\n- That accounts for $453M of the $465M increase\n\nWe don't know the absolute levels of subscriptions vs. data licensing vs. API within the $1,357M.\n\nLet me also look for more details about the Grok subscriber ARPU.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_03085a7229874e938bf29111",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1.9 * 30 * 12"
+          }
+        },
+        {
+          "tool_call_id": "call_1e880400b7914e47baafd9e0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1.9 * 8 * 12"
+          }
+        },
+        {
+          "tool_call_id": "call_0a4b7a69b00a46c69091ce26",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1.9 * 19 * 12"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_03085a7229874e938bf29111",
+            "content": "684.0"
+          },
+          {
+            "source_call_id": "call_1e880400b7914e47baafd9e0",
+            "content": "182.39999999999998"
+          },
+          {
+            "source_call_id": "call_0a4b7a69b00a46c69091ce26",
+            "content": "433.20000000000005"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14232,
+        "completion_tokens": 620,
+        "cached_tokens": 3200,
+        "cost_usd": 0.03778
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T14:33:22.444262+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me also calculate the per-Grok-paid-subscriber revenue if we could isolate Grok subscription revenue. But since we can't, let me focus on the range the question asks for.\n\nLet me also search for Anthropic's revenue and user metrics for additional peer comparison.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_f62cdad61ea74111aad5b83b",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Anthropic Claude revenue 2025 users subscribers ARPU",
+            "number_of_results": 5
+          }
+        },
+        {
+          "tool_call_id": "call_d443ba8cb6f5492ea5487823",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the disclosure about Grok standalone subscription revenue, separate Grok revenue breakdown, or any statement about inability to separately measure Grok revenue in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_f62cdad61ea74111aad5b83b",
+            "content": "[{\"url\": \"https://www.cep-dc.org/anthropic-statistics\", \"title\": \"Anthropic Statistics - Users, Revenue, & Valuation [2025]\", \"content\": \"Claude AI has approximately 18.9 million users.  Claude AI users are 63.95% male and 36.05% female.  Anthropic is projected to reach $3 billion in annualized revenue by the end of 2025. ## About Anthropic. Anthropic\\u2019s flagship product is the Claude AI assistant and chatbot.  Claude 4 (May 22, 2025. ## How Many People Use Claude AI? The latest data indicates approximately 18.9 million people use Claude AI. In comparison, Claude had 4.3 million monthly users in July 2023. The typical Claude AI\", \"score\": 0.82288796, \"raw_content\": null}, {\"url\": \"https://app.daily.dev/posts/anthropic-introduces-weekly-rate-limits-for-claude-code-subscribers-1a0gie8gq\", \"title\": \"Anthropic Introduces Weekly Rate Limits for Claude Code Subscribers\", \"content\": \"Anthropic is implementing new weekly rate limits for Claude Code starting August 28, 2025, affecting Pro ($20/month) and Max ($100-200/month) subscribers. The limits target power users running the AI coding tool continuously and those violating usage policies by sharing accounts. The company will maintain existing 5-hour reset limits while adding weekly caps, with Max subscribers able to purchase additional usage at API rates. This follows similar pricing adjustments by other AI coding tool\", \"score\": 0.82220376, \"raw_content\": null}, {\"url\": \"https://x.com/DanielGlejzner/status/1931633186057994548\", \"title\": \"Daniel Glejzner on X: \\\"TIL \\n\\n2024 OpenAI revenue:\\n- $3.7 billion \\ud83d\\udcb0\\n\\n2024 OpenAI loss:\\n- $5 billion \\u203c\\ufe0f\\n \\nWith:\\n- 400 million weekly active users \\n- 15.5 million paying subscribers\\n\\n\\u2014\\u2014\\u2014-\\n\\n2024 Anthropic (Claude) revenue:\\n- $918 million \\ud83d\\udcb0\\n\\n2024 Anthropic (Claude) loss:\\n- $5.6 billion \\u203c\\ufe0f\\n\\nWith:\\n- 2\\\" / X\", \"content\": \"With: - 400 million weekly active users - 15.5 million paying subscribers \\u2014\\u2014\\u2014- 2024 Anthropic (Claude) revenue: - $918 million Image 4: \\ud83d\\udcb0 2024 Anthropic (Claude) loss: - $5.6 billion Image 5: \\u203c\\ufe0f With: - 2 million app monthly active users and 8.2 million unique monthly web visitors \\u2014\\u2014- Ok can somebody explain to my how is this sustainable? 8:43 AM \\u00b7 Jun 8, 2025. ## New to X? Sign up now to get your own personalized timeline! By signing up, you agree to the Terms of Service and Privacy Policy,\", \"score\": 0.8088086, \"raw_content\": null}, {\"url\": \"https://the-decoder.com/anthropic-will-set-new-weekly-usage-limits-for-claude-subscribers-starting-august\", \"title\": \"Anthropic will set new weekly usage limits for Claude subscribers starting August\", \"content\": \"### The Decoder\\n\\n# Anthropic will set new weekly usage limits for Claude subscribers starting August\\n\\nMatthias Bastian\\n\\nStarting August 28, 2025, Anthropic will roll out new weekly usage limits for Claude subscribers. Alongside the existing 5-hour limit - which resets every five hours - users will face two additional restrictions: a general weekly cap for all models and a separate weekly limit for Claude Opus 4. Both reset every seven days.\", \"score\": 0.6829338, \"raw_content\": null}, {\"url\": \"https://telecomlead.com/4g-lte/telenor-q2-2025-revenue-arpu-subscribers-capex-121777\", \"title\": \"Telenor Q2-2025: Revenue, ARPU, subscribers, Capex - TelecomLead\", \"content\": \"In Asia, Pakistan showed strong performance despite a 3.7 percent decline in its mobile subscriber base, while Grameenphone in Bangladesh managed subscriber growth, although traffic and pricing pressures weighed on revenues.\\n\\nARPU\\n\\nTelenor reported ARPU growth across all Nordic markets in the second quarter of 2025, supporting a 5.6 percent increase in mobile service revenues in the region.\", \"score\": 0.49685127, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_d443ba8cb6f5492ea5487823",
+            "content": "Based on the provided text, there is **no disclosure** of Grok's standalone subscription revenue, **no separate financial revenue breakdown** specifically for Grok, and **no statement regarding an inability to separately measure** Grok's revenue. \n\nInstead, the text consistently groups Grok and X subscription revenues together and provides operational metrics rather than disaggregated financial figures. Here is a summary of what the text *does* disclose regarding Grok and X subscriptions:\n\n**1. Combined Revenue Reporting**\nThe financial overviews and MD&A sections bundle X and Grok subscription revenues into a single line item. For example:\n*   **Full Year 2025:** The text notes an increase in \"X and Grok subscription revenue of $365 million.\"\n*   **Q1 2026 (Three months ended March 31, 2026):** The text cites an increase in \"Grok and X subscription revenue of $177 million.\"\n\n**2. Subscriber Volume Breakdown (Non-Financial)**\nWhile revenue is combined, the company does break down its active paid subscriber base by product line. As of March 31, 2026, the 6.3 million active paid subscribers were comprised of:\n*   ~4.4 million **X Premium and Premium+** paid subscribers.\n*   ~1.9 million **SuperGrok, SuperGrok Heavy, and SuperGrok Lite** paid subscribers.\n\n**3. Pricing and Market Sizing Assumptions**\nThe text outlines pricing tiers used for market opportunity estimations rather than actual recognized revenue breakdowns:\n*   It assumes a **$30 monthly cost** for a SuperGrok subscription in high-income countries, **$8** in upper/lower-middle-income countries, and lower costs in low-income countries.\n*   It mentions three consumer tiers (basic, SuperGrok, SuperGrok Heavy, and SuperGrok Lite) and enterprise offerings (Grok Business, Grok Enterprise, and Grok API).\n\n**4. Mentions of \"Stand-Alone\" Grok**\nThe text references the \"stand-alone Grok offering\" and the \"Grok application\" when discussing future monetization strategies (such as introducing advertising to the standalone app) and user engagement (117 million MAUs using Grok's AI features), but it does not attach separate revenue figures to these standalone products. \n\n**Conclusion:**\nThe provided excerpts do not contain any accounting statements about the inability to disaggregate Grok's revenue, nor do they provide a standalone financial breakdown for Grok. All subscription revenue is reported in the aggregate as \"AI solutions and infrastructure\" or specifically combined as \"X and Grok subscription revenue.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14917,
+        "completion_tokens": 177,
+        "cached_tokens": 13056,
+        "cost_usd": 0.022742500000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T14:33:33.555898+00:00",
+      "source": "agent",
+      "message": "Now let me verify the OpenAI revenue and user figures more precisely for the peer comparison:\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me compile the comprehensive analysis.\n\nKey data points:\n1. Grok MAU penetration rate: 117M / 550M = 21.27%\n2. AI segment revenue FY2025: $3,201M\n   - Advertising: $1,844M\n   - AI Solutions & Infrastructure: $1,357M\n3. 1.9M standalone Grok paid subscribers\n4. 4.4M X Premium/Premium+ paid subscribers\n\nRange construction:\n- Upper bound: $3,201M / 117M = $27.36 per Grok MAU per year\n- Lower bound: $3,201M / 550M = $5.82 per total MAU per year (proportional allocation)\n\nAdditional reference points:\n- AI Solutions & Infrastructure only: $1,357M / 117M = $11.60 (upper) to $1,357M / 550M = $2.47 (lower)\n\nOpenAI comparison:\n- $12B annualized revenue / 900M WAUs = $13.33 per WAU per year\n- $12B / 50M paid subscribers = $240 per subscriber per year\n- Estimated subscriber ARPU: ~$285/year\n\nAnthropic comparison:\n- ~$3B annualized revenue / ~18.9M users = ~$158.73 per user per year\n- But much of Anthropic's revenue is enterprise/API\n\nThe disclosure gap: The S-1 does not separately disclose Grok standalone subscription revenue. Grok and X subscription revenues are bundled together within \"AI Solutions & Infrastructure,\" making it impossible to isolate Grok's direct revenue contribution. This prevents a precise ARPU comparison with standalone AI subscription businesses like OpenAI.\n\nLet me now write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3611cf5b5c654060aa084c8f",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "OpenAI 2025 full year annual revenue total $12 billion $13 billion",
+            "number_of_results": 5
+          }
+        },
+        {
+          "tool_call_id": "call_da96e9367e534361baaab303",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3000 / 18.9"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3611cf5b5c654060aa084c8f",
+            "content": "[{\"url\": \"https://www.facebook.com/aniksingal/posts/openai-just-hit-12-13-billion-in-revenue-for-2025-and-theyre-still-losing-78-bil/10116452556456828\", \"title\": \"Anik Singal - OpenAI Just Hit $12-13 Billion In Revenue...\", \"content\": \"## Anik Singal's Post\\n\\n### Anik Singal\\n\\nJanuary 25  \\u00b7\\n\\nOpenAI Just Hit $12-13 Billion In Revenue For 2025.\\n\\nAnd They're Still Losing $7.8 Billion In Just Six Months. Here's Why.\\n\\nThis is the AI industry paradox: explosive revenue growth paired with staggering losses.\\n\\nOpenAI reported approximately $4.3 billion in revenue in the first half of 2025\\u2014putting them on track for roughly $12-13 billion in total 2025 revenue.\\n\\nThat's massive growth compared to 2024.\", \"score\": 0.9047265, \"raw_content\": null}, {\"url\": \"https://curiouscats.ai/technology/openai-projects-12-billion-revenue-in-2025-outpaci\", \"title\": \"OpenAI projects $12 billion revenue in 2025, outpacing Anthropic's $3 billion surge | CuriousCats.ai\", \"content\": \"revenue, up from $3.7 billion last year. OpenAI forecasts $12 billion revenue in 2025, significantly outpacing Anthropic's $3 billion annualized revenue surge, driven by growing business demand for AI services, including code generation. Anthropic's rapid growth marks it as one of the fastest-growing SaaS companies ever, highlighting the booming generative AI market.  Anthropic's annualised revenue was nearly $1 billion in December 2024 and surged to about $3 billion by May 2025, driven\", \"score\": 0.9035075, \"raw_content\": null}, {\"url\": \"https://www.roic.ai/news/openai-raises-40-billion-at-300-billion-valuation-revenue-soars-to-13-billion-08-01-2025\", \"title\": \"OpenAI Raises $40 Billion at $300 Billion Valuation, Revenue Soars to $13 Billion \\u2014 Roic News\", \"content\": \"billion in 2025, up from $10 billion just months earlier, fueled by explosive demand for ChatGPT and enterprise AI tools. Operating expenses are projected to exceed $28 billion this year, largely due to massive investments in compute infrastructure and data centers. The funding round underscores the fierce competition in generative AI, where players like xAI (valued at $80 billion) and Scale AI are also securing mega-rounds. OpenAI\\u2019s ability to maintain its lead hinges on reducing compute costs\", \"score\": 0.8795718, \"raw_content\": null}, {\"url\": \"https://the-decoder.com/openai-hits-10-billion-in-annual-revenue\", \"title\": \"OpenAI hits $10 Billion in annual revenue\", \"content\": \"OpenAI's Annual Recurring Revenue (ARR) has hit $10 billion, calculated by multiplying its current monthly revenue by 12, according to a company spokesperson. The total comes from ChatGPT subscriptions and API sales, but does not include Microsoft licensing or custom contracts. Internal forecasts seen by The Information suggest OpenAI could earn $13 billion a year by 2025. The company is aiming for $174 billion by 2030. Under its deal with Microsoft, OpenAI gives up 20% of its revenue. In 2024,\", \"score\": 0.8747745, \"raw_content\": null}, {\"url\": \"https://biztechcommunity.com/news/openai-annual-revenue-run-rate-hits-10-billion\", \"title\": \"OpenAI Annual Revenue Run Rate Hits $10 Billion\", \"content\": \"Despite its blistering revenue trajectory, OpenAI remains unprofitable. The company posted a $5 billion loss last year, underscoring the immense costs required to sustain growth at scale. Still, with current momentum, OpenAI is projected to hit $12.7 billion in revenue by the end of 2025, cementing its leadership in the AI sector.\\n\\nHeavy Losses Despite Revenue GrowthHeavy Losses Despite Revenue Growth\\n\\nPhoto: TapTwice Digital\\n\\nHeavy Losses Despite Revenue Growth\", \"score\": 0.8332299, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_da96e9367e534361baaab303",
+            "content": "158.73015873015873"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16872,
+        "completion_tokens": 561,
+        "cached_tokens": 14080,
+        "cost_usd": 0.03019
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-09T14:33:43.597307+00:00",
+      "source": "agent",
+      "message": "Now I have all the data needed. Let me compile the complete analysis.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the data I need. Let me compile the final comprehensive answer.\n\nKey calculations:\n\n**Grok MAU Penetration Rate:**\n117M / 550M = 21.27%\n\n**Implied per-Grok-user revenue range (FY2025):**\n\nUpper bound (full AI segment attribution to Grok users):\n$3,201M / 117M = $27.36 per Grok MAU per year\n\nLower bound (proportional allocation based on MAU share):\n$3,201M / 550M = $5.82 per MAU per year\n\nIntermediate reference (AI Solutions & Infrastructure only / Grok MAUs):\n$1,357M / 117M = $11.60 per Grok MAU per year\n\n**OpenAI/ChatGPT implied ARPU:**\n- Per WAU: ~$12-13B / 900M WAUs = ~$13.33-$14.44 per WAU per year\n- Per paid subscriber: ~$12-13B / 50M subscribers = ~$240-$260 per subscriber per year\n- Estimated blended subscriber ARPU: ~$285/year (~$24/month)\n\n**Anthropic/Claude implied ARPU:**\n- ~$3B annualized / ~18.9M users = ~$158.73 per user per year\n- But heavily enterprise/API-driven\n\n**Disclosure gap:**\nThe S-1 does not separately disclose Grok standalone subscription revenue. Grok and X subscription revenues are bundled within \"AI Solutions & Infrastructure\" ($1,357M for FY2025), which also includes data licensing and API access. While the filing discloses subscriber counts (1.9M Grok, 4.4M X Premium), it does not provide the revenue split between them. This prevents calculation of a precise Grok-only ARPU that could be directly compared to standalone AI subscription businesses like OpenAI's ChatGPT.\n\nLet me now write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4b8c698e148e456cb94cbf30",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "13000 / 900"
+          }
+        },
+        {
+          "tool_call_id": "call_d59814c7c20a490e97c92e1d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "13000 / 50"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4b8c698e148e456cb94cbf30",
+            "content": "14.444444444444445"
+          },
+          {
+            "source_call_id": "call_d59814c7c20a490e97c92e1d",
+            "content": "260.0"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 18529,
+        "completion_tokens": 562,
+        "cached_tokens": 16256,
+        "cost_usd": 0.0316225
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-09T14:34:14.787448+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have all the calculations. Let me write the final comprehensive answer.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_73793dafb720421da3c4da61",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Implied Per-Grok-User Revenue Range and Monetization Density Analysis\n\n### 1. Disclosed Metrics from the S-1\n\n| Metric | Value |\n|---|---|\n| Combined X + Grok MAUs (as of March 31, 2026) | ~550 million |\n| MAUs using Grok AI features (as of March 31, 2026) | ~117 million |\n| **Grok MAU Penetration Rate** | **21.27%** (117M \u00f7 550M) |\n| AI Segment Revenue, FY2025 | $3,201 million |\n| \u2014 Advertising | $1,844 million |\n| \u2014 AI Solutions & Infrastructure | $1,357 million |\n| Standalone Grok paid subscribers (March 31, 2026) | ~1.9 million |\n| X Premium/Premium+ paid subscribers (March 31, 2026) | ~4.4 million |\n\n---\n\n### 2. Constructed Range of Implied Per-Grok-User Revenue (FY2025)\n\nBecause the S-1 does not disaggregate Grok-specific revenue, we construct a range using two boundary assumptions:\n\n**Upper Bound \u2014 Full AI Segment Attribution to Grok Users:**\n$$\\frac{\\$3{,}201\\text{M}}{117\\text{M Grok MAUs}} = \\$27.36 \\text{ per Grok MAU per year}$$\nThis assumes *all* AI segment revenue (advertising + subscriptions + data licensing + API) is attributable to the 117M Grok users \u2014 a clear overstatement, since $1,844M in advertising revenue is predominantly X-platform advertising served to the broader 550M MAU base.\n\n**Lower Bound \u2014 Proportional MAU Allocation:**\n$$\\frac{\\$3{,}201\\text{M}}{550\\text{M total MAUs}} = \\$5.82 \\text{ per MAU per year}$$\nThis assumes Grok users generate the same per-capita revenue as non-Grok X users \u2014 a likely understatement, since Grok users are presumably more engaged and include paying subscribers.\n\n**Intermediate Reference \u2014 AI Solutions & Infrastructure Only:**\n$$\\frac{\\$1{,}357\\text{M}}{117\\text{M Grok MAUs}} = \\$11.60 \\text{ per Grok MAU per year}$$\nThis isolates the revenue line most directly tied to Grok (subscriptions, data licensing, API), but still includes X Premium subscriptions and data licensing unrelated to Grok.\n\n**Summary Range: $5.82 \u2013 $27.36 per Grok MAU per year**, with the most analytically relevant midpoint likely near **$11.60** (AI Solutions & Infrastructure / Grok MAUs).\n\n---\n\n### 3. Comparison to Standalone AI Subscription Businesses\n\n| Company | Revenue | User Base | Implied Revenue per User |\n|---|---|---|---|\n| **OpenAI (ChatGPT)** | ~$12\u201313B annualized (mid-2025) | ~900M WAUs (Feb 2026) | **$13.33 \u2013 $14.44 per WAU/year** |\n| **OpenAI (subscriber-only)** | ~$12\u201313B | ~50M paid subscribers (Feb 2026) | **$240 \u2013 $260 per subscriber/year** |\n| **OpenAI (estimated blended ARPU)** | \u2014 | \u2014 | **~$285/year (~$24/month)** |\n| **Anthropic (Claude)** | ~$3B annualized (mid-2025) | ~18.9M users | **~$158.73 per user/year** |\n| **Grok (S-1 implied range)** | $3,201M (AI segment) | 117M Grok MAUs | **$5.82 \u2013 $27.36 per MAU/year** |\n| **Grok (AI Solutions only)** | $1,357M | 117M Grok MAUs | **$11.60 per MAU/year** |\n\n**Key Observations:**\n\n- **On a per-MAU/WAU basis**, Grok's implied revenue density ($5.82\u2013$27.36, midpoint ~$11.60) is **broadly comparable to or somewhat below** OpenAI's per-WAU revenue of ~$13.33\u2013$14.44. However, this comparison is distorted because Grok's figure includes X-platform advertising revenue that is not Grok-specific, while OpenAI's per-WAU figure includes enterprise/API revenue that is not consumer-subscription-specific.\n\n- **On a per-paid-subscriber basis**, the gap is stark. OpenAI's implied subscriber ARPU of ~$240\u2013$285/year reflects a mature subscription conversion model (50M paying subscribers from 900M WAUs = ~5.6% conversion rate). Grok has only **1.9M standalone paid subscribers** from 117M Grok MAUs \u2014 a **~1.6% conversion rate** \u2014 suggesting significantly lower monetization density at the subscriber level.\n\n- **Grok's embedded social-platform distribution** (550M X MAUs) provides a massive top-of-funnel advantage, but the low paid conversion rate (1.6% vs. OpenAI's ~5.6%) suggests that Grok's monetization of its user base is at an earlier stage of maturity.\n\n---\n\n### 4. The Critical Disclosure Gap\n\n**The S-1 does not separately disclose Grok standalone subscription revenue.** Specifically:\n\n1. **Bundled revenue reporting:** Grok and X subscription revenues are combined into a single line item within \"AI Solutions & Infrastructure\" ($1,357M for FY2025). The filing only discloses year-over-year *changes* (e.g., \"X and Grok subscription revenue increased by $365 million\" in FY2025), not absolute levels.\n\n2. **No sub-component breakdown:** The $1,357M \"AI Solutions & Infrastructure\" figure bundles subscriptions (both X Premium and Grok), data licensing ($88M increase in FY2025), and API access \u2014 without disclosing the absolute dollar amount of any individual component.\n\n3. **Subscriber counts without revenue mapping:** While the filing discloses 1.9M Grok paid subscribers and 4.4M X Premium subscribers separately, it does not map revenue to these subscriber pools, making it impossible to calculate a precise Grok-only ARPU.\n\n**This disclosure gap prevents a precise comparison** because we cannot isolate what portion of the $3,201M AI segment revenue (or even the $1,357M AI Solutions & Infrastructure revenue) is directly generated by Grok's 117M MAUs or its 1.9M paid subscribers. Without Grok-specific revenue, any per-user revenue figure is an allocation assumption, not a disclosed fact.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Filing (May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.digitalinformationworld.com/2026/02/openai-reports-900m-weekly-chatgpt.html\",\n      \"name\": \"OpenAI Reports 900M Weekly ChatGPT Users, 50M Subscribers (February 2026)\"\n    },\n    {\n      \"url\": \"https://www.shopifreaks.com/openai-doubles-revenue-to-12b-surpasses-700m-weekly-chatgpt-users\",\n      \"name\": \"OpenAI Doubles Revenue to $12B, Surpasses 700M Weekly ChatGPT Users (August 2025)\"\n    },\n    {\n      \"url\": \"https://www.robertodiasduarte.com.br/en/openai-preve-220-milhoes-de-assinantes-do-chatgpt-ate-2030\",\n      \"name\": \"OpenAI ARPU Analysis (~$285/year per subscriber)\"\n    },\n    {\n      \"url\": \"https://www.cep-dc.org/anthropic-statistics\",\n      \"name\": \"Anthropic Statistics \u2014 Claude Users and Revenue (2025)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_73793dafb720421da3c4da61",
+            "content": "## Implied Per-Grok-User Revenue Range and Monetization Density Analysis\n\n### 1. Disclosed Metrics from the S-1\n\n| Metric | Value |\n|---|---|\n| Combined X + Grok MAUs (as of March 31, 2026) | ~550 million |\n| MAUs using Grok AI features (as of March 31, 2026) | ~117 million |\n| **Grok MAU Penetration Rate** | **21.27%** (117M \u00f7 550M) |\n| AI Segment Revenue, FY2025 | $3,201 million |\n| \u2014 Advertising | $1,844 million |\n| \u2014 AI Solutions & Infrastructure | $1,357 million |\n| Standalone Grok paid subscribers (March 31, 2026) | ~1.9 million |\n| X Premium/Premium+ paid subscribers (March 31, 2026) | ~4.4 million |\n\n---\n\n### 2. Constructed Range of Implied Per-Grok-User Revenue (FY2025)\n\nBecause the S-1 does not disaggregate Grok-specific revenue, we construct a range using two boundary assumptions:\n\n**Upper Bound \u2014 Full AI Segment Attribution to Grok Users:**\n$$\\frac{\\$3{,}201\\text{M}}{117\\text{M Grok MAUs}} = \\$27.36 \\text{ per Grok MAU per year}$$\nThis assumes *all* AI segment revenue (advertising + subscriptions + data licensing + API) is attributable to the 117M Grok users \u2014 a clear overstatement, since $1,844M in advertising revenue is predominantly X-platform advertising served to the broader 550M MAU base.\n\n**Lower Bound \u2014 Proportional MAU Allocation:**\n$$\\frac{\\$3{,}201\\text{M}}{550\\text{M total MAUs}} = \\$5.82 \\text{ per MAU per year}$$\nThis assumes Grok users generate the same per-capita revenue as non-Grok X users \u2014 a likely understatement, since Grok users are presumably more engaged and include paying subscribers.\n\n**Intermediate Reference \u2014 AI Solutions & Infrastructure Only:**\n$$\\frac{\\$1{,}357\\text{M}}{117\\text{M Grok MAUs}} = \\$11.60 \\text{ per Grok MAU per year}$$\nThis isolates the revenue line most directly tied to Grok (subscriptions, data licensing, API), but still includes X Premium subscriptions and data licensing unrelated to Grok.\n\n**Summary Range: $5.82 \u2013 $27.36 per Grok MAU per year**, with the most analytically relevant midpoint likely near **$11.60** (AI Solutions & Infrastructure / Grok MAUs).\n\n---\n\n### 3. Comparison to Standalone AI Subscription Businesses\n\n| Company | Revenue | User Base | Implied Revenue per User |\n|---|---|---|---|\n| **OpenAI (ChatGPT)** | ~$12\u201313B annualized (mid-2025) | ~900M WAUs (Feb 2026) | **$13.33 \u2013 $14.44 per WAU/year** |\n| **OpenAI (subscriber-only)** | ~$12\u201313B | ~50M paid subscribers (Feb 2026) | **$240 \u2013 $260 per subscriber/year** |\n| **OpenAI (estimated blended ARPU)** | \u2014 | \u2014 | **~$285/year (~$24/month)** |\n| **Anthropic (Claude)** | ~$3B annualized (mid-2025) | ~18.9M users | **~$158.73 per user/year** |\n| **Grok (S-1 implied range)** | $3,201M (AI segment) | 117M Grok MAUs | **$5.82 \u2013 $27.36 per MAU/year** |\n| **Grok (AI Solutions only)** | $1,357M | 117M Grok MAUs | **$11.60 per MAU/year** |\n\n**Key Observations:**\n\n- **On a per-MAU/WAU basis**, Grok's implied revenue density ($5.82\u2013$27.36, midpoint ~$11.60) is **broadly comparable to or somewhat below** OpenAI's per-WAU revenue of ~$13.33\u2013$14.44. However, this comparison is distorted because Grok's figure includes X-platform advertising revenue that is not Grok-specific, while OpenAI's per-WAU figure includes enterprise/API revenue that is not consumer-subscription-specific.\n\n- **On a per-paid-subscriber basis**, the gap is stark. OpenAI's implied subscriber ARPU of ~$240\u2013$285/year reflects a mature subscription conversion model (50M paying subscribers from 900M WAUs = ~5.6% conversion rate). Grok has only **1.9M standalone paid subscribers** from 117M Grok MAUs \u2014 a **~1.6% conversion rate** \u2014 suggesting significantly lower monetization density at the subscriber level.\n\n- **Grok's embedded social-platform distribution** (550M X MAUs) provides a massive top-of-funnel advantage, but the low paid conversion rate (1.6% vs. OpenAI's ~5.6%) suggests that Grok's monetization of its user base is at an earlier stage of maturity.\n\n---\n\n### 4. The Critical Disclosure Gap\n\n**The S-1 does not separately disclose Grok standalone subscription revenue.** Specifically:\n\n1. **Bundled revenue reporting:** Grok and X subscription revenues are combined into a single line item within \"AI Solutions & Infrastructure\" ($1,357M for FY2025). The filing only discloses year-over-year *changes* (e.g., \"X and Grok subscription revenue increased by $365 million\" in FY2025), not absolute levels.\n\n2. **No sub-component breakdown:** The $1,357M \"AI Solutions & Infrastructure\" figure bundles subscriptions (both X Premium and Grok), data licensing ($88M increase in FY2025), and API access \u2014 without disclosing the absolute dollar amount of any individual component.\n\n3. **Subscriber counts without revenue mapping:** While the filing discloses 1.9M Grok paid subscribers and 4.4M X Premium subscribers separately, it does not map revenue to these subscriber pools, making it impossible to calculate a precise Grok-only ARPU.\n\n**This disclosure gap prevents a precise comparison** because we cannot isolate what portion of the $3,201M AI segment revenue (or even the $1,357M AI Solutions & Infrastructure revenue) is directly generated by Grok's 117M MAUs or its 1.9M paid subscribers. Without Grok-specific revenue, any per-user revenue figure is an allocation assumption, not a disclosed fact.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Filing (May 20, 2026)\"\n    },\n    {\n      \"url\": \"https://www.digitalinformationworld.com/2026/02/openai-reports-900m-weekly-chatgpt.html\",\n      \"name\": \"OpenAI Reports 900M Weekly ChatGPT Users, 50M Subscribers (February 2026)\"\n    },\n    {\n      \"url\": \"https://www.shopifreaks.com/openai-doubles-revenue-to-12b-surpasses-700m-weekly-chatgpt-users\",\n      \"name\": \"OpenAI Doubles Revenue to $12B, Surpasses 700M Weekly ChatGPT Users (August 2025)\"\n    },\n    {\n      \"url\": \"https://www.robertodiasduarte.com.br/en/openai-preve-220-milhoes-de-assinantes-do-chatgpt-ate-2030\",\n      \"name\": \"OpenAI ARPU Analysis (~$285/year per subscriber)\"\n    },\n    {\n      \"url\": \"https://www.cep-dc.org/anthropic-statistics\",\n      \"name\": \"Anthropic Statistics \u2014 Claude Users and Revenue (2025)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 19133,
+        "completion_tokens": 2044,
+        "cached_tokens": 14080,
+        "cost_usd": 0.0506725
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 127877,
+    "total_completion_tokens": 7924,
+    "total_cached_tokens": 91904,
+    "total_cost_usd": 0.2840525,
+    "total_steps": 12
+  }
+}

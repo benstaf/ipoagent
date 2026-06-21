@@ -1,0 +1,633 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "b0778cca-3546-4b52-94bf-4a50370d2b8a",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "qwen3.7-max",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-09T21:31:39.388708+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-09T21:31:39.388708+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nUsing disclosed customer-type and contract descriptions, assess which segment appears most exposed to customer or contract concentration risk. Identify what quantitative concentration disclosure is and is not provided and explain the resulting analytical limitations.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-09T21:31:39.388708+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "The user is asking me to analyze the SpaceX S-1 filing (filed May 20, 2026) to assess customer and contract concentration risk by segment. I need to:\n\n1. Parse the SpaceX S-1 filing\n2. Look for customer-type and contract descriptions by segment\n3. Identify quantitative concentration disclosures (what is and isn't provided)\n4. Explain analytical limitations\n\nLet me start by parsing the filing.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_88f0d7e4af084515b18ea07e",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_88f0d7e4af084515b18ea07e",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3507,
+        "completion_tokens": 184,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0066075000000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-09T21:33:24.943306+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me retrieve information about customer concentration, contract descriptions, and segment information from the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_421ce543277c496aacfb349d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What customer concentration disclosures are provided in {{spacex_s1}}? Include any percentages of revenue from major customers, government customers, or single customers."
+          }
+        },
+        {
+          "tool_call_id": "call_31a1d64eec1943c68dd87d0c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the business segments described in {{spacex_s1}} and what customer types does each segment serve?"
+          }
+        },
+        {
+          "tool_call_id": "call_89b408dc58554b93a531e83e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What contract types and contract descriptions are disclosed for each segment in {{spacex_s1}}? Include fixed-price, cost-plus, time-and-materials, or other contract structures."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_421ce543277c496aacfb349d",
+            "content": "Based on the provided text, the customer concentration disclosures are as follows:\n\n*   **Significant Customer (Customer A):** \n    *   **2025:** 20.9% of consolidated revenue\n    *   **2024:** 24.2% of consolidated revenue\n    *   **2023:** 25.2% of consolidated revenue\n    *   *Note:* Revenue from Customer A relates to all three of the company's operating segments.\n*   **U.S. Government Customers:** In 2025, approximately **one-fifth (20%)** of the company's total revenue was attributable to agencies within the U.S. federal government.\n*   **Other Customers:** **No other customers** represented more than 10% of consolidated revenue during the years ended December 31, 2025, 2024, and 2023."
+          },
+          {
+            "source_call_id": "call_31a1d64eec1943c68dd87d0c",
+            "content": "Based on the provided text, the company operates **three reportable business segments**. Here is the breakdown of each segment and the specific customer types they serve:\n\n### 1. Space Segment\n*   **Overview:** Designs, manufactures, and launches reusable rockets (including Falcon 9, Falcon Heavy, Starship, and Dragon spacecraft) to provide reliable and affordable access to space at an unprecedented scale. \n*   **Customer Types Served:**\n    *   **Commercial Customers:** Businesses and organizations that require payload deployment to various trajectories (LEO, MEO, GEO, lunar, interplanetary) and the International Space Station.\n    *   **Government Customers / Agencies:** Governmental space programs that require launch services, spacecraft development, and mission services.\n\n### 2. Connectivity Segment\n*   **Overview:** Operates a worldwide high-speed, low-latency broadband and mobile network powered by thousands of Starlink satellites in Low-Earth Orbit. It also includes Starshield, a secure, dedicated satellite network.\n*   **Customer Types Served:**\n    *   **Consumers (Personal):** Individual subscribers using Residential and Roam plans for broadband internet, as well as satellite-to-mobile texting and over-the-top voice services.\n    *   **Enterprise / Business Customers:** Businesses and managed entities in domains such as aviation, maritime, land mobility, and fixed sites. They utilize Local Priority and Global Priority plans, with contracts based on subscriptions, data consumption, or capacity.\n    *   **Government Customers:** Public sector entities requiring resilient connectivity for public services, disaster response, humanitarian efforts, and national security (via the Starshield network).\n\n### 3. AI Segment\n*   **Overview:** Operates a highly vertically integrated AI platform spanning a frontier Large Language Model (Grok), AI solutions, the \"X\" platform (a real-time information, entertainment, and free speech platform), and AI computational infrastructure.\n*   **Customer Types Served:**\n    *   **Consumers:** Users of the X platform and consumer-facing AI applications.\n    *   **Enterprise / Business Customers:** Organizations utilizing tailored AI workflows, coding/knowledge models, Grok Business, Grok Enterprise, and the Grok API.\n    *   **Government Customers:** Public sector and government entities utilizing specialized, secure products like \"xAI Gov.\"\n    *   **Third-Party Customers:** External entities that utilize the company's AI computational infrastructure and hosting capacity."
+          },
+          {
+            "source_call_id": "call_89b408dc58554b93a531e83e",
+            "content": "Based on the provided text, the Company discloses specific contract types and descriptions for its **Space** and **Connectivity** segments. \n\n*Note regarding contract structures: The text explicitly details **fixed-price**, **variable/usage-based**, and **subscription** contract structures. It **does not** disclose any \"cost-plus\" or \"time-and-materials\" contracts. (The text frequently mentions the \"cost-to-cost input method,\" but this is an accounting mechanism for recognizing revenue over time on fixed-price development contracts, not a cost-plus contract type).*\n\nHere is the breakdown of contract types and descriptions by segment:\n\n### 1. Space Segment\n*   **Launch Services**\n    *   **Contract Type:** Fixed-price contracts (ranging from 1 to 5 years). For U.S. government agencies, these are specifically **firm fixed-price contracts with milestone-based payments**.\n    *   **Description:** Contracts for the deployment of spacecraft and other payloads to their intended orbits for commercial and government customers (utilizing Falcon 9 and Falcon Heavy). Revenue is recognized at a \"point in time\" upon launch/deployment due to the interchangeability of flight hardware and minimal unique engineering costs.\n*   **Launch and Development**\n    *   **Contract Type:** Fixed-price contracts (ranging from 1 to 14 years).\n    *   **Description:** Contracts for the development of spacecraft and the provision of launch and mission services for government agency space programs (utilizing Falcon 9, Falcon Heavy, Starship, and Dragon). Revenue is recognized \"over time\" using the cost-to-cost input method because the work creates an asset with no alternative use and the Company has an enforceable right to payment.\n*   **U.S. Government Contracting Terms (General)**\n    *   **Contract Type:** Firm fixed-price, incrementally funded, and potentially undefinitized contract actions.\n    *   **Description:** Subject to FAR and DFARS regulations. Contracts may be incrementally funded based on Congressional appropriations and can be unilaterally definitized, modified, or terminated for convenience by the government.\n\n### 2. Connectivity Segment (Starlink & Starshield)\n*   **Consumer Broadband Services**\n    *   **Contract Type:** Fixed-price services (recurring monthly subscriptions) and variable-priced services (based on actual data consumption). Generally structured as month-to-month contracts.\n    *   **Description:** Includes multiple performance obligations (broadband service and the Starlink Kit). Revenue is recognized over time as the customer consumes the benefits.\n*   **Starlink Mobile Services**\n    *   **Contract Type:** Fixed fee or per-mobile user fee-based amount. Multi-year contractual obligations (ranging from 1 to 5 years), though generally terminable at any time.\n    *   **Description:** Partnerships with Mobile Network Operators (MNOs) to provide satellite-to-mobile connectivity (SMS, OTT voice, and future broadband/IoT). Treated as a single performance obligation recognized over time.\n*   **Enterprise Solutions**\n    *   **Contract Type:** A combination of subscriptions, data consumption, capacity pricing, or a percentage-of-completion basis.\n    *   **Description:** High-speed, low-latency internet services tailored to enterprise needs across industries like aviation, maritime, retail, and agriculture.\n*   **Starshield (Government & National Security)**\n    *   **Contract Type:** Fixed-price contracts (multi-year in nature).\n    *   **Description:** Contracts related to the development of a secure satellite network designed specifically for government and national security applications. Revenue is recognized over time using the cost-to-cost input method.\n*   **Starlink Kits (Hardware)**\n    *   **Contract Type:** One-time upfront sale.\n    *   **Description:** Sale of the user terminal/hardware. Revenue is recognized at a \"point in time\" upon delivery or installation.\n\n### 3. AI Segment\n*   **Contract Type & Description:** The provided text **does not disclose** customer-facing revenue contract types or descriptions for the AI segment. The text only references the AI segment in the context of internal capital expenditures, future allocations of Space segment launch capacity, and non-cancelable contractual commitments for third-party cloud capacity and AI infrastructure investments."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3717,
+        "completion_tokens": 192,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0072125
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-09T21:35:09.472596+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Good, I have substantial information. Let me now retrieve more specific details about:\n1. Revenue breakdown by segment\n2. Any additional concentration risk disclosures\n3. Accounts receivable concentration\n4. Backlog concentration",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_de6282cdd144426f8b3de513",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the revenue breakdown by segment in {{spacex_s1}} for 2025, 2024, and 2023? Include Space, Connectivity, and AI segment revenues."
+          }
+        },
+        {
+          "tool_call_id": "call_7071f2184a9c4de7a4f37be3",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What backlog or contracted obligations disclosures are provided by segment in {{spacex_s1}}? Include any customer concentration in backlog."
+          }
+        },
+        {
+          "tool_call_id": "call_05d53d0b343449e2aee1bc13",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What accounts receivable concentration or trade receivables disclosures are provided in {{spacex_s1}}? Include any single customer receivable concentrations."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_de6282cdd144426f8b3de513",
+            "content": "Based on the provided financial tables, here is the revenue breakdown by segment (Space, Connectivity, and AI) for the fiscal years 2025, 2024, and 2023 (all figures in millions):\n\n**2025**\n* **Space:** $4,086 million\n* **Connectivity:** $11,387 million\n* **AI:** $3,201 million\n* **Total Revenues:** $18,674 million\n\n**2024**\n* **Space:** $3,796 million\n* **Connectivity:** $7,599 million\n* **AI:** $2,620 million\n* **Total Revenues:** $14,015 million\n\n**2023**\n* **Space:** $3,557 million\n* **Connectivity:** $3,869 million\n* **AI:** $2,961 million\n* **Total Revenues:** $10,387 million"
+          },
+          {
+            "source_call_id": "call_7071f2184a9c4de7a4f37be3",
+            "content": "Based on the provided text, the company does not provide a strict numerical breakdown of its backlog or contracted obligations *by segment*. Instead, it provides consolidated totals and qualitatively links these obligations to specific segments. Furthermore, the text **does not disclose customer concentration specifically within the backlog**, though it does provide customer concentration for consolidated revenue. \n\nHere is the detailed breakdown of what is disclosed:\n\n### 1. Backlog Disclosures & Segment Alignment\n*   **Total Backlog:** Backlog totaled **$28,377 million** as of December 31, 2025 (of which $12,116 million was recognized as deferred revenue) and **$27,621 million** as of March 31, 2026 (of which $13,236 million was deferred revenue).\n*   **Segment Alignment:** While a numerical split is not provided, the text notes that deferred revenue (a primary component of backlog) relates primarily to **Space** agreements and **Connectivity** enterprise and government contracts. Additionally, mobile connectivity agreements (Connectivity) and Starshield contracts are noted as multi-year contractual obligations.\n*   **Recognition Timeline:** \n    *   *As of Dec 31, 2025:* ~32% expected within one year, ~53% in 2027 and 2028, and 15% thereafter.\n    *   *As of Mar 31, 2026:* ~36% expected within one year, ~46% between one and three years, and 18% thereafter.\n\n### 2. Contracted Obligations & Segment Alignment\n*   **Non-Cancelable Contractual Commitments:** The company has **$25,451 million** in unconditional, non-cancelable obligations.\n*   **Segment Alignment:** These commitments are explicitly tied to the **AI segment**, as they primarily relate to investments in AI infrastructure, third-party cloud capacity arrangements, and the Spectrum Transaction.\n*   **Maturity Schedule:** $2,720M (2026), $21,476M (2027), $1,250M (2028), $4M (2029), and $1M (2030).\n*   **Other Obligations:** The company also holds outstanding letters of credit ($348 million at Dec 2025; $517 million at Mar 2026) and surety bonds ($51 million at Dec 2025; $447 million at Mar 2026) related to customer contracts, insurance, and facility leases.\n\n### 3. Customer Concentration in Backlog\n*   **Backlog Concentration:** The provided text **does not disclose** any customer concentration metrics specifically for the *backlog*. \n*   **Revenue Concentration (Context):** The text only provides concentration data for *consolidated revenue*. It notes that **Customer A** accounted for **20.9%** (2025), **24.2%** (2024), and **25.2%** (2023) of consolidated revenue, and explicitly states that revenue from this customer **\"relates to all three segments.\"** No other customer represented more than 10% of consolidated revenue during those years."
+          },
+          {
+            "source_call_id": "call_05d53d0b343449e2aee1bc13",
+            "content": "Based on the provided text chunks, **there are no disclosures regarding accounts receivable concentration or single customer receivable concentrations.** \n\nWhile the text does provide concentration data for a major customer, it is strictly limited to **revenue concentration**, not accounts receivable. \n\nHere is a breakdown of what is and isn't provided regarding receivables and customer concentrations in the text:\n\n### 1. Customer Concentration (Revenue Only)\nThe text discloses that **Customer A** accounted for a significant portion of consolidated *revenue* across all three segments:\n* **2025:** 20.9%\n* **2024:** 24.2%\n* **2023:** 25.2%\n* *Note:* The text explicitly states, \"No other customers represented more than 10% of consolidated revenue,\" but it **does not** state whether Customer A (or any other customer) accounted for more than 10% of the *accounts receivable balance* at the end of the reporting periods.\n\n### 2. Trade Receivables / Accounts Receivable Disclosures Provided\nAlthough concentration data is missing, the text provides several other disclosures related to trade receivables:\n* **Allowance for Credit Losses (Balance Sheet):** \n  * Accounts receivable are presented net of an allowance for credit losses of **$47 million** and **$39 million** at March 31, 2026, and December 31, 2025, respectively.\n  * Another balance sheet excerpt notes allowances of **$39 million** and **$119 million** at December 31, 2025, and December 31, 2024, respectively.\n* **Accounting Policies:** \n  * The Company extends credit in the normal course of business and performs case-by-case credit evaluations.\n  * The Company generally **does not obtain collateral** or other security to secure accounts receivable.\n  * Billed receivables are recorded at carrying amount, net of the allowance, and do not bear interest. Unbilled receivables consist principally of revenue recognized on contracts not yet contractually billable.\n  * The allowance for credit losses is based on factors such as invoice age, expected ability to pay, collection history, customer-specific info, and current economic conditions.\n* **Cash Flow Impacts:** Changes in accounts receivable are listed in the operating activities sections of the cash flow statements (e.g., a $(543)$ million change in 2025, $(347)$ million in 2024, and $345$ million in 2023).\n* **Recent Accounting Pronouncements:** The text discusses the evaluation/adoption of **ASU 2025-05** *(Financial Instruments\u2014Credit Losses: Measurement of Credit Losses for Accounts Receivable and Contract Assets)*, noting that the Company did not elect the practical expedient to assume balance sheet conditions remain unchanged over the life of the asset."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5524,
+        "completion_tokens": 227,
+        "cached_tokens": 3200,
+        "cost_usd": 0.01208
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-09T21:37:24.154996+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Let me get more details about the U.S. government concentration, Starshield, and any additional segment-level customer information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_96ea5e729f414b93aaa91df2",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the U.S. government revenue concentration and government contract risk disclosure in {{spacex_s1}}? Include any discussion of NASA, DoD, or other specific government agencies."
+          }
+        },
+        {
+          "tool_call_id": "call_8f03173db00f4b2f8a44e845",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Starshield revenue or contract disclosure in {{spacex_s1}}? How significant is Starshield to the Connectivity segment?"
+          }
+        },
+        {
+          "tool_call_id": "call_5fcbf93f45bc40d7a0821dcd",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What risk factors related to customer concentration, government contracts, or dependency on specific customers are disclosed in {{spacex_s1}}?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_96ea5e729f414b93aaa91df2",
+            "content": "Based on the provided excerpts, here is a detailed breakdown of the company's U.S. government revenue concentration, government contract risk disclosures, and specific discussions regarding key government agencies.\n\n### 1. U.S. Government Revenue Concentration\n*   **Revenue Share:** In 2025, approximately **one-fifth (20%)** of the company's total revenue was attributable to agencies within the U.S. federal government.\n*   **Primary Agency Customers:** The company derives significant direct revenue primarily from **NASA**, the **Department of War** *(the text's designated term for the defense department)*, the **General Services Administration (GSA)**, the **National Reconnaissance Office (NRO)**, and certain **Intelligence Community** agencies.\n*   **Market Dominance in Government Launches:** The company serves as the primary launch provider for the U.S. government. In 2025, it successfully executed **11 of 12 National Security Space Launch (NSSL)** medium and heavy-lift missions, as well as **all five U.S. crew and cargo missions** to the International Space Station (ISS) for NASA.\n*   **Segment Impact:** Government contracts are a major driver of the \"Space\" segment, specifically within \"Launch & Development\" revenue, which saw significant year-over-year increases driven by extended NASA and Department of War contracts. \n\n### 2. Government Contract Risk Disclosures\nThe company outlines extensive risks associated with its reliance on U.S. government contracts, categorized into several key areas:\n\n*   **Strategic Prioritization & Litigation Risk:** To achieve its \"orbital compute goals,\" the company explicitly states it may **prioritize its own launch payloads over U.S. government or third-party payloads**. This internal prioritization could limit Space segment revenue growth, strain relationships with regulators, and invite litigation from bumped customers or competitors.\n*   **Regulatory & Compliance Burdens:** Contracts are governed by stringent rules, including the Federal Acquisition Regulation (FAR) and Defense Federal Acquisition Regulation Supplement (DFARS). Noncompliance with cost accounting, cybersecurity, or ethics rules can result in civil/criminal penalties, debarment, or contract termination.\n*   **Budgetary & Political Vulnerabilities:** Revenue is highly susceptible to Congressional appropriations, incremental funding delays, government shutdowns, and \"continuing resolutions.\" Furthermore, political polarization and shifts in presidential or congressional control can abruptly alter defense/space policies and spending priorities.\n*   **Unilateral Government Rights & Contract Terms:** The government can unilaterally terminate contracts for convenience, reduce scope, or delay programs. Additionally, the company faces risks from \"undefinitized\" contracts, where the government can unilaterally impose final terms and pricing that may be less favorable than negotiated.\n*   **Fixed-Price Contract Risks:** Space segment revenue is primarily derived from fixed-price contracts. The company must absorb any cost overruns, even those caused by factors outside its control or unforeseen technological difficulties during the competitive bidding phase.\n*   **Security Clearances & FOCI:** The company must maintain rigorous facility and personnel security clearances. Delays or failures in obtaining these can result in lost bids or terminated contracts. \n*   **Geopolitical & Reputational Risks:** Close alignment with the U.S. military and defense agencies creates a perception that could alienate foreign consumers and governments, trigger sanctions-related hesitancy, and make the company's facilities targets for foreign adversaries and non-state actors.\n\n### 3. Discussion of Specific Government Agencies\nThe text highlights several specific agencies and programs that are critical to the company's operations and revenue:\n\n*   **NASA (National Aeronautics and Space Administration):** \n    *   NASA is a primary driver of the company's \"Launch and Development\" revenue and Space Segment Adjusted EBITDA. \n    *   The company holds an extended contract for **Cargo Resupply Services (CRS)** to the ISS.\n    *   The company maintains a monopoly-like status on NASA ISS logistics, having launched *all five* U.S. crew and cargo missions to the station in 2025.\n*   **The Department of War** *(Note: The provided text uses \"Department of War\" in place of the Department of Defense/DoD)*:\n    *   Cited as a primary source of direct contracts and a key contributor to recent revenue increases.\n    *   The company is required to maintain strict **Foreign Ownership, Control, and Influence (FOCI)** mitigation measures directly with the Department of War to retain its facility security clearances under the National Industrial Security Program Operating Manual.\n*   **National Reconnaissance Office (NRO) & Intelligence Community:** \n    *   Explicitly listed alongside NASA and the Department of War as core government customers utilizing the company's launch, spacecraft development, and satellite deployment services.\n*   **National Security Space Launch (NSSL) Program:**\n    *   While a program rather than a single agency, the NSSL is highlighted as a critical government revenue stream. The company's execution of 11 out of 12 NSSL medium and heavy-lift missions in 2025 underscores its entrenched position in U.S. national security space infrastructure.\n*   **General Services Administration (GSA):**\n    *   Identified as one of the primary federal agencies with which the company holds direct contracts, likely facilitating broader government procurement of the company's AI, connectivity, and infrastructure services."
+          },
+          {
+            "source_call_id": "call_8f03173db00f4b2f8a44e845",
+            "content": "Based on the provided text, here is the disclosure regarding Starshield contracts and its significance to the Connectivity segment:\n\n**Contract Profile and Revenue Recognition**\n* **Nature of Contracts:** Starshield is a secure, dedicated satellite network designed specifically for U.S. Government customers and national security applications. Contracts are generally long-term, multi-year, and fixed-price.\n* **Revenue Recognition:** Because of the long-term nature of the development and provision of this network, revenue is recognized **over time** using the **cost-to-cost input method**. Revenue is recorded based on costs incurred to date (such as materials and labor hours) relative to the total estimated cost at completion.\n* **Management Judgment:** These contracts are highly complex and require significant management judgment to estimate total costs, including assumptions about labor hours, shared satellite production costs, material costs, and expected technological changes to the satellites. \n* **Deferred Revenue:** Cash payments received in advance of performance for these government contracts contribute to the company's deferred revenue balance (which was $12.1 billion as of December 31, 2025).\n\n**Financial Significance to the Connectivity Segment**\n* **No Standalone Revenue Breakout:** The text does not disclose a specific dollar amount or percentage of Connectivity segment revenue attributed exclusively to Starshield. It is aggregated within broader \"government revenue\" and \"Enterprise & Government\" line items.\n* **Recent Revenue Headwinds:** While the Connectivity segment has seen massive overall growth, Starshield's immediate financial impact recently experienced a drag. The MD&A notes that for the three months ended March 31, 2026, growth in enterprise and government revenue was primarily driven by aviation, maritime, and mobility, but was **partially offset by a decrease in the government business** (which encompasses Starshield).\n* **Overall Segment Context:** Government customers (including Starshield) are cited as one of the primary expected drivers of future Connectivity segment growth. However, the segment is currently heavily dominated by the consumer market, with consumer subscribers representing over 60% of Connectivity segment revenue in 2025."
+          },
+          {
+            "source_call_id": "call_5fcbf93f45bc40d7a0821dcd",
+            "content": "Based on the provided text, the company discloses extensive risk factors related to its heavy reliance on U.S. government contracts, customer concentration, and the geopolitical repercussions of its defense ties. These risks can be categorized as follows:\n\n### 1. Customer Concentration & Dependency on Specific Customers\n*   **High Revenue Concentration in the U.S. Government:** In 2025, approximately one-fifth (20%) of the company's total revenue was derived from U.S. federal government agencies, creating a significant dependency on a single customer base.\n*   **Limited AI Customer Base:** The company notes that it has a \"limited number of customers for our AI products when compared to certain of our competitors,\" making the AI segment highly vulnerable to the loss of specific customers or aggressive competitive poaching.\n*   **Vulnerability to Political and Budgetary Shifts:** Because of this dependency, the company's financial health is tightly coupled to the highly polarized U.S. political environment. Shifts in the presidency or Congress can drastically alter government spending priorities, regulatory postures, and the allocation of contracts.\n*   **Relationship Dependency:** The failure to establish and maintain crucial relationships with U.S. government agencies could materially impair the company's ability to retain existing business or win new contracts.\n\n### 2. Geopolitical & Reputational Risks of U.S. Defense Ties\n*   **Customer Alienation:** The company's significant business relationships with U.S. defense and government agencies may cause it to be perceived as closely aligned with the U.S. military. This perception could discourage foreign governments, enterprises, and consumers from purchasing its products, adversely affecting both international and domestic sales.\n*   **Targeting by Adversaries:** Due to its alignment with U.S. defense interests, the company and its facilities face the risk of being targeted by foreign adversaries and non-state actors.\n*   **Fears of Service Suspension:** Foreign or commercial customers may be reluctant to rely on the company's satellite connectivity or defense-related services if they fear the U.S. government could restrict or suspend those services based on geopolitical conflicts, sanctions, or policy determinations.\n\n### 3. Operational & Financial Risks of Government Contracts\n*   **Unilateral Government Rights:** The U.S. government holds the right to unilaterally terminate contracts for convenience without advance notice, reduce contract scope/value, declare the company ineligible for new awards, and unilaterally \"definitize\" contracts (imposing less favorable pricing or burdensome terms).\n*   **Fixed-Price Contract Vulnerabilities:** The Space segment relies primarily on fixed-price contracts. The company must absorb any cost overruns caused by inflation, supply chain disruptions, or technical challenges, which can eliminate profit margins, result in losses, and strain cash flows.\n*   **Funding Uncertainties & Delays:** Government contracts are subject to annual Congressional appropriations, meaning long-term programs are only incrementally funded. The company is highly exposed to U.S. budget deficits, national debt issues, government shutdowns, and \"continuing resolutions.\"\n*   **Competitive Bidding Risks:** Bidding on government contracts requires massive upfront investments of time and capital with no guarantee of winning. It also carries the risk of competitor bid protests, which can delay performance, force resubmissions, or result in contract termination.\n*   **Internal Prioritization Conflicts:** To achieve its \"orbital compute goals,\" the company may prioritize its own launch payloads over U.S. government or third-party payloads. This could limit Space segment revenue growth, strain regulatory relationships, and invite litigation from customers or competitors.\n\n### 4. Regulatory, Compliance, & Security Risks\n*   **Rigorous Audits and Investigations:** As a prime contractor subject to the Federal Acquisition Regulation (FAR) and Defense Federal Acquisition Regulation Supplement (DFARS), the company faces strict audits regarding cost allowability and compliance. Adverse findings can lead to financial penalties, repayments, or debarment from future contracts.\n*   **Security Clearance Bottlenecks:** Many contracts require facility and personnel security clearances. The lengthy, uncertain clearance process can cause delays, and an inability to hire or retain cleared employees could result in the loss or termination of classified programs.\n*   **Strict Export and Sanctions Laws:** The company must navigate complex economic sanctions, trade embargoes, and export controls. Noncompliance could result in severe civil or criminal penalties and debarment from government contracting.\n*   **Cybersecurity Mandates:** As a government contractor, the company must comply with stringent cybersecurity frameworks, such as the Department of Defense's Cybersecurity Maturity Model Certification (CMMC), to remain eligible for contract awards."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7376,
+        "completion_tokens": 199,
+        "cached_tokens": 3200,
+        "cost_usd": 0.01643
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-09T21:39:12.119028+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me get more specific information about the Space segment's customer concentration and the AI segment's customer base.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e4829faf1dbe44c9bbfb50f0",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Space segment revenue breakdown between commercial and government customers in {{spacex_s1}}? Include launch services vs launch and development revenue."
+          }
+        },
+        {
+          "tool_call_id": "call_b53e092cae5546f28d69511b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the AI segment customer base description in {{spacex_s1}}? Include any discussion of X platform users, Grok subscribers, enterprise AI customers, and computational infrastructure customers."
+          }
+        },
+        {
+          "tool_call_id": "call_719ac81996214b2598c25428",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is Customer A in {{spacex_s1}}? Is Customer A identified as a specific government agency or commercial entity? What segments does Customer A relate to?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e4829faf1dbe44c9bbfb50f0",
+            "content": "Based on the provided text, a direct numerical revenue breakdown specifically split between **commercial** and **government** customers is **not explicitly disclosed**. \n\nHowever, the text explains how the company's two Space revenue categories map to these customer bases, and provides a detailed financial breakdown of **Launch Services** versus **Launch & Development**.\n\n### 1. Customer Alignment by Revenue Category\n*   **Launch Services:** Revenue is generated from **both commercial and government customers** for the deployment of payloads to their intended orbits using Falcon 9 and Falcon Heavy.\n*   **Launch and Development:** Revenue is generated primarily from **government agency space programs** for the development of spacecraft and provision of launch/mission services utilizing Falcon 9, Falcon Heavy, Starship, and Dragon. \n*   *Future Expectation:* The company expects \"Launch and Development\" to represent a larger portion of total Space revenue over time as it continues to serve long-term contracts for its government customers.\n\n### 2. Launch Services vs. Launch & Development Revenue Breakdown\nThe following is the revenue breakdown (in millions) and percentage mix for the Space segment:\n\n**Three Months Ended March 31,**\n| Category | 2026 Revenue | 2026 Mix | 2025 Revenue | 2025 Mix |\n| :--- | :--- | :--- | :--- | :--- |\n| **Launch Services** | $330 | 53.3% | $566 | 65.4% |\n| **Launch & Development** | $289 | 46.7% | $299 | 34.6% |\n| **Total Space** | **$619** | **100.0%** | **$865** | **100.0%** |\n\n**Years Ended December 31,**\n| Category | 2025 Revenue | 2025 Mix | 2024 Revenue | 2024 Mix | 2023 Revenue | 2023 Mix |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n| **Launch Services** | $2,576 | 63.0% | $2,584 | 68.2% | $1,964 | 55.2% |\n| **Launch & Development** | $1,510 | 37.0% | $1,212 | 31.8% | $1,593 | 44.8% |\n| **Total Space** | **$4,086** | **100.0%** | **$3,796** | **100.0%** | **$3,557** | **100.0%** |\n\n### 3. Capacity Allocation & Growth Expectations (AI & Internal Focus)\nThe MD&A notes that external Space segment revenue growth is expected to be **lower than total company revenue growth**. This is due to the company's internal capacity allocation strategy:\n*   **Internal Absorption:** The company allocates a significant amount of its launch capacity internally to its **Connectivity segment** (Starlink satellites) and expects to allocate a significant amount to its **AI segment** in the future. \n*   **Revenue Recognition:** Because internal launches are capitalized as property, plant, and equipment (and depreciated over time), the Space segment's top-line revenue *only* reflects external customer launches and customer activities. Therefore, period-to-period Space revenue will fluctuate based on the mix of external customer payloads versus internal satellite deployments."
+          },
+          {
+            "source_call_id": "call_b53e092cae5546f28d69511b",
+            "content": "Based on the provided S-1 Preamble text, the AI segment\u2019s customer base is highly diversified and spans the entire AI value chain. It ranges from a massive global consumer audience on the X and Grok platforms to enterprise and government entities utilizing tailored AI solutions, as well as third-party organizations leveraging the company's gigawatt-scale compute infrastructure. \n\nHere is the detailed breakdown of the AI segment's customer base:\n\n### 1. X Platform Users and Consumer Subscribers\nThe foundation of the AI segment's consumer ecosystem lies in the integrated X and Grok platforms, which serve as a massive funnel for user engagement, data generation, and paid subscriptions:\n*   **Broad User Base (MAUs):** As of March 31, 2026, the integrated platforms had over **1.3 billion supported accounts** active in the trailing twelve months, including approximately **550 million Monthly Active Users (MAUs)**. These users generate approximately 350 million daily posts, providing the real-time data stream that gives Grok its competitive, truth-seeking advantage.\n*   **Grok AI Users:** Out of the total MAUs, approximately **117 million MAUs** actively engaged with Grok\u2019s AI features.\n*   **Paid Subscribers:** The company is actively converting free users into paying customers, reaching approximately **6.3 million active paid subscribers**. This base is split between:\n    *   ~4.4 million X Premium and Premium+ subscribers.\n    *   ~1.9 million Grok subscribers across tiered offerings (SuperGrok, SuperGrok Heavy, SuperGrok Lite, and basic), which unlock advanced reasoning models, multimodal capabilities (like Grok Imagine and Grok Voice), and priority compute.\n*   **Advertising Customers (Enterprises):** While consumers use the platform, **advertisers** are a vital B2B customer base that monetizes this user activity. Enterprises leverage X\u2019s scale and Grok\u2019s AI-driven performance marketing tools to run high-impact, contextually relevant ad campaigns that feel integrated into real-time public conversations.\n\n### 2. Enterprise and Government AI Customers\nThe company is aggressively expanding its B2B and B2G (Business-to-Government) footprint by offering secure, tailored AI deployments and API access to organizations:\n*   **Enterprise Customers:** Businesses are served through products like **Grok Business, Grok Enterprise, and the Grok API**. These offerings provide customized deployments tailored to specific enterprise workflows and strict security needs. They are sold on flexible **license-, consumption-, or outcome-based pricing models**. \n    *   *Use Cases:* Enterprises use these tools for coding, product development, and management. The company is also developing **Macrohard** (an agentic AI platform built with Tesla) designed to fully emulate digital workflows and automate entire business processes. Furthermore, the company is partnering with developer platforms like *Cursor* to create jointly-owned coding and knowledge-work AI models.\n*   **Government Customers:** Leveraging its existing track record and structural advantages as a large government contractor (e.g., via Starshield in the Space/Connectivity segments), the AI segment targets public sector agencies through specialized products like **xAI Gov**. The company views governments as significant future consumers of AI applications for national security and operational efficiency.\n\n### 3. Computational Infrastructure Customers\nBeyond software, models, and applications, the AI segment monetizes its massive physical hardware and power infrastructure:\n*   **Third-Party Compute Customers:** The company has established a dual advantage in cost efficiency and deployment speed by building gigawatt-scale AI training clusters (COLOSSUS and COLOSSUS II). Recognizing that vast, power-efficient computational resources are a critical bottleneck for the broader AI industry, the company **offers its compute infrastructure to third-party customers**. This allows the company to act as a foundational infrastructure provider (competing with or supplementing \"neoclouds\" and hyperscalers) for external organizations requiring massive GPU clusters to train their own models or run complex agentic workloads.\n\n### Summary\nThe AI segment's customer base is uniquely structured around a **\"full-stack\" ecosystem**. It captures **consumers** through the real-time, high-engagement X platform and Grok subscriptions; monetizes **advertisers** seeking AI-optimized audience targeting; empowers **enterprises and governments** with secure, customized API and workflow automation solutions; and supplies **third-party tech/AI organizations** with foundational gigawatt-scale compute infrastructure."
+          },
+          {
+            "source_call_id": "call_719ac81996214b2598c25428",
+            "content": "Based on the provided text, here are the answers to your questions:\n\n**1. Is Customer A identified as a specific government agency or commercial entity?**\n**No.** The text does not identify \"Customer A\" by name or specify whether it is a government agency or a commercial entity. It is used strictly as an anonymous placeholder (which is standard practice in SEC filings and financial disclosures to protect confidential business relationships and comply with non-disclosure agreements). \n\n**2. What segments does Customer A relate to?**\nCustomer A relates to **all three** of the company's business segments. \n* **Evidence from the text:** *\"Revenue from this customer relates to all three segments.\"* \n* **Context:** Based on the broader document provided, these three segments are **Space** (launch services), **Connectivity** (Starlink broadband and mobile), and **AI** (xAI/Grok and compute infrastructure). \n\n*(Note: The text also highlights that Customer A is a highly significant source of revenue, accounting for 25.2% of consolidated revenue in 2023, 24.2% in 2024, and 20.9% in 2025).*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10140,
+        "completion_tokens": 206,
+        "cached_tokens": 6528,
+        "cost_usd": 0.01925
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-09T21:41:03.678999+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now let me get more information about the Connectivity segment's customer breakdown between consumer, enterprise, and government.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_03bd175324db4f129bc93fad",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity segment revenue breakdown between consumer, enterprise, and government customers in {{spacex_s1}}? Include Starlink subscriber counts and any revenue split by customer type."
+          }
+        },
+        {
+          "tool_call_id": "call_ec46511353c4464ab896cb4d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What quantitative concentration or diversification metrics are disclosed for the Connectivity segment's consumer subscriber base in {{spacex_s1}}? Include geographic concentration."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_03bd175324db4f129bc93fad",
+            "content": "Based on the provided financial disclosures and MD&A sections, here is the detailed breakdown of the Connectivity segment's revenue, Starlink subscriber counts, and the specific growth drivers across consumer, enterprise, and government customer types.\n\n### 1. Starlink Subscriber Counts & Constellation (As of March 31, 2026)\n*   **Broadband Subscribers:** Approximately **10.3 million** Starlink Subscribers across 164 countries, territories, and markets.\n*   **Mobile Connectivity:** Approximately **7.4 million** monthly unique devices utilizing satellite-to-mobile texting and over-the-top voice services across ~30 countries.\n*   **Constellation Scale:** Supported by approximately **9,600** broadband and mobile satellites in Low-Earth Orbit (including ~650 \"V1\" Mobile satellites).\n\n---\n\n### 2. Connectivity Revenue Breakdown by Customer Type\n*Note: The \"Enterprise & Government\" category includes revenue from Starlink Mobile service offerings (revenue-sharing arrangements with Mobile Network Operators).*\n\n**Annual Revenue Split (in millions)**\n| Customer Type | 2025 | 2024 | 2023 |\n| :--- | :--- | :--- | :--- |\n| **Consumer** | $7,208 | $4,830 | $2,817 |\n| **Enterprise & Government** | $4,179 | $2,769 | $1,052 |\n| **Total Connectivity** | **$11,387** | **$7,599** | **$3,869** |\n*(Note: In 2025, consumer subscribers represented over 60% of total Connectivity segment revenue).*\n\n**Quarterly Revenue Split (in millions)**\n| Customer Type | Q1 2026 | Q1 2025 |\n| :--- | :--- | :--- |\n| **Consumer** | $2,148 | $1,492 |\n| **Enterprise & Government** | $1,109 | $983 |\n| **Total Connectivity** | **$3,257** | **$2,475** |\n\n---\n\n### 3. Revenue Drivers & Split by Customer Category\n\n#### **Consumer Customers**\n*   **Revenue Model:** Monthly subscription fees (based on geographic market and download speed) plus the one-time sale of Starlink Kits (terminals).\n*   **2025 Performance:** Revenue increased by **$2,377 million**. This was driven by massive **99.9% growth in Starlink Subscribers**, which was partially offset by an **11.2% decline in ARPU** (Average Revenue Per User) due to international expansion and the introduction of lower-priced service plans.\n*   **2024 Performance:** Revenue increased by **$2,013 million** driven by **96.5% subscriber growth**, offset by an **8.1% ARPU decline**.\n*   **Q1 2026 Performance:** Revenue increased by **$656 million** driven by **104.7% subscriber growth**, offset by a steeper **22.9% ARPU decline** tied to ongoing international expansion and lower-priced plans.\n\n#### **Enterprise Customers**\n*   **Revenue Model:** Contracts structured as subscriptions, data consumption, capacity, or percentage-of-completion. Includes aviation, maritime, and Starlink Mobile (partnerships with ~30 Mobile Network Operators covering ~1.9 billion people).\n*   **2025 Performance:** Enterprise connectivity grew by **$1,218 million**, which was heavily bolstered by **$632 million** in growth from the Starlink Mobile connectivity business.\n*   **2024 Performance:** Enterprise connectivity grew by **$466 million**.\n*   **Q1 2026 Performance:** Aviation, maritime, and other enterprise businesses grew by **$209 million**, and mobile connectivity grew by **$85 million**.\n\n#### **Government Customers**\n*   **Revenue Model:** Long-term contracts for **Starshield** (a secure satellite network designed specifically for government and national security applications), as well as Launch & Development work.\n*   **2025 Performance:** Government connectivity grew by **$193 million**.\n*   **2024 Performance:** Government connectivity saw massive growth of **$1,250 million**.\n*   **Q1 2026 Performance:** Government connectivity revenue **decreased by $175 million**, primarily due to the timing of government contracts and work performed."
+          },
+          {
+            "source_call_id": "call_ec46511353c4464ab896cb4d",
+            "content": "Based on the provided MD&A and Preamble text, the company does not disclose specific percentage breakdowns of revenue or subscribers by individual country or region (e.g., it does not state \"X% of subscribers are located in the United States\"). However, it does disclose several **quantitative metrics regarding customer concentration, geographic diversification, and the financial impacts of expanding into international markets**:\n\n### 1. Customer Type Concentration (Consumer vs. Enterprise/Government)\n* **Consumer Revenue Concentration:** In 2025, revenue from consumer subscribers represented **over 60%** of the total Connectivity segment revenue, highlighting a heavy concentration on the consumer base relative to enterprise and government customers.\n\n### 2. Geographic Diversification Metrics (Global Footprint)\nRather than showing concentration in a single region, the text emphasizes massive geographic diversification as of March 31, 2026:\n* **Broadband Diversification:** The consumer subscriber base spans **164 countries, territories, and other markets**, serving approximately **10.3 million Starlink Subscribers** (collectively home to more than 3.3 billion people).\n* **Mobile Diversification:** Satellite-to-mobile services reach approximately **7.4 million monthly unique devices** across approximately **30 countries**, facilitated by partnerships with **more than 30 mobile network operators**. \n\n### 3. Financial Impact of Geographic Diversification (ARPU Dilution)\nThe company explicitly quantifies how geographic diversification (international expansion into markets with lower purchasing power) is diluting its Average Revenue Per User (ARPU) despite massive subscriber growth:\n* **Q1 2026 vs. Q1 2025:** **104.7%** growth in Subscribers was offset by a **22.9% decline** in ARPU, primarily due to international expansion and lower-priced service plans.\n* **FY 2025 vs. FY 2024:** **99.9%** growth in Subscribers was offset by an **11.2% decline** in ARPU due to international expansion.\n* **FY 2024 vs. FY 2023:** **96.5%** growth in Subscribers was offset by an **8.1% decline** in ARPU primarily due to international expansion.\n\n### 4. Foreign Currency & Geographic Risk Exposure\nThe text provides a quantitative stress-test regarding the geographic diversification of its subscriber base and its exposure to non-U.S. currencies:\n* The company notes it operates in \"many countries\" and is generally a \"net receiver of currencies other than the U.S. dollar.\"\n* **FX Sensitivity:** A hypothetical **10% adverse change** in all foreign currency exchange rates applied to monetary assets/liabilities would result in an **\"immaterial gain or loss.\"** This quantitatively demonstrates that the subscriber base is sufficiently globally diversified (or naturally offset) such that no single foreign currency or regional market poses a material concentration risk to the balance sheet.\n\n### Summary Note on \"Geographic Concentration\"\nIf you are looking for a metric stating that a specific country (like the U.S.) accounts for a majority of the consumer subscriber base, **that specific percentage is omitted from this text**. The only U.S.-specific geographic metric mentioned relates to infrastructure and spectrum acquisition (e.g., acquiring **65 MHz of spectrum in the United States** from EchoStar and building the COLOSSUS II facility in Memphis, Tennessee), rather than subscriber concentration. The narrative heavily frames the Connectivity segment's geography in terms of *global diversification* (164 countries) rather than *regional concentration*."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12338,
+        "completion_tokens": 144,
+        "cached_tokens": 9728,
+        "cost_usd": 0.020125
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-09T21:42:45.631717+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also check if there's any information about the AI segment's revenue breakdown by customer type (advertising, subscriptions, enterprise, compute).",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7ecc85f2d7bd46daaa4ef81a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the AI segment revenue breakdown by product or customer type in {{spacex_s1}}? Include advertising revenue, subscription revenue, enterprise API revenue, and compute infrastructure revenue."
+          }
+        },
+        {
+          "tool_call_id": "call_9c6160008f65460a986789b4",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the AI segment adjusted EBITDA and profitability metrics in {{spacex_s1}}? Include any discussion of X platform advertising revenue trends."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7ecc85f2d7bd46daaa4ef81a",
+            "content": "Based on the provided text, the AI segment's revenue is officially disaggregated into two main reporting lines: **Advertising** and **AI Solutions & Infrastructure**. \n\nWhile the text discusses API access and compute infrastructure as part of the company's product offerings and strategic focus, **it does not provide specific financial figures or standalone revenue breakdowns for \"Enterprise API\" or \"Compute Infrastructure.\"** \n\nHere is the complete revenue breakdown based on the financial tables and MD&A variance analyses provided in the text:\n\n### 1. Advertising Revenue\nRevenue generated from ad products displayed on the X platform, recognized when a user engages with the ad.\n* **Full Year 2025:** $1,844 million\n* **Full Year 2024:** $1,728 million\n* **Full Year 2023:** $2,323 million\n* **Q1 2026:** $343 million\n* **Q1 2025:** $443 million\n\n### 2. AI Solutions & Infrastructure Revenue\nThis category aggregates revenue from digital platform services. The text breaks down the *growth drivers* for this category in the MD&A section, specifically highlighting Subscriptions and Data Licensing:\n* **Full Year 2025:** $1,357 million\n* **Full Year 2024:** $892 million\n* **Full Year 2023:** $638 million\n* **Q1 2026:** $475 million\n* **Q1 2025:** $284 million\n\n#### Known Sub-Components of AI Solutions & Infrastructure:\n* **Subscription Revenue (X and Grok):** Premium subscriptions recognized ratably over the subscription term.\n  * *2025:* Drove an increase of **$365 million** year-over-year.\n  * *2024:* Drove an increase of **$157 million** year-over-year.\n  * *Q1 2026:* Drove an increase of **$177 million** year-over-year.\n* **Data Licensing Revenue:** Revenue from licensing data to customers, recognized ratably as the customer consumes the data.\n  * *2025:* Drove an increase of **$88 million** year-over-year.\n  * *2024:* Drove an increase of **$90 million** year-over-year.\n  * *Q1 2026:* Drove an increase of **$12 million** year-over-year.\n\n### 3. Enterprise API Revenue (No Specific Figures Provided)\n* **Product Description:** The text confirms the company generates revenue from \"providing API access to Grok models,\" which is recognized ratably for stand-ready access or as services are consumed for usage-based arrangements.\n* **Financial Breakdown:** The text **does not** disclose the specific revenue amount or percentage attributed to Enterprise API. It is aggregated within the broader \"AI Solutions & Infrastructure\" line item.\n\n### 4. Compute Infrastructure Revenue (No Specific Figures Provided)\n* **Product/Strategy Description:** The text highlights the company's \"gigawatt-scale AI compute infrastructure\" (e.g., the COLOSSUS II Facility) as a critical strategic differentiator necessary to achieve and deploy AGI. The segment itself is named \"AI Solutions & Infrastructure.\"\n* **Financial Breakdown:** The text **does not** break out \"compute infrastructure\" as a distinct, quantifiable revenue stream. Infrastructure is primarily discussed in the context of *Cost of Revenue* (e.g., data center facilities, lease/hosting costs, energy, bandwidth, and GPU depreciation) and *Capital Expenditures* (e.g., $7,723 million in Q1 2026), rather than as a standalone revenue product with disclosed financial metrics. Any revenue derived from infrastructure provisioning is bundled into the overarching \"AI Solutions & Infrastructure\" total. \n\n***\n\n**Summary of Total AI Segment Revenue:**\n* **2025:** $3,201 million\n* **2024:** $2,620 million\n* **2023:** $2,961 million\n* **Q1 2026:** $818 million\n* **Q1 2025:** $727 million"
+          },
+          {
+            "source_call_id": "call_9c6160008f65460a986789b4",
+            "content": "Based on the provided financial disclosures, here is a detailed breakdown of the AI segment's Adjusted EBITDA, profitability metrics, and the revenue trends associated with the X platform's advertising business.\n\n### 1. AI Segment Adjusted EBITDA & Profitability Metrics\n**Definition:** Segment Adjusted EBITDA is a non-GAAP measure defined as segment income (loss) from operations excluding depreciation and amortization, share-based compensation, restructuring charges, and impairments. \n\nThe AI segment (which includes X, Grok, data licensing, and API infrastructure) is currently in an \"earlier stage of development\" regarding its compute infrastructure, resulting in significant operating losses and negative Adjusted EBITDA as the company aggressively scales its data center footprint.\n\n**Financial Performance by Period:**\n*   **Q1 2026 (Three Months Ended March 31, 2026):**\n    *   **Revenue:** $818 million\n    *   **Loss from Operations:** $(2,469) million\n    *   **Segment Adjusted EBITDA:** $(609) million (a decrease of $497 million compared to Q1 2025).\n    *   **Capital Expenditures:** $7,723 million (reflecting massive investments in compute infrastructure).\n    *   **Nameplate Compute Draw:** 1 gigawatt.\n*   **Full Year 2025:**\n    *   **Revenue:** $3,201 million\n    *   **Loss from Operations:** $(6,355) million\n    *   **Segment Adjusted EBITDA:** $(1,237) million (a decrease of $1,584 million compared to 2024).\n*   **Full Year 2024:**\n    *   **Loss from Operations:** $(1,561) million\n    *   **Segment Adjusted EBITDA:** $347 million (a decrease of $875 million compared to 2023).\n*   **Full Year 2023:**\n    *   **Loss from Operations:** $(3,973) million (heavily impacted by a $3,775 million impairment and $237 million in restructuring charges).\n    *   **Segment Adjusted EBITDA:** $1,222 million.\n\n**Key Cost Drivers & Profitability Outlook:**\nThe steep declines in Adjusted EBITDA and widening operating losses are primarily driven by the company's strategy to rapidly scale compute infrastructure. Major cost factors include:\n*   Depreciation of GPU hardware.\n*   Higher cloud computing and data center infrastructure expenses (facilities-related costs).\n*   Increased employee compensation expenses.\n*   **Future Outlook:** The company expects a **\"multi-year investment horizon\"** before terrestrial and orbital data center deployments translate into sustained positive Segment Adjusted EBITDA. Capital expenditures will scale as quickly as power and compute can be deployed to capture a $26.5 trillion potential market opportunity.\n\n---\n\n### 2. X Platform Advertising Revenue Trends\nWhile the AI segment is pivoting heavily toward AI solutions, infrastructure, and subscriptions, advertising on the X platform remains a core component of its revenue mix. The advertising revenue has experienced notable volatility over the past few years:\n\n*   **Q1 2026 (Temporary Dip):** Advertising revenue **decreased by $100 million** year-over-year. This decline was a temporary anomaly caused by an \"overhaul of the Company\u2019s advertising platform,\" which impacted ad sales during the rebuild period. (Overall AI revenue still grew by $91 million due to a $191 million surge in AI solutions, Grok, and X subscriptions).\n*   **Full Year 2025 (Recovery):** Advertising revenue **increased by $116 million** (22.2% overall segment revenue growth). This recovery was driven by increased advertising spend from partners on the X platform.\n*   **Full Year 2024 (Significant Contraction):** Advertising revenue **decreased by $595 million**. This sharp drop was attributed to the \"loss of advertising partners for X,\" which caused total AI segment revenue to decline by $341 million overall, despite growth in subscriptions and data licensing.\n\n**Seasonality and Recognition Policies:**\n*   **Seasonality:** Advertising revenues experience distinct seasonality. Spend is typically **highest in the fourth quarter** (driven by end-of-year advertiser budgets) and **lowest in the first quarter**.\n*   **Revenue Recognition:** Ad revenue is recognized in the period the ad is delivered, specifically when a user engages with the ad in a manner that satisfies the advertiser's selected engagement types.\n*   **Contract Terms:** Advertising contracts are typically short-term and cancellable arrangements. \n\n### Summary\nThe AI segment is currently characterized by a massive capital allocation strategy, trading near-term profitability for long-term compute dominance (evidenced by $7.7B in Q1 2026 CapEx and negative Adjusted EBITDA). Concurrently, the X platform's advertising business is stabilizing after the loss of partners in 2024, though it remains subject to macroeconomic seasonality and short-term disruptions from platform overhauls."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14278,
+        "completion_tokens": 160,
+        "cached_tokens": 11904,
+        "cost_usd": 0.022415
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-09T21:43:26.896799+00:00",
+      "source": "agent",
+      "message": "Now I have comprehensive information to provide a thorough analysis. Let me compile the final answer.\n\n",
+      "model_name": "qwen3.7-max",
+      "reasoning_content": "Now I have a comprehensive picture. Let me synthesize all this information to answer the question about which segment appears most exposed to customer or contract concentration risk, what quantitative concentration disclosure is and is not provided, and the resulting analytical limitations.\n\nLet me organize my analysis:\n\n**Segment-by-Segment Concentration Assessment:**\n\n1. **Space Segment** - Most exposed to concentration risk\n   - Revenue: $4,086M (2025), $3,796M (2024), $3,557M (2023)\n   - Launch & Development is primarily government agency programs\n   - Launch Services serves both commercial and government\n   - U.S. government = ~20% of consolidated revenue, but Space segment likely has much higher government concentration\n   - Fixed-price contracts with milestone payments\n   - Subject to FAR/DFARS, termination for convenience\n   - 11 of 12 NSSL missions, all 5 NASA ISS missions\n   - NASA and DoD are primary customers\n   - Customer A spans all three segments\n\n2. **Connectivity Segment** - Moderately exposed\n   - Revenue: $11,387M (2025)\n   - Consumer: $7,208M (63%), Enterprise & Government: $4,179M (37%)\n   - 10.3M subscribers across 164 countries - highly diversified consumer base\n   - Starshield is government/national security - fixed-price, multi-year\n   - No single customer >10% other than Customer A\n   - Government connectivity revenue decreased $175M in Q1 2026 due to timing\n\n3. **AI Segment** - Emerging concentration risk\n   - Revenue: $3,201M (2025)\n   - Advertising: $1,844M (58%), AI Solutions & Infrastructure: $1,357M (42%)\n   - \"Limited number of customers for AI products when compared to certain competitors\"\n   - 550M MAUs, 6.3M paid subscribers\n   - Advertising partners were lost in 2024 ($595M decline)\n   - Short-term, cancellable advertising contracts\n\n**Quantitative Concentration Disclosures PROVIDED:**\n- Customer A: 20.9% (2025), 24.2% (2024), 25.2% (2023) of consolidated revenue, spanning all three segments\n- U.S. government: ~20% of total revenue in 2025\n- No other customer >10% of consolidated revenue\n- Connectivity consumer vs. enterprise/government split\n- AI advertising vs. AI solutions split\n\n**Quantitative Concentration Disclosures NOT PROVIDED:**\n- Customer A identity (government or commercial)\n- Segment-level customer concentration (which segment is Customer A most concentrated in?)\n- Accounts receivable concentration\n- Backlog concentration by customer\n- Space segment commercial vs. government revenue split\n- Starshield standalone revenue\n- AI segment enterprise/API/compute revenue breakdown\n- Geographic concentration of Connectivity subscribers (no U.S. vs. international %)\n- Individual government agency revenue breakdown (NASA vs. DoD vs. NRO)\n- Top 5 or top 10 customer concentration\n\n**Analytical Limitations:**\n- Cannot determine which segment Customer A's 20.9% revenue is most concentrated in\n- Cannot assess Space segment's true government dependency without commercial/government split\n- Cannot evaluate receivables risk without AR concentration data\n- Cannot assess backlog concentration risk\n- Cannot determine if Starshield represents a material portion of Connectivity revenue\n- AI segment's \"limited customer base\" is qualitative only - no quantitative metrics\n\nLet me now write up the comprehensive answer.\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_53a15105d0934eac96a59742",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Customer and Contract Concentration Risk Assessment by Segment\n\n### 1. Segment-by-Segment Concentration Exposure\n\n#### **Space Segment \u2014 HIGHEST Concentration Risk**\n\nThe Space segment ($4,086M revenue in 2025) appears **most exposed** to customer and contract concentration risk based on the following disclosed characteristics:\n\n- **Customer-Type Concentration:** The \"Launch and Development\" revenue category ($1,510M in 2025, 37% of Space revenue) is described as deriving revenue *primarily from government agency space programs*. The company executed 11 of 12 National Security Space Launch (NSSL) missions and all 5 NASA ISS crew/cargo missions in 2025. NASA and the Department of War (DoD) are identified as primary drivers of Launch and Development revenue growth. While no segment-level government/commercial split is provided, the qualitative descriptions strongly suggest the Space segment has the highest government-customer dependency of all three segments.\n\n- **Contract Concentration:** Space segment contracts are predominantly **firm fixed-price** (ranging from 1 to 14 years for development contracts), subject to FAR/DFARS regulations, incrementally funded based on Congressional appropriations, and terminable at the government's sole discretion for convenience. The company must absorb all cost overruns. Contracts may also be \"undefinitized,\" allowing the government to unilaterally impose final terms and pricing.\n\n- **Single-Customer Dominance:** The filing discloses that the company holds a near-monopoly position on U.S. government launch services (11/12 NSSL missions, 5/5 NASA ISS missions), meaning the loss of or reduction in U.S. government space spending would disproportionately impact this segment.\n\n#### **Connectivity Segment \u2014 MODERATE Concentration Risk**\n\nThe Connectivity segment ($11,387M revenue in 2025) has a more diversified customer profile but carries specific sub-concentrations:\n\n- **Consumer Concentration:** Consumer subscribers generated $7,208M (63% of segment revenue) in 2025, representing over 10.3 million subscribers across 164 countries. This is highly diversified at the individual-customer level, though the segment is concentrated in the *consumer product type*.\n\n- **Enterprise & Government:** $4,179M (37% of segment revenue) in 2025. Starshield (secure government satellite network) contracts are multi-year, fixed-price, and recognized over time using cost-to-cost. Government connectivity revenue was volatile \u2014 growing $1,250M in 2024 but *decreasing* $175M in Q1 2026 due to contract timing.\n\n- **Contract Structure Risk:** Consumer contracts are generally month-to-month (low lock-in), while Starshield and enterprise contracts are multi-year fixed-price. Mobile connectivity involves partnerships with ~30 MNOs under 1-to-5-year contracts generally terminable at any time.\n\n#### **AI Segment \u2014 EMERGING but Opaque Concentration Risk**\n\nThe AI segment ($3,201M revenue in 2025) presents the most opaque concentration picture:\n\n- **Advertising Concentration:** Advertising revenue ($1,844M, 58% of AI revenue) depends on advertiser partners on the X platform. The filing explicitly discloses the *loss of advertising partners* in 2024, causing a $595M revenue decline. Advertising contracts are described as \"typically short-term and cancellable.\"\n\n- **Self-Identified Customer-Base Limitation:** The filing explicitly states the company has a **\"limited number of customers for our AI products when compared to certain of our competitors,\"** making the segment vulnerable to loss of specific customers or competitive poaching.\n\n- **Subscription Base:** ~6.3 million paid subscribers (4.4M X Premium + 1.9M Grok) and ~550M MAUs provide a broad consumer base, but enterprise API and compute infrastructure customers are not quantified.\n\n---\n\n### 2. Quantitative Concentration Disclosures \u2014 What IS Provided\n\n| Disclosure | Detail |\n|---|---|\n| **Customer A (anonymous)** | 20.9% of consolidated revenue (2025), 24.2% (2024), 25.2% (2023); spans **all three segments** |\n| **U.S. Government (aggregate)** | ~20% of total consolidated revenue in 2025 |\n| **No other customer >10%** | Explicitly stated for 2025, 2024, and 2023 |\n| **Connectivity consumer vs. enterprise/government split** | $7,208M vs. $4,179M (2025) |\n| **AI advertising vs. AI solutions split** | $1,844M vs. $1,357M (2025) |\n| **Space launch services vs. launch & development split** | $2,576M vs. $1,510M (2025) |\n| **Total backlog** | $28,377M (Dec 2025); no customer-level breakdown |\n\n### 3. Quantitative Concentration Disclosures \u2014 What IS NOT Provided\n\n| Missing Disclosure | Analytical Impact |\n|---|---|\n| **Customer A identity** (government agency vs. commercial entity) | Cannot determine whether the 20.9% concentration is sovereign/credit risk or commercial counterparty risk |\n| **Customer A allocation across segments** | Cannot determine which segment bears the greatest share of Customer A exposure |\n| **Space segment commercial vs. government revenue split** | Cannot quantify the Space segment's true government dependency; only qualitative indicators exist |\n| **Individual agency revenue** (NASA vs. DoD vs. NRO vs. IC) | Cannot assess dependency on any single government agency or program |\n| **Starshield standalone revenue** | Cannot determine whether Starshield is a material sub-concentration within Connectivity |\n| **Accounts receivable concentration** | No disclosure of whether any single customer represents >10% of receivables; the company notes it generally does not obtain collateral |\n| **Backlog concentration by customer** | $28.4B backlog has no customer-level breakdown; cannot assess whether backlog is concentrated in a few large government programs |\n| **AI segment enterprise/API/compute revenue breakdown** | \"AI Solutions & Infrastructure\" ($1,357M) is a black box; cannot assess whether a few large enterprise or compute customers dominate |\n| **Geographic subscriber concentration** (U.S. vs. international %) | No percentage split provided; only total country count (164) is disclosed |\n| **Top 5 or Top 10 customer aggregate concentration** | Only the >10% single-customer threshold is disclosed |\n\n---\n\n### 4. Resulting Analytical Limitations\n\n1. **Inability to Attribute Customer A:** The single most important concentration datapoint \u2014 Customer A at 20.9% of revenue \u2014 is rendered analytically incomplete because we cannot determine (a) whether it is a government agency (likely, given the cross-segment footprint and ~20% U.S. government figure, suggesting Customer A may *be* the U.S. government in aggregate or a single large agency), (b) which segment derives the most revenue from it, or (c) whether the declining trend (25.2% \u2192 20.9%) reflects diversification or contract wind-down.\n\n2. **Space Segment Government Dependency Is Qualitative Only:** Despite the Space segment being the most qualitatively concentrated (near-monopoly on government launch, fixed-price contracts subject to Congressional appropriations, termination-for-convenience risk), the absence of a commercial/government revenue split prevents any quantitative stress-testing. An analyst cannot model the revenue impact of, for example, a 20% reduction in NASA or NSSL spending.\n\n3. **Receivables and Backlog Risk Are Unquantifiable:** The absence of AR concentration and backlog-by-customer disclosures means credit risk and revenue-visibility concentration cannot be assessed. Given that government contracts are incrementally funded and subject to appropriation delays, the timing mismatch between revenue recognition and cash collection could be concentrated in ways not visible to investors.\n\n4. **AI Segment \"Limited Customer Base\" Is Unquantified:** The filing's explicit acknowledgment of a \"limited number of customers\" for AI products is a rare qualitative red flag, but without any quantitative disclosure (e.g., number of enterprise API customers, top-customer share of AI Solutions revenue), the magnitude of this risk cannot be calibrated.\n\n5. **Cross-Segment Interdependencies Are Opaque:** Customer A spans all three segments, and the company internally allocates launch capacity from Space to Connectivity (Starlink) and AI (orbital compute). This means a concentration event in one segment (e.g., loss of a government launch contract) could cascade across segments through capacity reallocation \u2014 but the filing provides no framework for modeling these interdependencies.\n\n---\n\n### Conclusion\n\nThe **Space segment** appears most exposed to customer and contract concentration risk based on its heavy qualitative dependence on U.S. government agencies (NASA, DoD, NRO), fixed-price contract structures with unilateral government termination rights, and near-monopoly positioning on government launch programs. However, the **AI segment** carries the greatest *unquantifiable* concentration risk due to its self-disclosed \"limited customer base,\" volatile advertising partner relationships, and opaque enterprise revenue composition. The filing provides sufficient consolidated-level concentration data (Customer A, U.S. government ~20%) but insufficient segment-level granularity to perform rigorous concentration stress testing \u2014 a material analytical limitation for credit and equity diligence.\n\n---\n\n**Sources:**\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_53a15105d0934eac96a59742",
+            "content": "## Customer and Contract Concentration Risk Assessment by Segment\n\n### 1. Segment-by-Segment Concentration Exposure\n\n#### **Space Segment \u2014 HIGHEST Concentration Risk**\n\nThe Space segment ($4,086M revenue in 2025) appears **most exposed** to customer and contract concentration risk based on the following disclosed characteristics:\n\n- **Customer-Type Concentration:** The \"Launch and Development\" revenue category ($1,510M in 2025, 37% of Space revenue) is described as deriving revenue *primarily from government agency space programs*. The company executed 11 of 12 National Security Space Launch (NSSL) missions and all 5 NASA ISS crew/cargo missions in 2025. NASA and the Department of War (DoD) are identified as primary drivers of Launch and Development revenue growth. While no segment-level government/commercial split is provided, the qualitative descriptions strongly suggest the Space segment has the highest government-customer dependency of all three segments.\n\n- **Contract Concentration:** Space segment contracts are predominantly **firm fixed-price** (ranging from 1 to 14 years for development contracts), subject to FAR/DFARS regulations, incrementally funded based on Congressional appropriations, and terminable at the government's sole discretion for convenience. The company must absorb all cost overruns. Contracts may also be \"undefinitized,\" allowing the government to unilaterally impose final terms and pricing.\n\n- **Single-Customer Dominance:** The filing discloses that the company holds a near-monopoly position on U.S. government launch services (11/12 NSSL missions, 5/5 NASA ISS missions), meaning the loss of or reduction in U.S. government space spending would disproportionately impact this segment.\n\n#### **Connectivity Segment \u2014 MODERATE Concentration Risk**\n\nThe Connectivity segment ($11,387M revenue in 2025) has a more diversified customer profile but carries specific sub-concentrations:\n\n- **Consumer Concentration:** Consumer subscribers generated $7,208M (63% of segment revenue) in 2025, representing over 10.3 million subscribers across 164 countries. This is highly diversified at the individual-customer level, though the segment is concentrated in the *consumer product type*.\n\n- **Enterprise & Government:** $4,179M (37% of segment revenue) in 2025. Starshield (secure government satellite network) contracts are multi-year, fixed-price, and recognized over time using cost-to-cost. Government connectivity revenue was volatile \u2014 growing $1,250M in 2024 but *decreasing* $175M in Q1 2026 due to contract timing.\n\n- **Contract Structure Risk:** Consumer contracts are generally month-to-month (low lock-in), while Starshield and enterprise contracts are multi-year fixed-price. Mobile connectivity involves partnerships with ~30 MNOs under 1-to-5-year contracts generally terminable at any time.\n\n#### **AI Segment \u2014 EMERGING but Opaque Concentration Risk**\n\nThe AI segment ($3,201M revenue in 2025) presents the most opaque concentration picture:\n\n- **Advertising Concentration:** Advertising revenue ($1,844M, 58% of AI revenue) depends on advertiser partners on the X platform. The filing explicitly discloses the *loss of advertising partners* in 2024, causing a $595M revenue decline. Advertising contracts are described as \"typically short-term and cancellable.\"\n\n- **Self-Identified Customer-Base Limitation:** The filing explicitly states the company has a **\"limited number of customers for our AI products when compared to certain of our competitors,\"** making the segment vulnerable to loss of specific customers or competitive poaching.\n\n- **Subscription Base:** ~6.3 million paid subscribers (4.4M X Premium + 1.9M Grok) and ~550M MAUs provide a broad consumer base, but enterprise API and compute infrastructure customers are not quantified.\n\n---\n\n### 2. Quantitative Concentration Disclosures \u2014 What IS Provided\n\n| Disclosure | Detail |\n|---|---|\n| **Customer A (anonymous)** | 20.9% of consolidated revenue (2025), 24.2% (2024), 25.2% (2023); spans **all three segments** |\n| **U.S. Government (aggregate)** | ~20% of total consolidated revenue in 2025 |\n| **No other customer >10%** | Explicitly stated for 2025, 2024, and 2023 |\n| **Connectivity consumer vs. enterprise/government split** | $7,208M vs. $4,179M (2025) |\n| **AI advertising vs. AI solutions split** | $1,844M vs. $1,357M (2025) |\n| **Space launch services vs. launch & development split** | $2,576M vs. $1,510M (2025) |\n| **Total backlog** | $28,377M (Dec 2025); no customer-level breakdown |\n\n### 3. Quantitative Concentration Disclosures \u2014 What IS NOT Provided\n\n| Missing Disclosure | Analytical Impact |\n|---|---|\n| **Customer A identity** (government agency vs. commercial entity) | Cannot determine whether the 20.9% concentration is sovereign/credit risk or commercial counterparty risk |\n| **Customer A allocation across segments** | Cannot determine which segment bears the greatest share of Customer A exposure |\n| **Space segment commercial vs. government revenue split** | Cannot quantify the Space segment's true government dependency; only qualitative indicators exist |\n| **Individual agency revenue** (NASA vs. DoD vs. NRO vs. IC) | Cannot assess dependency on any single government agency or program |\n| **Starshield standalone revenue** | Cannot determine whether Starshield is a material sub-concentration within Connectivity |\n| **Accounts receivable concentration** | No disclosure of whether any single customer represents >10% of receivables; the company notes it generally does not obtain collateral |\n| **Backlog concentration by customer** | $28.4B backlog has no customer-level breakdown; cannot assess whether backlog is concentrated in a few large government programs |\n| **AI segment enterprise/API/compute revenue breakdown** | \"AI Solutions & Infrastructure\" ($1,357M) is a black box; cannot assess whether a few large enterprise or compute customers dominate |\n| **Geographic subscriber concentration** (U.S. vs. international %) | No percentage split provided; only total country count (164) is disclosed |\n| **Top 5 or Top 10 customer aggregate concentration** | Only the >10% single-customer threshold is disclosed |\n\n---\n\n### 4. Resulting Analytical Limitations\n\n1. **Inability to Attribute Customer A:** The single most important concentration datapoint \u2014 Customer A at 20.9% of revenue \u2014 is rendered analytically incomplete because we cannot determine (a) whether it is a government agency (likely, given the cross-segment footprint and ~20% U.S. government figure, suggesting Customer A may *be* the U.S. government in aggregate or a single large agency), (b) which segment derives the most revenue from it, or (c) whether the declining trend (25.2% \u2192 20.9%) reflects diversification or contract wind-down.\n\n2. **Space Segment Government Dependency Is Qualitative Only:** Despite the Space segment being the most qualitatively concentrated (near-monopoly on government launch, fixed-price contracts subject to Congressional appropriations, termination-for-convenience risk), the absence of a commercial/government revenue split prevents any quantitative stress-testing. An analyst cannot model the revenue impact of, for example, a 20% reduction in NASA or NSSL spending.\n\n3. **Receivables and Backlog Risk Are Unquantifiable:** The absence of AR concentration and backlog-by-customer disclosures means credit risk and revenue-visibility concentration cannot be assessed. Given that government contracts are incrementally funded and subject to appropriation delays, the timing mismatch between revenue recognition and cash collection could be concentrated in ways not visible to investors.\n\n4. **AI Segment \"Limited Customer Base\" Is Unquantified:** The filing's explicit acknowledgment of a \"limited number of customers\" for AI products is a rare qualitative red flag, but without any quantitative disclosure (e.g., number of enterprise API customers, top-customer share of AI Solutions revenue), the magnitude of this risk cannot be calibrated.\n\n5. **Cross-Segment Interdependencies Are Opaque:** Customer A spans all three segments, and the company internally allocates launch capacity from Space to Connectivity (Starlink) and AI (orbital compute). This means a concentration event in one segment (e.g., loss of a government launch contract) could cascade across segments through capacity reallocation \u2014 but the filing provides no framework for modeling these interdependencies.\n\n---\n\n### Conclusion\n\nThe **Space segment** appears most exposed to customer and contract concentration risk based on its heavy qualitative dependence on U.S. government agencies (NASA, DoD, NRO), fixed-price contract structures with unilateral government termination rights, and near-monopoly positioning on government launch programs. However, the **AI segment** carries the greatest *unquantifiable* concentration risk due to its self-disclosed \"limited customer base,\" volatile advertising partner relationships, and opaque enterprise revenue composition. The filing provides sufficient consolidated-level concentration data (Customer A, U.S. government ~20%) but insufficient segment-level granularity to perform rigorous concentration stress testing \u2014 a material analytical limitation for credit and equity diligence.\n\n---\n\n**Sources:**\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (Filed May 20, 2026)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16518,
+        "completion_tokens": 3084,
+        "cached_tokens": 14080,
+        "cost_usd": 0.054535
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 73398,
+    "total_completion_tokens": 4396,
+    "total_cached_tokens": 55040,
+    "total_cost_usd": 0.158655,
+    "total_steps": 10
+  }
+}
