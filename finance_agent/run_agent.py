@@ -1,15 +1,16 @@
 import argparse
 import asyncio
 import json
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+from tqdm.asyncio import tqdm
 from model_library.agent import AgentResult
 from model_library.base import LLMConfig
-from tqdm.asyncio import tqdm
 
-from .get_agent import Parameters, build_input, get_agent, MAX_TIME_SECONDS
+from .get_agent import Parameters, build_input, get_agent, MAX_TIME_SECONDS, TESTED_MODEL, TESTED_MODEL_URL
 from .tools import VALID_TOOLS
 
 
@@ -18,6 +19,8 @@ async def run_tests_parallel(
     max_concurrent: int,
     parameters: Parameters,
     log_dir: Path | None = None,
+    results_dir: Path | None = None,
+    run_label: str | None = None,
 ) -> list[dict[str, Any]]:
     """Run multiple questions in parallel using the agent"""
     semaphore = asyncio.Semaphore(max_concurrent)
@@ -54,14 +57,32 @@ async def run_tests_parallel(
                     f"\nOK Question succeeded: {question}\n   Turns: {result.total_turns}\n   Result: {result.final_answer}\n"
                 )
 
-    # Write results next to agent logs (use first result's output_dir parent)
+    # Write full results next to agent logs
     non_error_results = [r for r in results if not isinstance(r, Exception)]
     if non_error_results:
-        results_dir = non_error_results[0].output_dir.parent
-        results_file = results_dir / "results.json"
+        agent_results_dir = non_error_results[0].output_dir.parent
+        results_file = agent_results_dir / "results.json"
         with open(results_file, "w") as f:
             json.dump(formatted_results, f, indent=2)
         print(f"\nResults saved to: {results_file}")
+
+    # Write clean Q&A file to dedicated results_dir
+    if results_dir:
+        results_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"{run_label}.json" if run_label else "qa-results.json"
+        qa_file = results_dir / filename
+        qa_pairs = [
+            {
+                "question": r["question"],
+                "success": r["success"],
+                "answer": r.get("result", {}).get("final_answer") if r["success"] else None,
+                "error": r.get("error") or r.get("result", {}).get("final_error"),
+            }
+            for r in formatted_results
+        ]
+        with open(qa_file, "w") as f:
+            json.dump(qa_pairs, f, indent=2)
+        print(f"Q&A results saved to: {qa_file}")
 
     return formatted_results
 
@@ -84,8 +105,14 @@ async def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="anthropic/claude-sonnet-4-5-20250929",
-        help="Model to use to generate completions",
+        default=TESTED_MODEL,
+        help="Model to use (defaults to TESTED_MODEL in .env)",
+    )
+    parser.add_argument(
+        "--api-base",
+        type=str,
+        default=TESTED_MODEL_URL,
+        help="Custom base URL (defaults to TESTED_MODEL_URL in .env)",
     )
     parser.add_argument(
         "--question-file",
@@ -110,7 +137,7 @@ async def main():
         "--max-turns",
         type=int,
         default=50,
-        help="Maximum number of agent turns for local testing (default: 50). The benchmark evaluation workflow uses time limits only.",
+        help="Maximum number of agent turns for local testing (default: 50).",
     )
     parser.add_argument(
         "--parallelism",
@@ -124,10 +151,14 @@ async def main():
         default=Path("logs"),
         help="Directory where per-question agent logs are written",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=Path("results"),
+        help="Directory where the Q&A results file is written (separate from agent logs)",
+    )
 
-    env_file = Path(".env")
-    load_dotenv(override=True, dotenv_path=env_file)
+    args = parser.parse_args()
 
     if args.question_file:
         with open(args.question_file) as f:
@@ -136,6 +167,12 @@ async def main():
         questions = args.questions
     else:
         raise Exception("No questions provided. One of --question-file or --questions must be used.")
+
+    # Build run label: model-questionfile-timestamp
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    model_slug = args.model.replace("/", "-")
+    question_stem = Path(args.question_file).stem.replace("_", "-") if args.question_file else "inline"
+    run_label = f"{model_slug}-{question_stem}-{timestamp}"
 
     parameters = Parameters(
         model_name=args.model,
@@ -153,6 +190,8 @@ async def main():
         max_concurrent=args.parallelism,
         parameters=parameters,
         log_dir=args.log_dir,
+        results_dir=args.results_dir,
+        run_label=run_label,
     )
 
 

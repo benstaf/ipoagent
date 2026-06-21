@@ -1,7 +1,7 @@
 from .exceptions import retry_http_errors
 from .get_agent import Parameters, build_input, create_llm, get_agent
 from .key_rotator import KeyRotator
-from .prompt import QUESTION_PROMPT, SYSTEM_PROMPT
+from .prompt import QUESTION_PROMPT, BASE_SYSTEM_PROMPT
 from .tools import (
     VALID_TOOLS,
     Calculator,

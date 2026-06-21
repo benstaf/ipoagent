@@ -182,6 +182,8 @@ class TavilyWebSearch(Tool):
                 raise ValueError(
                     f"Parameter start_date '{start_date}' was set to a date that is later than end_date '{end_date}'"
                 )
+        if start_date == end_date:
+            start_date=None
 
             kwargs["start_date"] = start_date
 
