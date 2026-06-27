@@ -318,7 +318,15 @@ def main(args: argparse.Namespace) -> None:
     repair_in   = enrich_in
     repair_done = False
 
+
+    # AFTER
+    if no_repair_remaining(repair_in):
+        log("  No REPAIR rubrics at repair loop entry — skipping repair loop.")
+        repair_done = True
+    
     for i in range(1, args.max_repair + 1):
+        if repair_done:
+            break
         log(f"  Repair iteration {i} / {args.max_repair}")
         sfx = f"repair{i}"
 
@@ -327,9 +335,11 @@ def main(args: argparse.Namespace) -> None:
 
         run(f"stage4b_repair_{sfx}",
             [FA / "stage4b_repairrubrics.py",
-             "--checked", repair_in,
+             "--rubric", repair_in,              # ← --checked → --rubric
              "--out", repaired_out],
             LOGS / f"stage4b_repair_{sfx}.log")
+
+
 
         run(f"stage4_check_{sfx}",
             [FA / "stage4_checkrubrics.py",

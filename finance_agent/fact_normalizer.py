@@ -166,11 +166,18 @@ async def incremental_consolidate_qual(
         new_facts_block = "\n".join(f"- {f}" for f in item["facts"])
 
 
-        MAX_RETRIES = 3
-        RETRY_BASE_DELAY = 2.0
+        # AFTER
+        _RETRY_DELAYS = [5.0, 30.0, 90.0, 200.0, 500.0, 1000.0]
+        _MAX_RETRIES  = len(_RETRY_DELAYS) + 1   # 4 attempts total
 
-        resp = None
-        for attempt in range(MAX_RETRIES):
+        resp      = None
+        last_exc  = None
+        for attempt in range(_MAX_RETRIES):
+            if attempt > 0:
+                delay = _RETRY_DELAYS[attempt - 1]
+                print(f"    [incremental_consolidate_qual] retry {attempt}/{_MAX_RETRIES - 1} "
+                      f"after {delay}s (last: {last_exc!r})")
+                await asyncio.sleep(delay)
             try:
                 resp = await client.post(
                     url,
@@ -193,14 +200,23 @@ async def incremental_consolidate_qual(
                     timeout=1800,
                 )
                 resp.raise_for_status()
+                last_exc = None
                 break
             except Exception as e:
-                print(f"    [incremental_consolidate_qual] attempt {attempt + 1}/{MAX_RETRIES} failed: {e}")
-                if attempt == MAX_RETRIES - 1:
-                    raise
-                await asyncio.sleep(RETRY_BASE_DELAY ** attempt)
+                last_exc = e
+                print(f"    [incremental_consolidate_qual] attempt {attempt + 1}/{_MAX_RETRIES} failed: {e}")
+
+        if last_exc is not None:
+            # Transient server error exhausted all retries.
+            # Skip this model's qualitative contribution rather than
+            # crashing the entire stage2 run.
+            print(f"    [incremental_consolidate_qual] WARNING: skipping model "
+                  f"'{item['model']}' for question '{question[:60]}' after "
+                  f"{_MAX_RETRIES} failed attempts. Canonical list unchanged.")
+            continue   # next item in qual_facts loop
 
         payload = resp.json()
+
         if "choices" not in payload:
             raise ValueError(
                 f"incremental_consolidate_qual: API returned no 'choices'. "

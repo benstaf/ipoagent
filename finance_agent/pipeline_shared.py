@@ -700,42 +700,78 @@ Suggestions:
 {suggestions}
 """
 
+
+
+_RECOMMEND_MAX_RETRIES = 4
+_RECOMMEND_RETRY_DELAYS = [5.0, 15.0, 45.0]   # delays before attempts 2, 3, 4
+
 async def recommend_next_step(quality: dict) -> str:
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            URL,
-            headers={"Authorization": f"Bearer {API_KEY}"},
-            json={
-                "model": MODEL,
-                "messages": [
-                    {"role": "system", "content": ROUTING_SYSTEM},
-                    {
-                        "role": "user",
-                        "content": ROUTING_USER.format(
-                            overall=quality.get("overall", 0.0),
-                            scores=json.dumps(quality.get("scores", {})),
-                            issues="\n".join(
-                                f"- {i}" for i in quality.get("issues", [])
-                            ) or "(none)",
-                            suggestions="\n".join(
-                                f"- {s}" for s in quality.get("suggestions", [])
-                            ) or "(none)",
-                        ),
-                    },
-                ],
-                "max_tokens": 200,
-                "temperature": 0.0,
-                "thinking": {"type": "disabled"},
+    payload = {
+        "model": MODEL,
+        "messages": [
+            {"role": "system", "content": ROUTING_SYSTEM},
+            {
+                "role": "user",
+                "content": ROUTING_USER.format(
+                    overall=quality.get("overall", 0.0),
+                    scores=json.dumps(quality.get("scores", {})),
+                    issues="\n".join(
+                        f"- {i}" for i in quality.get("issues", [])
+                    ) or "(none)",
+                    suggestions="\n".join(
+                        f"- {s}" for s in quality.get("suggestions", [])
+                    ) or "(none)",
+                ),
             },
-            timeout=30.0,
-        )
-        resp.raise_for_status()
-        raw = resp.json()["choices"][0]["message"]["content"].strip()
-        result = extract_json(raw)
-        recommendation = result["recommendation"]
-        reason = result.get("reason", "")
-        print(f"  Next step: {recommendation.upper()} — {reason}")
-        return recommendation
+        ],
+        "max_tokens": 200,
+        "temperature": 0.0,
+        "thinking": {"type": "disabled"},
+    }
+
+    last_exc = None
+    for attempt in range(_RECOMMEND_MAX_RETRIES):
+        if attempt > 0:
+            delay = _RECOMMEND_RETRY_DELAYS[attempt - 1]
+            print(f"  [recommend_next_step] retry {attempt}/{_RECOMMEND_MAX_RETRIES - 1} "
+                  f"after {delay}s (last error: {last_exc!r})")
+            await asyncio.sleep(delay)
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=5.0)
+            ) as client:
+                resp = await client.post(
+                    URL,
+                    headers={"Authorization": f"Bearer {API_KEY}"},
+                    json=payload,
+                )
+                resp.raise_for_status()
+
+            response_json = resp.json()
+            if "choices" not in response_json:
+                raise ValueError(
+                    f"recommend_next_step: no 'choices' in response. "
+                    f"Payload: {json.dumps(response_json)[:500]}"
+                )
+            raw = response_json["choices"][0]["message"]["content"].strip()
+            result = extract_json(raw)
+            recommendation = result["recommendation"]
+            reason = result.get("reason", "")
+            print(f"  Next step: {recommendation.upper()} — {reason}")
+            return recommendation
+
+        except (httpx.ReadTimeout, httpx.ConnectTimeout,
+                httpx.RemoteProtocolError, httpx.HTTPStatusError) as exc:
+            last_exc = exc
+        except (KeyError, ValueError) as exc:
+            # Malformed response — retry, but log clearly
+            last_exc = exc
+
+    raise RuntimeError(
+        f"recommend_next_step failed after {_RECOMMEND_MAX_RETRIES} attempts. "
+        f"Last error: {last_exc!r}"
+    ) from last_exc
+
 
 
 
