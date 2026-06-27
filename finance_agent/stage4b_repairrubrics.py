@@ -390,25 +390,46 @@ async def repair_rubric(
             original_suggestions="\n".join(f"- {s}" for s in orig_suggestions),
         )
 
+
+    MAX_RETRIES = 3
+    RETRY_BASE_DELAY = 2.0
+
+    resp = None
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            URL,
-            headers={"Authorization": f"Bearer {API_KEY}"},
-            json={
-                "model": MODEL,
-                "messages": [
-                    {"role": "system", "content": REPAIR_SYSTEM},
-                    {"role": "user",   "content": user_content},
-                ],
-                "max_tokens": MAX_TOKENS,
-                "temperature": 0.0,
-                "thinking": {"type": "disabled"},
-            },
-            timeout=120.0,
+        for attempt in range(MAX_RETRIES):
+            try:
+                resp = await client.post(
+                    URL,
+                    headers={"Authorization": f"Bearer {API_KEY}"},
+                    json={
+                        "model": MODEL,
+                        "messages": [
+                            {"role": "system", "content": REPAIR_SYSTEM},
+                            {"role": "user",   "content": user_content},
+                        ],
+                        "max_tokens": MAX_TOKENS,
+                        "temperature": 0.0,
+                        "thinking": {"type": "disabled"},
+                    },
+                    timeout=120.0,
+                )
+                resp.raise_for_status()
+                break
+            except Exception as e:
+                print(f"    [repair_rubric] attempt {attempt + 1}/{MAX_RETRIES} failed: {e}")
+                if attempt == MAX_RETRIES - 1:
+                    raise
+                await asyncio.sleep(RETRY_BASE_DELAY ** attempt)
+
+    payload = resp.json()
+    if "choices" not in payload:
+        raise ValueError(
+            f"repair_rubric: API returned no 'choices'. "
+            f"Payload: {json.dumps(payload)[:2000]}"
         )
-        resp.raise_for_status()
-        raw = resp.json()["choices"][0]["message"]["content"].strip()
-        return extract_json(raw)
+    raw = payload["choices"][0]["message"]["content"].strip()
+    return extract_json(raw)
+
 
 
 # ---------------------------------------------------------------------------

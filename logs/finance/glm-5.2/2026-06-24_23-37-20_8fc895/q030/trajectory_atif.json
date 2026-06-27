@@ -1,0 +1,565 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "70ae3011-a7a9-4d5c-97de-e88008f75060",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-24T23:37:32.745623+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-24T23:37:32.745623+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nFor each segment, explain how incremental kilograms delivered to orbit ultimately translate into revenue generation and identify when revenue recognition occurs. Calculate the Connectivity-to-Space revenue ratio for FY2025 and Q1 2026 and interpret the trend.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-24T23:37:32.745623+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about SpaceX's S-1 filing, specifically about:\n1. How incremental kilograms delivered to orbit translate into revenue for each segment\n2. When revenue recognition occurs\n3. Calculate the Connectivity-to-Space revenue ratio for FY2025 and Q1 2026\n4. Interpret the trend\n\nLet me start by parsing the SpaceX S-1 filing to get the relevant information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_86afb28416d44b73a7e5a480",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_86afb28416d44b73a7e5a480",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3166,
+        "completion_tokens": 137,
+        "cached_tokens": 3072,
+        "cost_usd": 0.005445
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-24T23:38:31.715368+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3a703658426c4f0c8515872f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, describe how SpaceX's segments generate revenue. Specifically, explain how kilograms delivered to orbit translate into revenue for the Launch segment, the Starlink/Connectivity segment, and any other segments. Include details on revenue recognition timing for each segment."
+          }
+        },
+        {
+          "tool_call_id": "call_c1f5e2cac0df42a68ec24826",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, find the segment revenue figures for FY2025 (full year) and Q1 2026. I need the revenue for the Connectivity segment (Starlink) and the Space segment (Launch). Provide exact dollar amounts."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3a703658426c4f0c8515872f",
+            "content": "Based on the provided financial disclosures, SpaceX operates through three distinct segments: Space, Connectivity, and AI. Here is how each segment generates revenue, including how activities like delivering mass to orbit translate into revenue and the specific revenue recognition timing for each.\n\n### 1. Space Segment (Launch Services and Development)\n**How it generates revenue:**\nThe Space segment generates revenue primarily through fixed-price contracts for (i) Launch Services\u2014deploying commercial and government payloads to their intended orbits using Falcon 9, Falcon Heavy, and Dragon\u2014and (ii) Launch and Development, which involves the development of spacecraft and provision of mission services for government space programs (utilizing Starship as well). \n\n**Translating Kilograms to Orbit into Revenue:**\nFor external customers, delivering payloads (mass) to orbit fulfills the fixed-price launch contracts. However, when SpaceX uses its launch capacity to deliver its *own* Starlink satellites to orbit, the company **does not** recognize any inter-segment revenue in the Space segment. Instead, those launch costs are capitalized as part of the \"satellites\" line item within Property, Plant, and Equipment in the Connectivity segment. Therefore, Space segment revenue strictly reflects customer launches and customer activities. \n\n**Revenue Recognition Timing:**\n*   **Launch Services (Point in Time):** Because flight hardware is interchangeable and unique engineering costs are minimal, revenue and costs are deferred and recognized at a single **point in time**: upon the launch or deployment of the customer\u2019s payload to its intended orbit. \n*   **Launch and Development (Over Time):** For development contracts where performance creates an asset with no alternative use and the company has an enforceable right to payment, revenue is recognized **over time**. Progress is measured using the **cost-to-cost input method**, where revenue is recorded based on costs incurred to date relative to the total estimated cost at completion.\n\n### 2. Connectivity Segment (Starlink)\n**How it generates revenue:**\nThe Connectivity segment generates revenue by providing broadband and Starlink Mobile services to consumers, enterprises, and governments across 156 markets. It also generates revenue from the sale of Starlink Kits (terminals). Additionally, the segment includes \"Starshield,\" which derives revenue from fixed-price contracts to develop secure satellite networks for government and national security applications.\n\n**Translating Kilograms to Orbit into Revenue:**\nWhile the Space segment launches the satellites, the mass delivered to orbit becomes infrastructure for the Connectivity segment. The launch costs to deploy Starlink satellites are capitalized and depreciated over time. This deployed mass directly enables the Connectivity segment to generate service revenue from subscribers and data usage.\n\n**Revenue Recognition Timing:**\n*   **Broadband and Mobile Services (Over Time):** Revenue is recognized **over time** as the customer simultaneously receives and consumes the benefits. For fixed-price services requiring advance or recurring monthly payments, revenue is recognized ratably over the subscription term. For variable-priced services, revenue is recognized based on actual data consumption. (Broadband contracts are generally month-to-month, while mobile connectivity agreements range from one to five years).\n*   **Starlink Kits (Point in Time):** Revenue for the hardware kits is recognized at a **point in time** upon delivery to the customer, or upon installation for certain enterprise customers.\n*   **Starshield Contracts (Over Time):** For multi-year Starshield development contracts, revenue is recognized **over time** using the cost-to-cost input method.\n\n### 3. AI Segment\n**How it generates revenue:**\nThe newly acquired AI segment operates a vertically integrated AI platform that includes the Grok LLM, AI solutions for consumer and enterprise customers, and X (a real-time information platform). It generates revenue through X and Grok subscriptions, advertising sales, and data licensing. \n\n**Translating Kilograms to Orbit into Revenue:**\nWhile the text notes that SpaceX expects to allocate significant launch capacity to the AI segment in the future (and plans to deploy orbital AI compute satellites as early as 2028 to handle energy-intensive AI workloads), the current revenue drivers for this segment are software, subscriptions, and advertising rather than direct mass-to-orbit services. \n\n**Revenue Recognition Timing:**\nThe provided text does not explicitly detail the specific point-in-time or over-time recognition policies for the AI segment's subscriptions and advertising, but it notes that the segment generated $3.2 billion in revenue in 2025."
+          },
+          {
+            "source_call_id": "call_c1f5e2cac0df42a68ec24826",
+            "content": "Based on the provided text, here are the exact segment revenue figures for FY2025 and Q1 2026:\n\n**FY2025 (Year Ended December 31, 2025)**\n*   **Connectivity Segment:** $11,387 million \n*   **Space Segment:** $4,086 million \n    * *(Note: If you specifically need just the \"Launch Services\" line item within the Space segment, that portion was $2,576 million).*\n\n**Q1 2026 (Three Months Ended March 31, 2026)**\n*   **Connectivity Segment:** $3,257 million \n*   **Space Segment:** $619 million \n    * *(Note: If you specifically need just the \"Launch Services\" line item within the Space segment, that portion was $330 million).*"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3319,
+        "completion_tokens": 127,
+        "cached_tokens": 3136,
+        "cost_usd": 0.0056475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-24T23:38:38.229508+00:00",
+      "source": "agent",
+      "message": "\nI have the segment revenue figures. Let me calculate the Connectivity-to-Space revenue ratios.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I have the segment revenue figures. Let me calculate the Connectivity-to-Space revenue ratio for FY2025 and Q1 2026.\n\nFY2025:\n- Connectivity: $11,387 million\n- Space: $4,086 million\n- Ratio: 11,387 / 4,086 = ?\n\nQ1 2026:\n- Connectivity: $3,257 million\n- Space: $619 million\n- Ratio: 3,257 / 619 = ?\n\nLet me calculate these.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_28e49c220ebc4e3a99f9940b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "11387 / 4086"
+          }
+        },
+        {
+          "tool_call_id": "call_a3e48b86fadf4a28b945f52a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3257 / 619"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_28e49c220ebc4e3a99f9940b",
+            "content": "2.7868330885952033"
+          },
+          {
+            "source_call_id": "call_a3e48b86fadf4a28b945f52a",
+            "content": "5.2617124394184165"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4521,
+        "completion_tokens": 162,
+        "cached_tokens": 3264,
+        "cost_usd": 0.0088425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-24T23:39:39.632561+00:00",
+      "source": "agent",
+      "message": "Let me verify the Q1 2026 figures and check for Q1 2025 comparison data to better interpret the trend.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Let me also verify the figures by retrieving more specific information about the segment revenue breakdown and the trend interpretation. Let me also check the Q1 2026 figures more carefully - the Space segment revenue of $619 million seems low compared to FY2025's $4,086 million (which would be ~$1,021 million per quarter on average). Let me verify this.\n\nActually, let me also check if there's a Q1 2025 comparison to better understand the trend.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bc0d25bd4d2f48e888251afa",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, find the segment revenue table showing quarterly revenue for Q1 2025 and Q1 2026 for the Space segment and Connectivity segment. Also confirm the FY2025 segment revenue figures. Provide exact dollar amounts in millions."
+          }
+        },
+        {
+          "tool_call_id": "call_8f530177d1ba406c8b4ab757",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, describe the trend in segment revenue mix between Connectivity (Starlink) and Space (Launch). What does management say about the growth trajectory of each segment? Are there any seasonality factors or one-time items affecting Q1 2026?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bc0d25bd4d2f48e888251afa",
+            "content": "Based on the provided text, here are the exact segment revenue figures for Q1 2025, Q1 2026, and the full year FY 2025:\n\n**Quarterly Revenue (Three Months Ended March 31)**\n*   **Q1 2026:**\n    *   Space Segment: $619 million\n    *   Connectivity Segment: $3,257 million\n*   **Q1 2025:**\n    *   Space Segment: $865 million\n    *   Connectivity Segment: $2,475 million\n\n**Full Year Revenue (Year Ended December 31, 2025)**\n*   **FY 2025:**\n    *   Space Segment: $4,086 million\n    *   Connectivity Segment: $11,387 million"
+          },
+          {
+            "source_call_id": "call_8f530177d1ba406c8b4ab757",
+            "content": "Based on the provided MD&A and Preamble excerpts, here is the analysis of the segment revenue mix, growth trajectories, and Q1 2026 factors:\n\n**1. Trend in Segment Revenue Mix Between Connectivity (Starlink) and Space (Launch)**\nThe revenue mix is shifting heavily toward the Connectivity segment, while the Space segment is contributing a smaller percentage to the total consolidated revenue.\n*   **Q1 2026 vs. Q1 2025:** In Q1 2026, Connectivity generated $3,257 million (approximately 69% of total revenue), up from $2,475 million (approximately 61%) in Q1 2025. Conversely, Space generated $619 million in Q1 2026 (approximately 13% of total revenue), down from $865 million (approximately 21%) in Q1 2025. \n*   **Space Sub-Mix Shift:** Within the Space segment itself, there is a shift from Launch Services to Launch & Development. Launch Services dropped from 65.4% of Space revenue in Q1 2025 to 53.3% in Q1 2026, while Launch & Development increased from 34.6% to 46.7% over the same period.\n\n**2. Management\u2019s Stance on Growth Trajectory**\n*   **Connectivity (Starlink):** Management portrays a trajectory of rapid, high-volume growth. In 2025, the segment grew revenue by 49.8% and income from operations by 120.4%. Growth is driven by Starlink subscriber growth (which grew 104.7% in Q1 2026 alone), increasing enterprise adoption (aviation, maritime, mobile), and improved network efficiency. However, management notes that ARPU (Average Revenue Per User) is declining (down 22.9% in Q1 2026) due to international expansion and lower-priced service plans.\n*   **Space (Launch):** Management explicitly states that they \"expect Space revenue growth to continue to be lower than total company revenue growth.\" This is because the company's internal businesses (like Connectivity) are absorbing most of the growth in launch capacity, and Space revenue only reflects customer launches and activities. Furthermore, management expects Launch and Development to represent a larger portion of Space revenue going forward due to long-term government contracts. \n\n**3. Seasonality Factors or One-Time Items Affecting Q1 2026**\nThe text does not explicitly mention \"seasonality\" or label specific events as \"one-time items.\" However, it highlights several period-specific timing factors and non-recurring operational impacts affecting Q1 2026:\n*   **Timing of Government Contracts:** The Space segment experienced a $246 million revenue decrease in Q1 2026, driven by lower Launch Services missions and the \"timing of work for government contracts.\" Management notes that Space revenue will vary from period to period based on the mix of launches.\n*   **Accelerated Starship R&D:** The Space segment's operating loss and EBITDA were negatively impacted by an accelerated investment of $930 million in R&D for the next-generation Starship launch vehicle and related facilities.\n*   **AI Infrastructure Expansion:** The AI segment saw a massive $1,471 million increase in R&D expenses driven by the depreciation of GPU hardware and cloud computing/data center infrastructure costs resulting from AI data center expansions.\n*   **Anomalies:** The text notes that the Space segment's \"impairment\" line includes losses on fixed assets due to anomalies on flight vehicles and launch sites that occur outside normal business operations, though specific Q1 2026 anomaly figures are not detailed in the excerpts."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4713,
+        "completion_tokens": 255,
+        "cached_tokens": 4480,
+        "cost_usd": 0.0087325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-24T23:39:46.330204+00:00",
+      "source": "agent",
+      "message": "Let me calculate the Q1 2025 ratio for additional context on the trend.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the information I need. Let me also calculate the Q1 2025 ratio for comparison purposes.\n\nQ1 2025:\n- Connectivity: $2,475 million\n- Space: $865 million\n- Ratio: 2,475 / 865 = ?\n\nLet me calculate this.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0778459faab94e8aae80c9db",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2475 / 865"
+          }
+        },
+        {
+          "tool_call_id": "call_949a3e15c4ac4566a6338ce0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3257 / (3257 + 619) * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_c0c05af56da044978403d3d4",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2475 / (2475 + 865) * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_4a4788c5432d4259aa1be5d8",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "11387 / (11387 + 4086) * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0778459faab94e8aae80c9db",
+            "content": "2.861271676300578"
+          },
+          {
+            "source_call_id": "call_949a3e15c4ac4566a6338ce0",
+            "content": "84.02992776057792"
+          },
+          {
+            "source_call_id": "call_c0c05af56da044978403d3d4",
+            "content": "74.10179640718563"
+          },
+          {
+            "source_call_id": "call_4a4788c5432d4259aa1be5d8",
+            "content": "73.59270988172946"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5894,
+        "completion_tokens": 172,
+        "cached_tokens": 0,
+        "cost_usd": 0.016455
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-24T23:40:30.485402+00:00",
+      "source": "agent",
+      "message": "Let me also retrieve the AI segment revenue figures and verify the total revenue context.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the data I need. Let me also verify the AI segment revenue for completeness, and check the total revenue figures.\n\nActually, I have enough information. Let me also check the AI segment revenue for FY2025 and Q1 2026 to provide a complete picture.\n\nWait, the question is specifically about:\n1. For each segment, explain how incremental kilograms delivered to orbit ultimately translate into revenue generation\n2. Identify when revenue recognition occurs\n3. Calculate the Connectivity-to-Space revenue ratio for FY2025 and Q1 2026\n4. Interpret the trend\n\nLet me also retrieve information about the AI segment's relationship to kilograms delivered to orbit, since the question says \"for each segment.\"\n\nActually, I already have that information from the first retrieval. The AI segment doesn't currently have a direct relationship to kilograms delivered to orbit, but SpaceX plans to deploy orbital AI compute satellites as early as 2028.\n\nLet me also verify the AI segment revenue figures for completeness.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_37c77932ac984b5e9a908fb3",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, find the AI segment revenue for FY2025 and Q1 2026. Also confirm the total consolidated revenue for these periods. Provide exact dollar amounts in millions."
+          }
+        },
+        {
+          "tool_call_id": "call_3f017dd6d7fa472699f4b596",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, describe the relationship between the AI segment and orbital launch capacity. Does SpaceX plan to deploy AI compute satellites? When? How will kilograms delivered to orbit translate into AI segment revenue in the future?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_37c77932ac984b5e9a908fb3",
+            "content": "Based on the provided text, here are the exact dollar amounts for the AI segment and total consolidated revenues:\n\n**AI Segment Revenue**\n*   **FY 2025:** $3,201 million\n*   **Q1 2026:** $818 million\n\n**Total Consolidated Revenue**\n*   **FY 2025:** $18,674 million\n*   **Q1 2026:** $4,694 million"
+          },
+          {
+            "source_call_id": "call_3f017dd6d7fa472699f4b596",
+            "content": "Based on the provided S-1 preamble chunks, here is the relationship between SpaceX's AI segment and its orbital launch capacity, including deployment plans and the translation of mass-to-orbit into future revenue:\n\n**Does SpaceX plan to deploy AI compute satellites?**\nYes. SpaceX plans to leverage its aerospace manufacturing and launch capabilities to build a massive, scalable orbital AI compute network. The company is designing next-generation, high-performance AI compute satellites built for high volume, low cost, and long-duration operation in space. These satellites will form modular \"orbital AI compute shells\" or data centers, powered by solar energy and interconnected using Starlink's mesh network of inter-satellite lasers. \n\n**When?**\nSpaceX expects to begin deploying its orbital AI compute satellites **as early as 2028**. By the end of the decade, the company intends to deploy the first modular orbital AI compute shells and begin monetizing the capacity.\n\n**How will kilograms delivered to orbit translate into AI segment revenue in the future?**\nThe translation of launch capacity (kilograms/metric tons delivered to orbit) into AI segment revenue relies on a vertically integrated strategy where mass becomes compute power, and compute power is monetized as a service. Here is how the conversion works based on the text:\n\n1. **Launch Capacity Allocation:** The Space segment will allocate a significant amount of its launch capacity to the AI segment in the future (similar to how it currently allocates capacity to the Connectivity segment for Starlink). While this internal allocation means the Space segment won't recognize revenue for those launches, it provides the foundational infrastructure for the AI segment to generate revenue.\n2. **Mass-to-Compute Conversion:** SpaceX translates mass directly into compute capacity. Early satellites are expected to generate **100 kilowatts of compute power per metric ton**. \n3. **Scaling to Gigawatts:** Using Starship V3 (designed to carry 100 metric tons to orbit per reusable flight) and scaling to thousands of launches per year, SpaceX aims to transport approximately **one million metric tons to orbit annually**. At 100 kilowatts per metric ton, this translates to **100 gigawatts of AI compute capacity deployed per year**.\n4. **Monetization:** Once the mass is converted into operational orbital compute capacity, the AI segment will monetize it in two primary ways:\n   * **Sale of AI Compute:** Selling high-performance compute capacity to a limited number of third-party customers to run energy-intensive AI workloads, such as inference demand.\n   * **Sale of AI Software:** Utilizing the compute capacity to power its own frontier AI models and selling AI software applications to consumer and enterprise customers.\n\nUltimately, SpaceX believes that by using its reusable rockets to launch mass at scale and its satellite manufacturing to turn that mass into solar-powered compute nodes, it can deliver AI compute over time at a fundamentally lower cost structure than is possible on Earth, driving the AI segment's future economic returns."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6118,
+        "completion_tokens": 325,
+        "cached_tokens": 4672,
+        "cost_usd": 0.012705
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-24T23:41:08.074002+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed to provide a comprehensive answer. Let me submit the final result.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the information I need to provide a comprehensive answer. Let me organize my response:\n\n1. **For each segment, explain how incremental kilograms delivered to orbit ultimately translate into revenue generation:**\n\n   - **Space Segment:** Kilograms delivered to orbit for external customers fulfill fixed-price launch contracts. Revenue is recognized when payloads are deployed to their intended orbits. However, when SpaceX launches its own Starlink satellites, no inter-segment revenue is recognized in the Space segment\u2014those launch costs are capitalized as part of the \"satellites\" line item in the Connectivity segment's Property, Plant, and Equipment.\n   \n   - **Connectivity Segment:** The mass delivered to orbit (Starlink satellites) becomes infrastructure. Launch costs are capitalized and depreciated over time. The deployed mass enables the Connectivity segment to generate service revenue from subscribers and data usage.\n   \n   - **AI Segment:** Currently, the AI segment doesn't directly translate kilograms to orbit into revenue. However, SpaceX plans to deploy orbital AI compute satellites as early as 2028. The plan is to convert mass to compute power (100 kilowatts per metric ton), scaling to 100 gigawatts of AI compute capacity per year, which will be monetized through sale of AI compute and AI software.\n\n2. **When revenue recognition occurs:**\n\n   - **Space Segment:**\n     - Launch Services: Point in time (upon launch/deployment of customer's payload)\n     - Launch and Development: Over time using cost-to-cost input method\n   \n   - **Connectivity Segment:**\n     - Broadband and Mobile Services: Over time (ratably for fixed-price, based on data consumption for variable)\n     - Starlink Kits: Point in time (upon delivery or installation)\n     - Starshield: Over time using cost-to-cost input method\n   \n   - **AI Segment:** Not explicitly detailed, but generates revenue through subscriptions, advertising, and data licensing.\n\n3. **Calculate the Connectivity-to-Space revenue ratio:**\n\n   - FY2025: $11,387M / $4,086M = 2.79x\n   - Q1 2026: $3,257M / $619M = 5.26x\n   \n   For context:\n   - Q1 2025: $2,475M / $865M = 2.86x\n\n4. **Interpret the trend:**\n\n   The ratio has increased significantly from 2.79x in FY2025 to 5.26x in Q1 2026. This reflects:\n   - Connectivity segment growing rapidly (49.8% in 2025, with subscriber growth of 104.7% in Q1 2026)\n   - Space segment revenue declining in Q1 2026 ($619M vs $865M in Q1 2025), driven by lower Launch Services missions and timing of government contracts\n   - Management explicitly states they expect Space revenue growth to continue to be lower than total company revenue growth because internal businesses (like Connectivity) are absorbing most of the growth in launch capacity\n   - The shift reflects SpaceX's strategic pivot from a launch services company to a connectivity/AI infrastructure company\n\nLet me also note that the Q1 2026 ratio is much higher than the FY2025 ratio, which could be partly due to:\n- Seasonality or timing of government contracts in Q1\n- The Space segment's $246 million revenue decrease in Q1 2026\n- Accelerated Starship R&D investment of $930 million\n\nLet me now compose the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4110244455854427bb16a0b8",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## How Incremental Kilograms Delivered to Orbit Translate into Revenue \u2014 By Segment\n\nSpaceX operates three reportable segments: **Space**, **Connectivity**, and **AI**. The S-1 (filed May 20, 2026) is retrospectively recast under common-control accounting to include xAI (merged February 2, 2026) and X Holdings (merged into xAI March 28, 2025) for all historical periods presented.\n\n### 1. Space Segment (Launch Services + Launch & Development)\n- **Mass-to-revenue mechanism:** For *external* customers, delivering payload mass to its intended orbit fulfills fixed-price launch contracts (Falcon 9, Falcon Heavy, Dragon) and government development/mission-service contracts (including Starship). Each kilogram delivered to orbit for a paying customer directly satisfies a contractual performance obligation.\n- **Critical inter-segment carve-out:** When SpaceX uses its own launch capacity to deploy *its own* Starlink satellites, **no inter-segment revenue is recognized in the Space segment**. Those launch costs are instead capitalized into the \"satellites\" line of Property, Plant & Equipment within the **Connectivity** segment. As a result, Space segment revenue reflects only third-party customer launches and customer development work \u2014 not the substantial internal Starlink build-out that consumes a large share of Falcon 9 flights.\n- **Revenue recognition timing:**\n  - **Launch Services \u2014 point in time:** Because flight hardware is interchangeable and unique engineering costs are minimal, revenue and costs are deferred and recognized at a single point in time \u2014 upon launch/deployment of the customer's payload to its intended orbit.\n  - **Launch & Development \u2014 over time:** For development contracts where performance creates an asset with no alternative use and SpaceX has an enforceable right to payment, revenue is recognized over time using the **cost-to-cost input method** (costs incurred to date \u00f7 total estimated cost at completion).\n\n### 2. Connectivity Segment (Starlink Consumer/Enterprise/Mobile + Starshield)\n- **Mass-to-revenue mechanism:** The kilograms delivered to orbit by the Space segment become *operating infrastructure* for Connectivity. Launch costs to deploy Starlink satellites are capitalized and depreciated over the satellites' useful lives. The deployed mass directly enables the segment to generate (i) recurring broadband and Starlink Mobile service revenue from subscribers across 156 markets, (ii) hardware revenue from Starlink Kit sales, and (iii) fixed-price Starshield development revenue for government/national-security secure networks.\n- **Revenue recognition timing:**\n  - **Broadband & Mobile services \u2014 over time:** Recognized as the customer simultaneously receives and consumes the benefit. Fixed-price/recurring monthly plans are recognized ratably over the subscription term; variable-priced services are recognized based on actual data consumption. (Broadband contracts are generally month-to-month; mobile agreements range from one to five years.)\n  - **Starlink Kits \u2014 point in time:** Recognized upon delivery to the customer (or upon installation for certain enterprise customers).\n  - **Starshield \u2014 over time:** Multi-year development contracts recognized using the cost-to-cost input method.\n\n### 3. AI Segment (Grok LLM, X platform, consumer/enterprise AI)\n- **Mass-to-revenue mechanism (current):** Today the AI segment does **not** directly monetize kilograms delivered to orbit. Revenue is generated through X and Grok subscriptions, advertising sales, and data licensing \u2014 software-driven, not mass-driven.\n- **Mass-to-revenue mechanism (forward-looking):** SpaceX plans to deploy **orbital AI compute satellites as early as 2028**, forming modular \"orbital AI compute shells\" powered by solar energy and interconnected via Starlink's inter-satellite laser mesh. The conversion economics disclosed: early satellites are expected to generate **~100 kilowatts of compute power per metric ton**; using Starship V3 (~100 metric tons per reusable flight) and scaling to ~1 million metric tons to orbit annually, SpaceX targets ~100 gigawatts of AI compute capacity per year. That capacity would be monetized by (i) selling high-performance compute to third parties for energy-intensive AI workloads (e.g., inference) and (ii) powering SpaceX's own frontier models sold as AI software. This is a roadmap/aspiration, not a historical outcome.\n- **Revenue recognition timing:** The S-1 does not explicitly detail point-in-time vs. over-time policies for AI subscriptions and advertising.\n\n---\n\n## Connectivity-to-Space Revenue Ratio\n\nUsing segment revenue disclosed in the S-1 (recast consolidated entity):\n\n| Period | Connectivity Revenue | Space Revenue | Connectivity : Space Ratio |\n|---|---|---|---|\n| **FY2025** (year ended Dec 31, 2025) | $11,387 M | $4,086 M | **2.79x** |\n| **Q1 2026** (three months ended Mar 31, 2026) | $3,257 M | $619 M | **5.26x** |\n| Q1 2025 (memo, for trend context) | $2,475 M | $865 M | 2.86x |\n\nCalculations:\n- FY2025: 11,387 / 4,086 = **2.79x**\n- Q1 2026: 3,257 / 619 = **5.26x**\n- Q1 2025 (memo): 2,475 / 865 = 2.86x\n\nFor share-of-total context: Connectivity was ~73.6% of FY2025 segment revenue (ex-AI) and ~84.0% in Q1 2026, while Space fell from ~26.4% to ~16.0%.\n\n---\n\n## Interpretation of the Trend\n\nThe Connectivity-to-Space ratio roughly **doubled** from 2.79x in FY2025 to 5.26x in Q1 2026, and is sharply higher than the 2.86x observed in Q1 2025. Three drivers explain the widening gap:\n\n1. **Connectivity is scaling faster than the company overall.** Starlink revenue grew 49.8% in 2025, and Q1 2026 subscriber count grew 104.7% year-over-year. Growth is being driven by consumer/enterprise/mobile adoption (aviation, maritime, mobile) and improved network efficiency, partially offset by ARPU compression (\u201322.9% in Q1 2026) from international expansion and lower-priced plans.\n\n2. **Space revenue is being cannibalized by internal demand.** Management explicitly states it \"expect[s] Space revenue growth to continue to be lower than total company revenue growth\" because SpaceX's internal businesses \u2014 primarily Connectivity, and eventually AI \u2014 are absorbing most of the growth in launch capacity. Since internal Starlink launches do not produce Space-segment revenue, every kilogram of incremental mass to orbit increasingly flows into Connectivity's capitalized satellite base rather than into Space-segment top line.\n\n3. **Q1 2026 Space revenue was further depressed by period-specific factors.** Space revenue fell to $619M in Q1 2026 from $865M in Q1 2025 \u2014 a $246M decline driven by fewer Launch Services missions and the timing of work on government contracts. Within Space, the mix also shifted from Launch Services (65.4% \u2192 53.3% of Space revenue) toward Launch & Development (34.6% \u2192 46.7%), consistent with management's expectation that long-term government development contracts will represent a larger share of Space revenue going forward. Q1 2026 also reflected ~$930M of accelerated Starship R&D investment, though that affects operating results rather than revenue.\n\n**Bottom line:** The rising Connectivity-to-Space ratio is the financial signature of SpaceX's strategic pivot from a third-party launch-services provider to a vertically integrated connectivity (and eventually AI-compute) infrastructure company. Incremental kilograms to orbit are increasingly being deployed as internal capital expenditure (Starlink satellites, and post-2028, orbital AI compute shells) rather than as third-party launch revenue \u2014 so the Space segment's reported revenue understates the true economic value of SpaceX's launch throughput, while the Connectivity segment captures the downstream monetization of that deployed mass.\n\n---\n\n### Sources\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"Space Exploration Technologies Corp. (SpaceX) Form S-1, filed May 20, 2026 \u2014 segment revenue disclosures, revenue recognition policies, MD&A segment discussion, and AI/orbital compute roadmap\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4110244455854427bb16a0b8",
+            "content": "## How Incremental Kilograms Delivered to Orbit Translate into Revenue \u2014 By Segment\n\nSpaceX operates three reportable segments: **Space**, **Connectivity**, and **AI**. The S-1 (filed May 20, 2026) is retrospectively recast under common-control accounting to include xAI (merged February 2, 2026) and X Holdings (merged into xAI March 28, 2025) for all historical periods presented.\n\n### 1. Space Segment (Launch Services + Launch & Development)\n- **Mass-to-revenue mechanism:** For *external* customers, delivering payload mass to its intended orbit fulfills fixed-price launch contracts (Falcon 9, Falcon Heavy, Dragon) and government development/mission-service contracts (including Starship). Each kilogram delivered to orbit for a paying customer directly satisfies a contractual performance obligation.\n- **Critical inter-segment carve-out:** When SpaceX uses its own launch capacity to deploy *its own* Starlink satellites, **no inter-segment revenue is recognized in the Space segment**. Those launch costs are instead capitalized into the \"satellites\" line of Property, Plant & Equipment within the **Connectivity** segment. As a result, Space segment revenue reflects only third-party customer launches and customer development work \u2014 not the substantial internal Starlink build-out that consumes a large share of Falcon 9 flights.\n- **Revenue recognition timing:**\n  - **Launch Services \u2014 point in time:** Because flight hardware is interchangeable and unique engineering costs are minimal, revenue and costs are deferred and recognized at a single point in time \u2014 upon launch/deployment of the customer's payload to its intended orbit.\n  - **Launch & Development \u2014 over time:** For development contracts where performance creates an asset with no alternative use and SpaceX has an enforceable right to payment, revenue is recognized over time using the **cost-to-cost input method** (costs incurred to date \u00f7 total estimated cost at completion).\n\n### 2. Connectivity Segment (Starlink Consumer/Enterprise/Mobile + Starshield)\n- **Mass-to-revenue mechanism:** The kilograms delivered to orbit by the Space segment become *operating infrastructure* for Connectivity. Launch costs to deploy Starlink satellites are capitalized and depreciated over the satellites' useful lives. The deployed mass directly enables the segment to generate (i) recurring broadband and Starlink Mobile service revenue from subscribers across 156 markets, (ii) hardware revenue from Starlink Kit sales, and (iii) fixed-price Starshield development revenue for government/national-security secure networks.\n- **Revenue recognition timing:**\n  - **Broadband & Mobile services \u2014 over time:** Recognized as the customer simultaneously receives and consumes the benefit. Fixed-price/recurring monthly plans are recognized ratably over the subscription term; variable-priced services are recognized based on actual data consumption. (Broadband contracts are generally month-to-month; mobile agreements range from one to five years.)\n  - **Starlink Kits \u2014 point in time:** Recognized upon delivery to the customer (or upon installation for certain enterprise customers).\n  - **Starshield \u2014 over time:** Multi-year development contracts recognized using the cost-to-cost input method.\n\n### 3. AI Segment (Grok LLM, X platform, consumer/enterprise AI)\n- **Mass-to-revenue mechanism (current):** Today the AI segment does **not** directly monetize kilograms delivered to orbit. Revenue is generated through X and Grok subscriptions, advertising sales, and data licensing \u2014 software-driven, not mass-driven.\n- **Mass-to-revenue mechanism (forward-looking):** SpaceX plans to deploy **orbital AI compute satellites as early as 2028**, forming modular \"orbital AI compute shells\" powered by solar energy and interconnected via Starlink's inter-satellite laser mesh. The conversion economics disclosed: early satellites are expected to generate **~100 kilowatts of compute power per metric ton**; using Starship V3 (~100 metric tons per reusable flight) and scaling to ~1 million metric tons to orbit annually, SpaceX targets ~100 gigawatts of AI compute capacity per year. That capacity would be monetized by (i) selling high-performance compute to third parties for energy-intensive AI workloads (e.g., inference) and (ii) powering SpaceX's own frontier models sold as AI software. This is a roadmap/aspiration, not a historical outcome.\n- **Revenue recognition timing:** The S-1 does not explicitly detail point-in-time vs. over-time policies for AI subscriptions and advertising.\n\n---\n\n## Connectivity-to-Space Revenue Ratio\n\nUsing segment revenue disclosed in the S-1 (recast consolidated entity):\n\n| Period | Connectivity Revenue | Space Revenue | Connectivity : Space Ratio |\n|---|---|---|---|\n| **FY2025** (year ended Dec 31, 2025) | $11,387 M | $4,086 M | **2.79x** |\n| **Q1 2026** (three months ended Mar 31, 2026) | $3,257 M | $619 M | **5.26x** |\n| Q1 2025 (memo, for trend context) | $2,475 M | $865 M | 2.86x |\n\nCalculations:\n- FY2025: 11,387 / 4,086 = **2.79x**\n- Q1 2026: 3,257 / 619 = **5.26x**\n- Q1 2025 (memo): 2,475 / 865 = 2.86x\n\nFor share-of-total context: Connectivity was ~73.6% of FY2025 segment revenue (ex-AI) and ~84.0% in Q1 2026, while Space fell from ~26.4% to ~16.0%.\n\n---\n\n## Interpretation of the Trend\n\nThe Connectivity-to-Space ratio roughly **doubled** from 2.79x in FY2025 to 5.26x in Q1 2026, and is sharply higher than the 2.86x observed in Q1 2025. Three drivers explain the widening gap:\n\n1. **Connectivity is scaling faster than the company overall.** Starlink revenue grew 49.8% in 2025, and Q1 2026 subscriber count grew 104.7% year-over-year. Growth is being driven by consumer/enterprise/mobile adoption (aviation, maritime, mobile) and improved network efficiency, partially offset by ARPU compression (\u201322.9% in Q1 2026) from international expansion and lower-priced plans.\n\n2. **Space revenue is being cannibalized by internal demand.** Management explicitly states it \"expect[s] Space revenue growth to continue to be lower than total company revenue growth\" because SpaceX's internal businesses \u2014 primarily Connectivity, and eventually AI \u2014 are absorbing most of the growth in launch capacity. Since internal Starlink launches do not produce Space-segment revenue, every kilogram of incremental mass to orbit increasingly flows into Connectivity's capitalized satellite base rather than into Space-segment top line.\n\n3. **Q1 2026 Space revenue was further depressed by period-specific factors.** Space revenue fell to $619M in Q1 2026 from $865M in Q1 2025 \u2014 a $246M decline driven by fewer Launch Services missions and the timing of work on government contracts. Within Space, the mix also shifted from Launch Services (65.4% \u2192 53.3% of Space revenue) toward Launch & Development (34.6% \u2192 46.7%), consistent with management's expectation that long-term government development contracts will represent a larger share of Space revenue going forward. Q1 2026 also reflected ~$930M of accelerated Starship R&D investment, though that affects operating results rather than revenue.\n\n**Bottom line:** The rising Connectivity-to-Space ratio is the financial signature of SpaceX's strategic pivot from a third-party launch-services provider to a vertically integrated connectivity (and eventually AI-compute) infrastructure company. Incremental kilograms to orbit are increasingly being deployed as internal capital expenditure (Starlink satellites, and post-2028, orbital AI compute shells) rather than as third-party launch revenue \u2014 so the Space segment's reported revenue understates the true economic value of SpaceX's launch throughput, while the Connectivity segment captures the downstream monetization of that deployed mass.\n\n---\n\n### Sources\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"Space Exploration Technologies Corp. (SpaceX) Form S-1, filed May 20, 2026 \u2014 segment revenue disclosures, revenue recognition policies, MD&A segment discussion, and AI/orbital compute roadmap\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7136,
+        "completion_tokens": 2610,
+        "cached_tokens": 6080,
+        "cost_usd": 0.03634
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 34867,
+    "total_completion_tokens": 3788,
+    "total_cached_tokens": 24704,
+    "total_cost_usd": 0.0941675,
+    "total_steps": 9
+  }
+}

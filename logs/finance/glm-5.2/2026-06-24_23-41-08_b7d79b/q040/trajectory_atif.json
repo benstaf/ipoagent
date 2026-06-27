@@ -1,0 +1,532 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "f0a7b3bd-2c2e-44d6-96c0-4419cfc16797",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-24T23:41:15.103119+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-24T23:41:15.103119+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nThe filing emphasizes Segment Adjusted EBITDA while capital intensity remains elevated. Identify two situations in which EBITDA-based segment comparisons could materially misrepresent economic profitability.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-24T23:41:15.103119+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about a SpaceX S-1 filing. I need to analyze the filing to understand:\n1. How Segment Adjusted EBITDA is defined and used\n2. The capital intensity of the business\n3. Two situations where EBITDA-based segment comparisons could materially misrepresent economic profitability\n\nLet me start by parsing the SpaceX S-1 filing to understand the segment reporting and EBITDA definitions.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ce6641446f8c4b8d9d4b024d",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ce6641446f8c4b8d9d4b024d",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3153,
+        "completion_tokens": 140,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0054425
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-24T23:41:50.044555+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_fdc02089e4cf414599c6cb2a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the definition of Segment Adjusted EBITDA in {{spacex_s1}}? How is it calculated and what items are excluded?"
+          }
+        },
+        {
+          "tool_call_id": "call_cced88c8586749c68bd7f8d5",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the segments reported in {{spacex_s1}}? What is the segment financial information including revenue, EBITDA, and capital expenditures by segment?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_fdc02089e4cf414599c6cb2a",
+            "content": "Based on the provided text, **Segment Adjusted EBITDA** is defined as segment income (loss) from operations excluding the following items:\n1. Depreciation and amortization\n2. Share-based compensation\n3. Restructuring charges\n4. Impairment"
+          },
+          {
+            "source_call_id": "call_cced88c8586749c68bd7f8d5",
+            "content": "# Reported Segments and Segment Financial Information\n\nBased on the provided financial statement notes, the company reports **three segments**:\n\n1. **Space**\n2. **Connectivity**\n3. **AI**\n\n---\n\n## Segment Financial Summary by Period\n\n### Year Ended December 31, 2023\n\n| Metric | Space | Connectivity | AI | Total |\n|--------|-------|--------------|-----|-------|\n| Revenue | $3,557M | $3,869M | $2,961M | $10,387M |\n| Income (loss) from operations | $(1)M | $469M | $(3,973)M | $(3,505)M |\n| Segment Adjusted EBITDA | $997M | $1,602M | $1,222M | $3,821M |\n| Capital expenditures | $1,497M | $2,455M | $463M | $4,415M |\n\n### Year Ended December 31, 2024\n\n| Metric | Space | Connectivity | AI | Total |\n|--------|-------|--------------|-----|-------|\n| Revenue | $3,796M | $7,599M | $2,620M | $14,015M |\n| Income (loss) from operations | $21M | $2,006M | $(1,561)M | $466M |\n| Capital expenditures | $2,032M | $3,498M | $5,633M | $11,163M |\n\n### Year Ended December 31, 2025\n\n| Metric | Space | Connectivity | AI | Total |\n|--------|-------|--------------|-----|-------|\n| Revenue | $4,086M | $11,387M | $3,201M | $18,674M |\n| Income (loss) from operations | $(657)M | $4,423M | $(6,355)M | $(2,589)M |\n| Segment Adjusted EBITDA | $653M | $7,168M | $(1,237)M | $6,584M |\n| Capital expenditures | $3,832M | $4,178M | $12,727M | $20,737M |\n\n### Three Months Ended March 31, 2025\n\n| Metric | Space | Connectivity | AI | Total |\n|--------|-------|--------------|-----|-------|\n| Revenue | $865M | $2,475M | $727M | $4,067M |\n| Income (loss) from operations | $(70)M | $1,033M | $(936)M | $27M |\n| Segment Adjusted EBITDA | $224M | $1,618M | $(112)M | $1,730M |\n| Capital expenditures | $759M | $814M | $2,567M | $4,140M |\n\n### Three Months Ended March 31, 2026\n\n| Metric | Space | Connectivity | AI | Total |\n|--------|-------|--------------|-----|-------|\n| Revenue | $619M | $3,257M | $818M | $4,694M |\n| Income (loss) from operations | $(662)M | $1,188M | $(2,469)M | $(1,943)M |\n| Segment Adjusted EBITDA | $(351)M | $2,087M | $(609)M | $1,127M |\n| Capital expenditures | $1,052M | $1,332M | $7,723M | $10,107M |\n\n---\n\n## Key Observations\n\n- **Connectivity** (primarily Starlink) is the strongest performer, generating positive operating income and Adjusted EBITDA across all periods, with revenue growing from $3.9B (2023) to $11.4B (2025).\n- **Space** generates meaningful revenue but incurs operating losses driven by significant R&D investment in the Starship program ($3.0B in 2025; $930M in Q1 2026).\n- **AI** (formed from the xAI acquisition in February 2026) is in an early-stage investment phase, with substantial operating losses and rapidly scaling capital expenditures ($7.7B in Q1 2026 alone) directed at compute infrastructure."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3309,
+        "completion_tokens": 83,
+        "cached_tokens": 3136,
+        "cost_usd": 0.0051825
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-24T23:43:08.534798+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a good understanding of the segment financials. Let me look at more details about:\n1. Capital expenditures and depreciation patterns\n2. The nature of the AI segment's investments (compute infrastructure)\n3. The Space segment's R&D and Starship program\n4. Any specific disclosures about EBITDA limitations\n\nLet me retrieve more information about capital intensity, depreciation, and the nature of investments.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bc9efefde6584f46a5e8969d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about capital expenditures, depreciation expense, and useful lives of property and equipment by segment? What is the nature of the AI segment's compute infrastructure investments?"
+          }
+        },
+        {
+          "tool_call_id": "call_109622adf6ef4b21963eca49",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about research and development expenses, Starship program costs, and how these are treated in Segment Adjusted EBITDA? Are R&D costs expensed or capitalized?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bc9efefde6584f46a5e8969d",
+            "content": "Based on the provided financial document chunks, here is what the company discloses regarding capital expenditures, depreciation, useful lives, and the nature of its AI compute infrastructure investments:\n\n### 1. Capital Expenditures by Segment\nThe company provides a detailed breakdown of capital expenditures (CapEx) across its three reportable segments\u2014Space, Connectivity, and AI\u2014highlighting a massive ramp-up in AI spending:\n*   **Q1 2026:** Space ($1,052M), Connectivity ($1,332M), AI ($7,723M) \u2014 Total: $10,107M\n*   **FY 2025:** Space ($3,832M), Connectivity ($4,178M), AI ($12,727M) \u2014 Total: $20,737M\n*   **FY 2024:** Space ($2,032M), Connectivity ($3,498M), AI ($5,633M) \u2014 Total: $11,163M\n*   **FY 2023:** Space ($1,497M), Connectivity ($2,455M), AI ($463M) \u2014 Total: $4,415M\n\n### 2. Depreciation Expense\nThe document outlines depreciation both at the total company level and as a supplemental metric within the segment reporting tables (reported as Depreciation and amortization):\n*   **Total Company Depreciation Expense:** \n    *   Q1 2026: $2,329 million\n    *   Q1 2025: $1,237 million\n    *   FY 2025: $5,915 million\n    *   FY 2024: $2,977 million\n*   **Segment Depreciation & Amortization (Supplemental Info):**\n    *   *Q1 2026:* Space ($166M), Connectivity ($783M), AI ($1,493M)\n    *   *FY 2025:* (Not fully itemized in the chunks, but total D&A scales with the $5.9B company-wide expense)\n    *   *FY 2024:* Space ($637M), Connectivity ($1,508M), AI ($1,679M)\n    *   *FY 2023:* Space ($571M), Connectivity ($884M), AI ($1,180M)\n\n### 3. Estimated Useful Lives of Property and Equipment\nWhile the useful lives are listed by asset classification rather than strictly by segment, the asset categories clearly map to the company's hybrid aerospace and AI operations:\n*   **Servers and networking equipment:** 5 - 6 years\n*   **Satellites:** 3 - 5 years\n*   **Machinery and equipment:** 3 - 10 years\n*   **Flight vehicle hardware:** 5 - 25 flights\n*   **Data center infrastructure:** 20 - 25 years\n*   **Launch sites:** 7 - 20 years\n*   **Buildings and improvements:** 30 years\n*   **Leasehold improvements:** Shorter of 7 - 20 years or the life of the lease\n\n### 4. Nature of the AI Segment's Compute Infrastructure Investments\nThe AI segment (formed following the acquisition of xAI in February 2026) is characterized as capital-intensive, early-stage, and focused on long-term growth. The nature of its compute infrastructure investments includes:\n*   **Hardware and Data Centers:** The company is investing heavily in specialized computing hardware, including obtaining third-party GPUs and manufacturing its own GPUs. This also includes constructing, leasing, maintaining, enhancing, and expanding data centers.\n*   **Construction-in-Progress (CIP):** As of March 31, 2026, CIP stood at $14,045 million (up from $4,604 million at year-end 2025), primarily comprising ongoing construction and expansion of facilities and AI infrastructure not yet placed in service. The company also capitalized $7 million in interest in Q1 2026 and $169 million in FY 2025 related to these significant long-term AI data center projects.\n*   **Power and Operational Costs:** AI research and development costs include cloud computing expenses, power generation costs, and depreciation of data center assets (processors, networking equipment). \n*   **Scale and Timeline:** Capital expenditures for AI are scaling as quickly as the company can deploy power and compute to address a $26.5 trillion potential market opportunity. However, the company expects a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA, explicitly warning that prioritizing this long-term growth may result in periods of reduced profitability or increased losses."
+          },
+          {
+            "source_call_id": "call_109622adf6ef4b21963eca49",
+            "content": "Based on the provided text, here is what the company discloses about research and development (R&D) expenses, Starship program costs, and their treatment in Segment Adjusted EBITDA:\n\n**1. Are R&D costs expensed or capitalized?**\nCurrently, the vast majority of R&D and Starship costs are **expensed as incurred**. Specifically:\n*   **General R&D:** The company sponsors various R&D projects whose costs are expensed as incurred. Software development costs incurred prior to the establishment of technological feasibility are also expensed as R&D. \n*   **Starship Program:** Because Starship is currently in the development stage, a majority of its costs are expensed to R&D as incurred. Additionally, Raptor engines are expensed when they are used in test flights. \n\n**Future Capitalization:** The company expects this treatment to shift once Starship reaches commercialization (defined as delivering payload to orbit). At that point, Starship costs will generally be **capitalized** and then depreciated in the cost of revenue of the segment associated with the payload delivered.\n\n**2. What do Starship R&D costs consist of?**\nThe text outlines that Starship R&D expenses mainly relate to the development, build, and testing of the vehicle. These costs consist of:\n*   Test flight hardware\n*   Raptor engines\n*   Employee compensation costs (salaries, benefits, and share-based compensation)\n*   Tooling and equipment expenses\n*   Depreciation for R&D equipment\n*   Allocated overhead\n\n**3. How are these costs treated in Segment Adjusted EBITDA?**\nSegment Adjusted EBITDA is defined as segment income (loss) from operations *excluding* (i) depreciation and amortization, (ii) share-based compensation, (iii) restructuring charges, and (iv) impairment. \n\nBecause Starship R&D costs are currently expensed as incurred, they act as a direct reduction to Segment Adjusted EBITDA (they are not added back like depreciation or impairment). The text explicitly notes that accelerated investment in the development of the Starship vehicle was the primary driver causing the Space Segment Adjusted EBITDA to decrease to $(351) million for the three months ended March 31, 2026, down from $224 million in the prior year. \n\nOnce Starship is commercialized and costs shift from being expensed R&D to capitalized assets, the resulting depreciation will be excluded from the Segment Adjusted EBITDA calculation."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4421,
+        "completion_tokens": 186,
+        "cached_tokens": 3264,
+        "cost_usd": 0.0088325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-24T23:43:49.696917+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a very clear picture. Let me also look at the specific limitations of EBITDA that the filing itself discloses, and any non-GAAP reconciliation language.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_91ce9277ea5d485cbb2cf96e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about limitations of EBITDA or Segment Adjusted EBITDA as a non-GAAP measure? What cautions or warnings does the filing provide about using EBITDA?"
+          }
+        },
+        {
+          "tool_call_id": "call_1b5044a117ec4d55ae393d2b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about the useful lives of satellites, servers, and flight vehicle hardware? How does the depreciation pattern differ between segments? What is the Starlink satellite replacement cycle?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_91ce9277ea5d485cbb2cf96e",
+            "content": "Based on the provided text, the filing outlines several specific limitations and cautions regarding the use of Adjusted EBITDA and Segment Adjusted EBITDA as non-GAAP measures:\n\n**Acknowledged Limitations:**\n*   **Lack of Standardization:** The filing warns that other companies in the industry may calculate Adjusted EBITDA and Segment Adjusted EBITDA differently, or may not calculate them at all. This limits their usefulness as comparative measures against other companies.\n*   **Not a Substitute for GAAP:** Because of their inherent limitations, these measures should not be considered in isolation or viewed as a substitute for GAAP financial measures such as net income (loss), income (loss) from operations, or any other GAAP calculation.\n\n**Cautions and Warnings:**\n*   **Supplemental Nature:** The filing clarifies that these are supplemental measures that are not required by or presented in accordance with GAAP. While management believes they provide a meaningful view by removing items that do not directly reflect ongoing operating performance, they are not a complete picture of financial health.\n*   **Must Be Considered Alongside GAAP:** Investors are cautioned that Adjusted EBITDA and Segment Adjusted EBITDA should be considered *together* with the company's GAAP financial measures, as well as the reconciliations to the most directly comparable GAAP financial measures provided in the filing. \n*   **Management Recognition:** The filing explicitly states that management \"recognizes and considers the limitations of these measures\" when evaluating performance, warning investors to do the same."
+          },
+          {
+            "source_call_id": "call_1b5044a117ec4d55ae393d2b",
+            "content": "Based on the provided financial and operational disclosures, here are the details regarding the useful lives, depreciation patterns, and satellite replacement cycles:\n\n**1. Estimated Useful Lives of Key Assets**\nThe company's significant accounting policies note details the following estimated useful lives for its hybrid aerospace and AI infrastructure:\n*   **Servers and networking equipment:** 5 to 6 years.\n*   **Satellites:** 3 to 5 years. Specifically, the company estimates a 5-year useful life for broadband satellites and a 3-year useful life for first-generation mobile satellites. \n*   **Flight vehicle hardware:** 5 to 25 flights. Rather than being measured in years, the useful life of flight vehicles and spacecraft (such as Falcon 9 boosters, fairings, and Dragon capsules) is measured by the expected number of average flights.\n\n**2. Differences in Depreciation Patterns Across Segments**\nThe depreciation patterns differ significantly between the company's Space, Connectivity, and AI segments based on the nature of the underlying assets:\n*   **Space Segment (Flight Vehicles):** Unlike most other assets, flight vehicles and spacecraft are **not** depreciated using the straight-line method. Instead, they are depreciated based on the expected number of average flights (a units-of-production approach). The company determines this based on recovery/refurbishment success rates, refurbishment economics, customer acceptance of reflown hardware, and anticipated retirement timing (e.g., transitioning from Falcon to Starship).\n*   **Connectivity Segment (Satellites):** Satellites are capitalized at cost (which includes an allocation of the Space segment's launch costs) and are depreciated using the **straight-line method** over their estimated 3-to-5-year useful lives. \n*   **AI Segment (Data Centers):** Data center infrastructure (20-25 years) and servers/networking equipment (5-6 years) are depreciated using the **straight-line method**. The AI segment also capitalizes interest costs during the construction of significant long-term data center projects, which then depreciates over the assets' useful lives. \n\n**3. The Starlink Satellite Replacement Cycle**\nThe Starlink satellite replacement cycle is driven by a relatively short estimated useful life of **3 to 5 years**, which is inherently shorter than the information technology systems they host. The replacement strategy includes the following elements:\n*   **Proactive Deorbiting:** The company often deorbits and replaces Starlink satellites *before* they reach the end of their estimated useful lives. This is done primarily to reduce degradation risks that could impair the satellites' autonomous collision avoidance systems and compromise safety.\n*   **Continuous Deployment:** Because existing satellites are decommissioned relatively quickly, the company must continually launch replacement satellites to maintain constellation density and capacity. \n*   **Lifecycle Management for Future Orbital AI:** For future space-based AI compute satellites, the company plans to extend the replacement cycle's value by shifting older hardware to lower-intensity workloads as performance evolves before ultimately retiring the systems via controlled end-of-life disposition (such as moving them to graveyard orbits)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6102,
+        "completion_tokens": 142,
+        "cached_tokens": 3072,
+        "cost_usd": 0.012835000000000001
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-24T23:44:39.997475+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive understanding. Let me also check on the AI segment's depreciation timing - specifically, the fact that CIP (construction in progress) is not yet being depreciated, which means the AI segment's EBITDA is understating the true economic cost of its capital base.\n\nLet me also look at the share-based compensation treatment and any other items that might be relevant.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_a1c0a0dac00140158fa546d6",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about construction in progress (CIP) for the AI segment and when depreciation begins? How much CIP is not yet in service? What is the timing of when AI assets will be placed in service and begin depreciating?"
+          }
+        },
+        {
+          "tool_call_id": "call_8a36e21d76cd42139ae34fae",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about share-based compensation by segment? How is share-based compensation treated in Segment Adjusted EBITDA and what is the magnitude by segment?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_a1c0a0dac00140158fa546d6",
+            "content": "Based on the provided financial statement notes and MD&A excerpts, here is what the company discloses regarding Construction-in-Progress (CIP) for the AI segment and the timing of depreciation:\n\n**1. Disclosures regarding CIP for the AI segment and when depreciation begins**\nThe notes state that Construction-in-progress is \"primarily comprised of ongoing construction and expansion of the facilities and equipment as well as AI infrastructure that has not yet been placed in service.\" \nWhile the exact accounting policy phrasing for when depreciation begins is not explicitly detailed in these snippets, the text distinguishes between assets in CIP (not yet in service) and depreciation expense, which is being driven by placed assets. For example, the MD&A notes that the increase in AI segment research and development expense was driven by the \"depreciation of GPU hardware, and the cost of cloud computing and data center infrastructure expenses as a result of our AI data center expansions,\" and that AI losses were driven by \"higher cloud computing and GPU depreciation costs.\" \n\n**2. How much CIP is not yet in service?**\nThe document does not break out a specific dollar amount exclusively for the AI segment's CIP. However, it provides the total company Construction-in-progress balance, which it notes is \"primarily comprised of\" AI infrastructure not yet in service:\n*   **March 31, 2026:** $14,045 million\n*   **December 31, 2025:** $4,604 million\n\n**3. Timing of when AI assets will be placed in service and begin depreciating**\nThe provided text does not disclose a specific timeline, date, or quarter for when the current AI assets in CIP will be placed in service and begin depreciating. It only indicates that there is a \"multi-year investment horizon\" before these deployments translate into sustained positive AI Segment Adjusted EBITDA, and notes that capital expenditures \"will scale as quickly as we are able to deploy power and compute.\""
+          },
+          {
+            "source_call_id": "call_8a36e21d76cd42139ae34fae",
+            "content": "# Share-Based Compensation Disclosure by Segment\n\n## Treatment in Segment Adjusted EBITDA\n\nShare-based compensation is **excluded (added back)** from segment income (loss) from operations when calculating Segment Adjusted EBITDA. Per the filing's definition:\n\n> \"Segment Adjusted EBITDA is defined as segment income (loss) from operations excluding (i) depreciation and amortization, **(ii) share-based compensation**, (iii) restructuring charges, and (iv) impairment.\"\n\nThis means it is treated as a non-cash item that management removes to present what it considers a cleaner view of operating performance.\n\n## Magnitude by Segment (from the reconciliation tables)\n\n| Period | Space | Connectivity | AI | Total Reportable Segments |\n|---|---|---|---|---|\n| **Q1 2026** (3 mos. ended Mar 31) | $145M | $116M | $378M | $639M |\n| **Q1 2025** (3 mos. ended Mar 31) | $108M | $75M | $49M | $232M |\n| **FY 2025** (year ended Dec 31) | $515M | $369M | $1,063M | $1,947M |\n| **FY 2024** (year ended Dec 31) | $472M | $296M | $16M | $784M |\n| **FY 2023** (year ended Dec 31) | $427M | $249M | $3M | $679M |\n\n## Key Observations\n\n1. **AI segment surge**: Share-based compensation in the AI segment grew dramatically\u2014from just **$3M in 2023** to **$1,063M in 2025** and **$378M in Q1 2026 alone**\u2014reflecting aggressive equity-based hiring and retention in that business.\n\n2. **Space and Connectivity are more stable**: Space hovered around $427M\u2013$515M annually, while Connectivity grew from $249M (2023) to $369M (2025).\n\n3. **Consolidated line-item breakdown** (separate disclosure) for Q1 2026 shows the total $639M allocated as:\n   - Cost of revenue: $76M\n   - Research and development: $362M\n   - Selling, general, and administrative: $201M\n\n4. **Capitalized portion**: The filing also notes that **$60M** (Q1 2026) and **$30M** (Q1 2025) of share-based compensation was capitalized to the balance sheet (i.e., not run through the income statement), meaning the total economic cost of equity awards exceeds the expensed amounts shown in the segment reconciliations.\n\n## Summary\n\nThe company discloses share-based compensation **both** by segment (in the Segment Adjusted EBITDA reconciliation tables) **and** by income-statement line item (in the notes). It is consistently treated as an add-back/exclusion in Segment Adjusted EBITDA across all periods and segments, with the AI segment being the primary driver of the rapid overall growth in this expense."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7195,
+        "completion_tokens": 191,
+        "cached_tokens": 6080,
+        "cost_usd": 0.0122975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-24T23:45:38.765897+00:00",
+      "source": "agent",
+      "message": "\nI now have sufficient information to construct a thorough answer. Let me verify one more detail about the Starship commercialization accounting shift and the satellite replacement economics.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive understanding. Let me synthesize the two key situations where EBITDA-based segment comparisons could materially misrepresent economic profitability:\n\n**Situation 1: Capital intensity differences across segments (especially AI vs. Connectivity/Space)**\n\nThe AI segment is in a massive build-out phase with $12.7B in CapEx in 2025 and $7.7B in Q1 2026 alone. As of March 31, 2026, CIP was $14.0B, primarily AI infrastructure not yet placed in service. This means:\n- The AI segment's depreciation expense is currently understated relative to its true capital base because much of the investment is still in CIP and not yet depreciating\n- Once these assets are placed in service, depreciation will surge but will be excluded from Segment Adjusted EBITDA\n- EBITDA ignores the massive capital investment required to generate AI revenue\n- Comparing AI Segment Adjusted EBITDA to Connectivity (which has a more mature, depreciating asset base) would make AI look better than it economically is, because EBITDA excludes the depreciation that reflects the real cost of the capital deployed\n\nAlso, the AI segment has very different useful lives (servers 5-6 years, data centers 20-25 years) compared to:\n- Connectivity satellites (3-5 years) - very short, requiring constant replacement\n- Space flight vehicles (5-25 flights, units-of-production)\n\nSo even when assets are in service, the depreciation timing differs dramatically. The Connectivity segment's short satellite lives mean it has high ongoing depreciation that EBITDA excludes, making its EBITDA look strong but masking the need for continuous reinvestment. The AI segment's longer-lived data centers (20-25 years) mean lower annual depreciation per dollar of capital, but EBITDA excludes this entirely.\n\n**Situation 2: R&D expense treatment and Starship commercialization timing**\n\nThe Space segment currently expenses most Starship R&D costs (test flight hardware, Raptor engines, etc.) as incurred. These costs flow through to Segment Adjusted EBITDA as a reduction. However:\n- Once Starship reaches commercialization, these costs will be capitalized and then depreciated\n- Depreciation is excluded from Segment Adjusted EBITDA\n- This means the Space segment's EBITDA will mechanically improve when Starship commercializes, NOT because of improved economics, but because the accounting treatment shifts from expensed R&D (included in EBITDA) to capitalized depreciation (excluded from EBITDA)\n- This creates a misleading comparison: pre-commercialization Space EBITDA looks worse than post-commercialization, even though the underlying cash outflows may be similar\n- Also, comparing Space segment EBITDA to AI segment EBITDA is distorted because AI's compute infrastructure is capitalized (and excluded from EBITDA via depreciation add-back) while Space's Starship R&D is expensed (and included in EBITDA)\n\nLet me also think about a third potential situation:\n\n**Situation 3: Share-based compensation differences**\n\nThe AI segment has dramatically higher share-based compensation ($1.06B in 2025, $378M in Q1 2026) compared to Space and Connectivity. Since SBC is excluded from Segment Adjusted EBITDA, this masks a real economic cost (dilution) that is much larger for AI than for the other segments. Comparing AI EBITDA to Connectivity EBITDA without considering SBC would overstate AI's relative profitability.\n\nBut the question asks for TWO situations, so I'll focus on the two strongest:\n\n1. **Capital intensity / depreciation timing mismatch** - especially the AI segment's massive CIP not yet depreciating, and the different useful lives across segments (satellites 3-5 years vs. data centers 20-25 years vs. flight vehicles 5-25 flights). EBITDA excludes depreciation entirely, so segments with different capital intensity and asset life profiles cannot be meaningfully compared on an EBITDA basis.\n\n2. **R&D expensing vs. capitalization asymmetry** - The Space segment's Starship R&D is currently expensed (reducing EBITDA), while the AI segment's compute infrastructure is capitalized (with depreciation excluded from EBITDA). This creates an apples-to-oranges comparison where the same economic activity (building long-lived assets) is treated differently in EBITDA depending on whether it's classified as R&D or CapEx. When Starship commercializes, the accounting shift will mechanically improve Space EBITDA without any economic change.\n\nLet me also verify the share-based compensation point and the satellite replacement cycle to make sure I have the facts right.\n\nActually, I think the two strongest situations are:\n\n1. **Capital intensity and depreciation timing differences** - The AI segment has $14B in CIP not yet depreciating, plus different useful lives across segments mean EBITDA excludes very different economic costs. The Connectivity segment's 3-5 year satellite lives require constant reinvestment that EBITDA ignores.\n\n2. **Asymmetric treatment of long-lived asset creation (R&D expensing vs. capitalization)** - Space's Starship R&D is expensed (hits EBITDA), while AI's compute CapEx is capitalized (depreciation excluded from EBITDA). This makes segment EBITDA comparisons misleading.\n\nLet me also consider whether to mention share-based compensation as a third point or fold it in. The question asks for two situations, so I'll focus on the two strongest but can mention SBC as a related consideration.\n\nLet me now formulate my final answer. I want to be precise about the numbers and the filing's specific disclosures.\n\nKey data points to cite:\n- Segment Adjusted EBITDA definition: excludes D&A, SBC, restructuring, impairment\n- AI CapEx: $12.7B (2025), $7.7B (Q1 2026)\n- Total CIP: $14.0B (March 31, 2026), primarily AI infrastructure not yet in service\n- Useful lives: satellites 3-5 years, servers 5-6 years, data centers 20-25 years, flight vehicles 5-25 flights\n- Starship R&D expensed as incurred; will be capitalized upon commercialization\n- AI SBC: $1.06B (2025), $378M (Q1 2026) vs. Space $515M (2025), Connectivity $369M (2025)\n\nLet me write up the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e6b4a1851275469ea30f0a08",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what is the relationship between Connectivity segment capital expenditures and depreciation? Does the Connectivity segment need to continually reinvest in satellite replacement? What is the magnitude of Connectivity CapEx vs. its depreciation?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e6b4a1851275469ea30f0a08",
+            "content": "Based on the provided financial document chunks, here is the relationship between the Connectivity segment's capital expenditures (CapEx) and depreciation, and the segment's reinvestment needs:\n\n**Relationship Between CapEx and Depreciation**\nAcross all reported periods, the Connectivity segment's capital expenditures significantly outpace its depreciation and amortization (D&A). This indicates that the segment is currently in a heavy growth and network expansion phase, rather than just a maintenance phase. \n\n**Need for Continual Reinvestment in Satellite Replacement**\nYes, the Connectivity segment will need to continually reinvest in satellite replacement. The text specifies that the segment operates a broadband network \"powered by thousands of Starlink satellites in Low-Earth Orbit.\" The notes detail that \"Satellites include costs to build the satellites... as well as capitalized launch costs,\" and the MD&A highlights \"higher depreciation of capitalized launch and satellite costs due to the increase in Starlink flights.\" Because these satellites are capitalized and depreciated over their useful lives, the company will naturally need to continually launch replacement satellites to maintain its network capacity as the current fleet ages, in addition to the satellites it is launching to expand the network. \n\n**Magnitude of Connectivity CapEx vs. Depreciation**\nThe magnitude of CapEx consistently dwarfs depreciation, showing that the company is investing heavily in future capacity:\n*   **Full Year 2023:** CapEx was $2,455 million compared to D&A of $884 million (CapEx was roughly 2.8x higher).\n*   **Full Year 2024:** CapEx was $3,498 million compared to D&A of $1,508 million (CapEx was roughly 2.3x higher).\n*   **Three Months Ended March 31, 2025:** CapEx was $814 million compared to D&A of $510 million.\n*   **Three Months Ended March 31, 2026:** CapEx was $1,332 million compared to D&A of $783 million. \n\nThe document notes that these year-over-year increases in CapEx are \"primarily driven by higher satellite and ground equipment costs as we continue to increase our number of satellites and grow our satellite network.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8475,
+        "completion_tokens": 1444,
+        "cached_tokens": 7168,
+        "cost_usd": 0.0266675
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-24T23:46:18.113211+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed to construct a comprehensive answer.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have all the information I need. Let me construct my final answer.\n\nThe two key situations where EBITDA-based segment comparisons could materially misrepresent economic profitability:\n\n**Situation 1: Capital intensity and depreciation timing asymmetries across segments**\n\nThe three segments have radically different capital intensity profiles and asset useful lives, and EBITDA excludes depreciation entirely:\n\n- **AI segment**: Massive CapEx ($12.7B in 2025, $7.7B in Q1 2026) with $14.0B in CIP not yet placed in service as of March 31, 2026. Once placed in service, depreciation will surge but be excluded from EBITDA. Servers (5-6 years) and data centers (20-25 years) have longer lives, meaning lower annual depreciation per dollar of capital. EBITDA makes the AI segment look better than its true economics because it ignores both the capital deployed and the future depreciation stream.\n\n- **Connectivity segment**: Satellites have very short useful lives (3-5 years) and require continuous replacement. CapEx consistently dwarfs depreciation (e.g., 2024: $3.5B CapEx vs. $1.5B D&A). EBITDA excludes the depreciation that reflects the real economic cost of the satellite fleet, and also ignores the ongoing reinvestment requirement. A high Connectivity EBITDA masks the fact that the segment must perpetually reinvest to maintain its constellation.\n\n- **Space segment**: Flight vehicles depreciated on units-of-production basis (5-25 flights), not straight-line. This is a fundamentally different depreciation pattern.\n\nComparing these segments on EBITDA ignores that:\n1. The AI segment's EBITDA is artificially flattered by CIP not yet depreciating\n2. The Connectivity segment's EBITDA ignores the short satellite lives and perpetual replacement cycle\n3. Different depreciation methods (straight-line vs. units-of-production) and useful lives mean the depreciation add-back is not economically equivalent across segments\n\n**Situation 2: Asymmetric treatment of long-lived asset creation (R&D expensing vs. capitalization)**\n\nThe Space segment's Starship R&D costs (test flight hardware, Raptor engines, etc.) are currently expensed as incurred and flow through to reduce Segment Adjusted EBITDA. In contrast, the AI segment's compute infrastructure investments are capitalized and depreciated\u2014with depreciation excluded from EBITDA.\n\nThis creates two distortions:\n1. **Cross-segment comparison distortion**: Comparing Space EBITDA to AI EBITDA is apples-to-oranges because the same economic activity (building long-lived productive assets) is treated differently. Space's asset creation reduces EBITDA; AI's asset creation does not (it's capitalized, then depreciation is added back). This makes AI look relatively more profitable than Space on an EBITDA basis, even though both are investing heavily in long-lived assets.\n\n2. **Time-series distortion within Space**: When Starship reaches commercialization, costs will shift from expensed R&D (included in EBITDA) to capitalized assets (depreciation excluded from EBITDA). This will mechanically improve Space Segment Adjusted EBITDA without any change in underlying economics\u2014the same cash outflows will simply be reclassified. A time-series comparison of Space EBITDA pre- and post-commercialization would overstate the improvement in economic profitability.\n\nI could also mention share-based compensation as a third consideration, but the question asks for two. I'll mention it briefly as a related issue.\n\nLet me write up the final answer now.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_eea9952ef97641029b6f4f21",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Two Situations Where EBITDA-Based Segment Comparisons Could Materially Misrepresent Economic Profitability\n\nThe SpaceX S-1 defines **Segment Adjusted EBITDA** as segment income (loss) from operations excluding (i) depreciation and amortization, (ii) share-based compensation, (iii) restructuring charges, and (iv) impairment. Because D&A and SBC are stripped out, this measure is highly sensitive to differences in capital intensity, asset useful lives, and the accounting classification of long-lived asset creation across the three reportable segments (Space, Connectivity, AI). Two situations stand out where EBITDA-based segment comparisons could materially misrepresent economic profitability:\n\n---\n\n### Situation 1: Capital-Intensity and Depreciation-Timing Asymmetries Across Segments\n\nThe three segments have radically different capital-intensity profiles and asset useful lives, yet EBITDA excludes depreciation entirely\u2014making cross-segment EBITDA comparisons economically misleading.\n\n**AI segment \u2014 depreciation is artificially suppressed today and will be excluded tomorrow.**\n- AI CapEx scaled from $463M (2023) \u2192 $5,633M (2024) \u2192 $12,727M (2025) \u2192 $7,723M in Q1 2026 alone.\n- As of March 31, 2026, total Construction-in-Progress was **$14,045M** (up from $4,604M at YE 2025), which the filing states is \"primarily comprised of \u2026 AI infrastructure that has not yet been placed in service.\" Assets in CIP are **not yet depreciating**, so the AI segment's current EBITDA understates the true economic cost of the capital base already deployed. Once placed in service, the resulting depreciation (servers 5\u20136 yrs; data centers 20\u201325 yrs) will be **excluded** from Segment Adjusted EBITDA\u2014so the very cost of the AI build-out will never flow through this metric.\n\n**Connectivity segment \u2014 short satellite lives and a perpetual replacement cycle are invisible in EBITDA.**\n- Starlink satellites have useful lives of only **3\u20135 years**, and the company \"often deorbits and replaces Starlink satellites before they reach the end of their estimated useful lives.\" This requires continuous reinvestment merely to maintain constellation density.\n- Connectivity CapEx consistently dwarfs its D&A (e.g., 2024: $3,498M CapEx vs. $1,508M D&A; 2023: $2,455M vs. $884M). EBITDA excludes the depreciation that reflects the real economic consumption of the satellite fleet and ignores the structural reinvestment requirement. A high Connectivity Segment Adjusted EBITDA ($7,168M in 2025) therefore overstates sustainable economic profit because it omits both the depreciation of the existing fleet and the ongoing CapEx needed to replace it.\n\n**Space segment \u2014 different depreciation method entirely.**\n- Flight vehicle hardware is depreciated on a **units-of-production basis (5\u201325 flights)**, not straight-line. This produces a fundamentally different depreciation pattern than the straight-line depreciation used for satellites, servers, and data centers. Adding back D&A is therefore not economically equivalent across segments.\n\n**Net effect:** Comparing AI EBITDA to Connectivity EBITDA, or either to Space, ignores that (a) the AI segment's EBITDA is flattered by $14B of CIP not yet depreciating, (b) the Connectivity segment's EBITDA ignores a 3\u20135 year satellite replacement treadmill, and (c) the segments use different depreciation methods. EBITDA-based ranking of segment \"profitability\" does not reflect the true cost of the capital each segment consumes.\n\n---\n\n### Situation 2: Asymmetric Treatment of Long-Lived Asset Creation (R&D Expensed vs. Capitalized)\n\nThe Space and AI segments are both building long-lived productive assets, but the costs are classified differently\u2014and EBITDA treats those classifications very differently.\n\n**Space \u2014 Starship R&D is expensed as incurred and reduces EBITDA.**\n- Because Starship is in the development stage, \"a majority of its costs are expensed to R&D as incurred,\" including test flight hardware, Raptor engines (expensed when used in test flights), employee compensation, tooling, and depreciation of R&D equipment. These costs flow directly through Segment Adjusted EBITDA as a reduction. The filing explicitly attributes the Space segment's decline to $(351)M Segment Adjusted EBITDA in Q1 2026 (from $224M in Q1 2025) to \"accelerated investment in the development of the Starship vehicle.\"\n\n**AI \u2014 compute infrastructure is capitalized, and the resulting depreciation is excluded from EBITDA.**\n- The AI segment's GPU hardware, data centers, and related infrastructure are capitalized and depreciated. Because depreciation is an EBITDA add-back, the cost of building the AI asset base is largely invisible in Segment Adjusted EBITDA.\n\n**Two distortions result:**\n\n1. **Cross-segment distortion.** Comparing Space EBITDA to AI EBITDA is apples-to-oranges: the same economic activity\u2014constructing long-lived productive capacity\u2014reduces Space EBITDA (expensed R&D) but does not reduce AI EBITDA (capitalized, then depreciation added back). This mechanically makes the AI segment appear more profitable on an EBITDA basis than the Space segment, even though both are in heavy investment phases. The Q1 2026 figures illustrate this starkly: Space Segment Adjusted EBITDA was $(351)M while AI was $(609)M, but the gap would look very different if Starship build costs were capitalized like AI compute.\n\n2. **Time-series distortion within Space.** The filing states that once Starship reaches commercialization (delivering payload to orbit), \"Starship costs will generally be capitalized and then depreciated in the cost of revenue.\" At that point, the resulting depreciation will be **excluded** from Segment Adjusted EBITDA. This means Space Segment Adjusted EBITDA will mechanically improve at commercialization\u2014not because economics changed, but because the same cash outflows shift from expensed R&D (in EBITDA) to capitalized depreciation (out of EBITDA). A pre- vs. post-commercialization comparison of Space EBITDA would overstate the improvement in true economic profitability.\n\n---\n\n### Related Consideration (Not One of the Two, but Material)\n\nShare-based compensation is also excluded from Segment Adjusted EBITDA, and its magnitude is highly uneven across segments: AI SBC was $1,063M in 2025 and $378M in Q1 2026 alone, versus $515M (Space) and $369M (Connectivity) for full-year 2025. Because SBC represents a real economic cost (dilution), excluding it flatters the AI segment's relative EBITDA more than the other segments. (The filing also notes $60M of SBC was capitalized in Q1 2026, so the total economic cost of equity awards exceeds even the expensed amounts shown in the reconciliations.)\n\n---\n\n### Bottom Line\n\nEBITDA-based segment comparisons are most misleading when (1) segments have materially different capital intensity, useful lives, and depreciation methods (AI's $14B of non-depreciating CIP and 20\u201325 year data centers vs. Connectivity's 3\u20135 year satellite replacement cycle vs. Space's units-of-production flight-vehicle depreciation), and (2) the accounting classification of long-lived asset creation differs across segments or over time (Space's expensed Starship R&D vs. AI's capitalized compute infrastructure, and the impending reclassification of Starship costs upon commercialization). In both situations, Segment Adjusted EBITDA can show a segment as more or less \"profitable\" than its true economics warrant.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment Adjusted EBITDA definition, segment financial information, capital expenditures, depreciation and useful lives, Starship R&D accounting policy, AI compute infrastructure and CIP disclosures, share-based compensation by segment\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_eea9952ef97641029b6f4f21",
+            "content": "## Two Situations Where EBITDA-Based Segment Comparisons Could Materially Misrepresent Economic Profitability\n\nThe SpaceX S-1 defines **Segment Adjusted EBITDA** as segment income (loss) from operations excluding (i) depreciation and amortization, (ii) share-based compensation, (iii) restructuring charges, and (iv) impairment. Because D&A and SBC are stripped out, this measure is highly sensitive to differences in capital intensity, asset useful lives, and the accounting classification of long-lived asset creation across the three reportable segments (Space, Connectivity, AI). Two situations stand out where EBITDA-based segment comparisons could materially misrepresent economic profitability:\n\n---\n\n### Situation 1: Capital-Intensity and Depreciation-Timing Asymmetries Across Segments\n\nThe three segments have radically different capital-intensity profiles and asset useful lives, yet EBITDA excludes depreciation entirely\u2014making cross-segment EBITDA comparisons economically misleading.\n\n**AI segment \u2014 depreciation is artificially suppressed today and will be excluded tomorrow.**\n- AI CapEx scaled from $463M (2023) \u2192 $5,633M (2024) \u2192 $12,727M (2025) \u2192 $7,723M in Q1 2026 alone.\n- As of March 31, 2026, total Construction-in-Progress was **$14,045M** (up from $4,604M at YE 2025), which the filing states is \"primarily comprised of \u2026 AI infrastructure that has not yet been placed in service.\" Assets in CIP are **not yet depreciating**, so the AI segment's current EBITDA understates the true economic cost of the capital base already deployed. Once placed in service, the resulting depreciation (servers 5\u20136 yrs; data centers 20\u201325 yrs) will be **excluded** from Segment Adjusted EBITDA\u2014so the very cost of the AI build-out will never flow through this metric.\n\n**Connectivity segment \u2014 short satellite lives and a perpetual replacement cycle are invisible in EBITDA.**\n- Starlink satellites have useful lives of only **3\u20135 years**, and the company \"often deorbits and replaces Starlink satellites before they reach the end of their estimated useful lives.\" This requires continuous reinvestment merely to maintain constellation density.\n- Connectivity CapEx consistently dwarfs its D&A (e.g., 2024: $3,498M CapEx vs. $1,508M D&A; 2023: $2,455M vs. $884M). EBITDA excludes the depreciation that reflects the real economic consumption of the satellite fleet and ignores the structural reinvestment requirement. A high Connectivity Segment Adjusted EBITDA ($7,168M in 2025) therefore overstates sustainable economic profit because it omits both the depreciation of the existing fleet and the ongoing CapEx needed to replace it.\n\n**Space segment \u2014 different depreciation method entirely.**\n- Flight vehicle hardware is depreciated on a **units-of-production basis (5\u201325 flights)**, not straight-line. This produces a fundamentally different depreciation pattern than the straight-line depreciation used for satellites, servers, and data centers. Adding back D&A is therefore not economically equivalent across segments.\n\n**Net effect:** Comparing AI EBITDA to Connectivity EBITDA, or either to Space, ignores that (a) the AI segment's EBITDA is flattered by $14B of CIP not yet depreciating, (b) the Connectivity segment's EBITDA ignores a 3\u20135 year satellite replacement treadmill, and (c) the segments use different depreciation methods. EBITDA-based ranking of segment \"profitability\" does not reflect the true cost of the capital each segment consumes.\n\n---\n\n### Situation 2: Asymmetric Treatment of Long-Lived Asset Creation (R&D Expensed vs. Capitalized)\n\nThe Space and AI segments are both building long-lived productive assets, but the costs are classified differently\u2014and EBITDA treats those classifications very differently.\n\n**Space \u2014 Starship R&D is expensed as incurred and reduces EBITDA.**\n- Because Starship is in the development stage, \"a majority of its costs are expensed to R&D as incurred,\" including test flight hardware, Raptor engines (expensed when used in test flights), employee compensation, tooling, and depreciation of R&D equipment. These costs flow directly through Segment Adjusted EBITDA as a reduction. The filing explicitly attributes the Space segment's decline to $(351)M Segment Adjusted EBITDA in Q1 2026 (from $224M in Q1 2025) to \"accelerated investment in the development of the Starship vehicle.\"\n\n**AI \u2014 compute infrastructure is capitalized, and the resulting depreciation is excluded from EBITDA.**\n- The AI segment's GPU hardware, data centers, and related infrastructure are capitalized and depreciated. Because depreciation is an EBITDA add-back, the cost of building the AI asset base is largely invisible in Segment Adjusted EBITDA.\n\n**Two distortions result:**\n\n1. **Cross-segment distortion.** Comparing Space EBITDA to AI EBITDA is apples-to-oranges: the same economic activity\u2014constructing long-lived productive capacity\u2014reduces Space EBITDA (expensed R&D) but does not reduce AI EBITDA (capitalized, then depreciation added back). This mechanically makes the AI segment appear more profitable on an EBITDA basis than the Space segment, even though both are in heavy investment phases. The Q1 2026 figures illustrate this starkly: Space Segment Adjusted EBITDA was $(351)M while AI was $(609)M, but the gap would look very different if Starship build costs were capitalized like AI compute.\n\n2. **Time-series distortion within Space.** The filing states that once Starship reaches commercialization (delivering payload to orbit), \"Starship costs will generally be capitalized and then depreciated in the cost of revenue.\" At that point, the resulting depreciation will be **excluded** from Segment Adjusted EBITDA. This means Space Segment Adjusted EBITDA will mechanically improve at commercialization\u2014not because economics changed, but because the same cash outflows shift from expensed R&D (in EBITDA) to capitalized depreciation (out of EBITDA). A pre- vs. post-commercialization comparison of Space EBITDA would overstate the improvement in true economic profitability.\n\n---\n\n### Related Consideration (Not One of the Two, but Material)\n\nShare-based compensation is also excluded from Segment Adjusted EBITDA, and its magnitude is highly uneven across segments: AI SBC was $1,063M in 2025 and $378M in Q1 2026 alone, versus $515M (Space) and $369M (Connectivity) for full-year 2025. Because SBC represents a real economic cost (dilution), excluding it flatters the AI segment's relative EBITDA more than the other segments. (The filing also notes $60M of SBC was capitalized in Q1 2026, so the total economic cost of equity awards exceeds even the expensed amounts shown in the reconciliations.)\n\n---\n\n### Bottom Line\n\nEBITDA-based segment comparisons are most misleading when (1) segments have materially different capital intensity, useful lives, and depreciation methods (AI's $14B of non-depreciating CIP and 20\u201325 year data centers vs. Connectivity's 3\u20135 year satellite replacement cycle vs. Space's units-of-production flight-vehicle depreciation), and (2) the accounting classification of long-lived asset creation differs across segments or over time (Space's expensed Starship R&D vs. AI's capitalized compute infrastructure, and the impending reclassification of Starship costs upon commercialization). In both situations, Segment Adjusted EBITDA can show a segment as more or less \"profitable\" than its true economics warrant.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment Adjusted EBITDA definition, segment financial information, capital expenditures, depreciation and useful lives, Starship R&D accounting policy, AI compute infrastructure and CIP disclosures, share-based compensation by segment\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10372,
+        "completion_tokens": 2530,
+        "cached_tokens": 8448,
+        "cost_usd": 0.04067
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 43027,
+    "total_completion_tokens": 4716,
+    "total_cached_tokens": 34240,
+    "total_cost_usd": 0.1119275,
+    "total_steps": 9
+  }
+}

@@ -1,0 +1,755 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "912cc0a5-5606-4315-aa9d-51c60bcb3c6d",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-25T02:24:43.942157+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-25T02:24:43.942157+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nAmazon has publicly committed more than $10 billion to Project Kuiper and industry analysts have estimated total program cost at $16.5\u201320 billion, though Amazon does not separately disclose Kuiper capex in its 10-K segment reporting. SpaceX's S-1 discloses Connectivity segment capex for FY2025 and Q1 2026. Using the disclosed SpaceX Connectivity capex figures and Amazon's stated $10 billion commitment floor, assess what the two figures suggest about each company's relative stage of constellation deployment. What analytical limitation arises from comparing a segment-level disclosure (SpaceX) against a program-level commitment estimate (Amazon), and what specific line item in Amazon's 10-K would an analyst consult to triangulate Kuiper investment?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-25T02:24:43.942157+00:00",
+      "source": "agent",
+      "message": "\nI'll analyze this question by first retrieving the SpaceX S-1 filing to find the Connectivity segment capex figures, then researching Amazon's Project Kuiper disclosures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking a complex analytical question that requires:\n1. SpaceX S-1 Connectivity segment capex for FY2025 and Q1 2026\n2. Amazon's stated $10 billion commitment to Project Kuiper\n3. Analysis of relative deployment stages\n4. Analytical limitations of comparing segment-level vs program-level disclosures\n5. Specific line item in Amazon's 10-K to triangulate Kuiper investment\n\nLet me start by retrieving the SpaceX S-1 filing to find the Connectivity segment capex figures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_a9fac205c9b24a4186dc02f6",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        },
+        {
+          "tool_call_id": "call_ff4418f0dc664684828744f7",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon Project Kuiper $10 billion commitment investment 10-K"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_a9fac205c9b24a4186dc02f6",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          },
+          {
+            "source_call_id": "call_ff4418f0dc664684828744f7",
+            "content": "[{\"url\": \"https://www.rvmobileinternet.com/space-race-heats-up-amazon-announce-fcc-approval-and-10-billion-investment-into-kuiper-satellite-broadband\", \"title\": \"Space Race Heats Up: Amazon Announce FCC Approval and $10 Billion Investment Into Kuiper Satellite Broadband - Mobile Internet Resource Center\", \"content\": \"> A project of this scale requires significant effort and resources, and, due to the nature of LEO constellations, it is not the kind of initiative that can start small. You have to commit. Amazon will invest more than $10 billion in Project Kuiper. This investment will create jobs and infrastructure around the United States, build and scale our ground network, accelerate satellite testing and manufacturing, and let us deliver an affordable customer terminal that will make fast, reliable\", \"score\": 0.8131201, \"raw_content\": null}, {\"url\": \"https://techcrunch.com/2020/07/31/amazon-gains-fcc-approval-for-kuiper-internet-satellite-constellation-and-commits-10-billion-to-the-project\", \"title\": \"Amazon gains FCC approval for Kuiper internet satellite constellation and commits $10 billion to the project | TechCrunch\", \"content\": \"# Amazon gains FCC approval for Kuiper internet satellite constellation and commits $10 billion to the project. Amazon has received approval from the U.S. Federal Communications Commission (FCC) to launch and operate a planned constellation of 3,236 internet satellites. That\\u2019s the backbone of Amazon\\u2019s Project Kuiper, an initiative to create a satellite-based broadband internet service designed to provide high-speed, low-latency connections to U.S.-based households that currently don\\u2019t have\", \"score\": 0.80014634, \"raw_content\": null}, {\"url\": \"https://anthonyveachlaw.com/blog/2020/7/31/fcc-authorizes-amazons-kuiper-to-deploy-satellite-broadband-network-amazon-announces-more-than-10-billion-investment-in-project-kuiper\", \"title\": \"FCC Authorizes Amazon\\u2019s Kuiper To Deploy Satellite Broadband Network; Amazon Announces More Than $10 Billion Investment In Project Kuiper \\u2014 AVL Blog - Communications Law & Technology\", \"content\": \"using certain Fixed-Satellite Service (FSS) and Mobile-Satellite Service (MSS) Ka-band frequencies. Kuiper is a wholly-owned subsidiary of Amazon.com Services, Inc. Following the FCC authorization, Amazon announced it will invest more than $10 billion in Project Kuiper, its initiative to build a low earth orbit satellite constellation capable of providing reliable, affordable broadband service to unserved and underserved communities around the world. Project Kuiper will deliver high-speed,\", \"score\": 0.7959917, \"raw_content\": null}, {\"url\": \"https://www.advanced-television.com/2020/08/25/analysis-amazons-project-kuiper-is-a-10bn-investment\", \"title\": \"Analysis: Amazon\\u2019s Project Kuiper is a $10bn investment | Advanced Television\", \"content\": \"The Jeff Bezos-backed Project Kuiper will see investment topping $10 billion, says Chris Quilty, senior researcher at Florida-based Quilty Analytics, in the firm\\u2019s latest Satcom Quarterly Briefing. \\u201cIn addition to Kuiper, we have seen in recent weeks OneWeb\\u2019s likely emergence from bankruptcy backed by Bharti of India and the UK government, SpaceX affirming it will invest $10 billion on Starlink, and SES contracting for four more O3b mPOWER satellites at $566 million. The industry has now made\", \"score\": 0.79484755, \"raw_content\": null}, {\"url\": \"https://www.spaceintelreport.com/amazon-project-kuiper-on-ka-band-satellite-terminal-tradeoffs-ensuring-a-return-on-10-billion-plus-of-invested-capital\", \"title\": \"Amazon Project Kuiper on Ka-band satellite/terminal tradeoffs & ensuring a return on $10 billion-plus of invested capital - Space Intel Report\", \"content\": \"# Amazon Project Kuiper on Ka-band satellite/terminal tradeoffs & ensuring a return on $10 billion-plus of invested capital. LA PLATA, Maryland \\u2014 Amazon Project Kuiper 's choice of an all-Ka-band constellation was made to keep consumer-premises equipment prices low even if it meant a heavier and larger satellite, a senior Amazon official said. The official said Project Kuiper is an obvious benefit to Amazon by linking the satellite network with Amazon Web Services (AWS), a hand-off that should\", \"score\": 0.7336813, \"raw_content\": null}, {\"url\": \"https://www.morningstar.com/news/marketwatch/20241011279/amazon-faces-15-billion-project-kuiper-headwind-in-2025-after-satellite-launch-delay-morgan-stanley\", \"title\": \"Amazon faces $1.5 billion Project Kuiper headwind in 2025 after ...\", \"content\": \"Project Kuiper satellite constellation could be a $1.5 billion headwind for the company in 2025, according to Morgan Stanley. The first two Project Kuiper test satellites were launched last year, and Amazon (AMZN) has said it will invest more than $10 billion in the project. Related: Why Amazon's Project Kuiper satellite opportunity may be underappreciated. Related: Amazon launches test satellites in Project Kuiper space-broadband push. On its website, Amazon notes that Project Kuiper is a\", \"score\": 0.7283819, \"raw_content\": null}, {\"url\": \"https://traded.co/vc/deal/amazon-launches-10-billion-project-kuiper-with-first-27-satellites-for-global-internet-coverage\", \"title\": \"Amazon Launches $10 Billion Project Kuiper With First 27 Satellites For Global Internet Coverage | TradedVC\", \"content\": \"Nikesh Arora, Amit Agarwal, and Jeff Dean. FOUNDERS: Ari Herbert-Voss & Vlad Ionescu INVESTORS: Khosla Ventures, S32, Anthology Fund, Menlo Ventures, Conviction, Elad Gil, Nikesh Arora, Amit Agarwal & Jeff Dean AMOUNT: $40,000,000 HQ: San\\u202fFrancisco, California #VentureCapital #RunSybil #AriHerbertVoss #VladIonescu #TradedVC.\", \"score\": 0.63125396, \"raw_content\": null}, {\"url\": \"https://blog.aboutamazon.com/company-news/amazon-building-project-kuiper-headquarters-in-redmond-wa\", \"title\": \"Amazon building Project Kuiper R&D headquarters in Redmond, WA\", \"content\": \"is just the latest investment from Amazon in the Puget Sound Region \\u2013 since 2010, we\\u2019ve invested more than $38 billion in the Greater Seattle Area, including infrastructure and compensation. Kuiper is another large initiative for us and our commitment to this project will of course result in further investments by Amazon in infrastructure and compensation. We\\u2019re excited to have a new home-base for Project Kuiper and look forward to sharing additional details in the coming months. If you\\u2019re\", \"score\": 0.62906903, \"raw_content\": null}, {\"url\": \"https://marketrealist.com/p/amazon-project-kuiper\", \"title\": \"Amazon Receives Project Kuiper Approval, Stock Rises\", \"content\": \"of low earth orbit (LEO) satellites to service unserved and underserved communities around the world. In July 2019, the company asked the FCC for approval to launch the satellites. Speaking about approval, Amazon\\u2019s senior vice president, David Limp, said, \\u201cThere are still too many places where broadband access is unreliable or where it doesn\\u2019t exist at all. Amazon plans to deploy its $10 billion investment in five stages. According to the FCC, Amazon will deploy half of its satellites by the\", \"score\": 0.62248284, \"raw_content\": null}, {\"url\": \"https://www.advanced-television.com/2024/10/23/project-kuiper-a-16-billion-investment\", \"title\": \"Project Kuiper: A $16bn investment | Advanced Television\", \"content\": \"that it was prepared to fund $10 billion on the satellite system. Project Kuiper must orbit at least half of the constellation by July 2026. Bank of America analyst Justin Post acknowledged the big total addressable market for the project, but said it is \\u201chard to see a lot of Kuiper stock optimism.\\u201d. The bank is cautious about the prospects for Kuiper. While admitting that there are some 2.6 billion people globally who do not have broadband access, there are limits for many of them on the\", \"score\": 0.5163278, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3269,
+        "completion_tokens": 217,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0065025000000000005
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-25T02:25:07.950860+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve the SpaceX Connectivity segment capex figures from the S-1 and search for more details on Amazon's 10-K disclosures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Good, I have the SpaceX S-1 parsed. Now I need to retrieve the Connectivity segment capex figures for FY2025 and Q1 2026. Let me also search for more information about Amazon's 10-K disclosures related to Project Kuiper.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1444155bc2e544a38ee80503",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the Connectivity segment capital expenditures (capex) figures for FY2025 and Q1 2026 disclosed in the SpaceX S-1 filing {{spacex_s1}}? Please provide the exact dollar amounts and any context around segment-level capital expenditures."
+          }
+        },
+        {
+          "tool_call_id": "call_6b3422ccc9d0405f8a925b03",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon 10-K 2025 \"Project Kuiper\" capital expenditures satellite segment reporting"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1444155bc2e544a38ee80503",
+            "content": "# Connectivity Segment Capital Expenditures\n\n## Exact Figures\n\n| Period | Connectivity Capex |\n|---|---|\n| **Q1 2026** (three months ended March 31, 2026) | **$1,332 million** |\n| **FY2025** (year ended December 31, 2025) | **$4,178 million** |\n\n## Context from the Filing\n\n**Year-over-year growth drivers:** The filing attributes the increases in both periods to the same underlying cause:\n\n> \"The increase in each year-over-year period was primarily driven by higher satellite and ground equipment costs as we continue to increase our number of satellites and grow our satellite network.\"\n\n**Comparative trajectory:**\n- Q1 2026 capex of $1,332 million represented a **$518 million increase** over Q1 2025's $814 million\n- FY2025 capex of $4,178 million represented a **$680 million increase** over FY2024's $3,498 million\n- FY2024 had itself increased $1,043 million over FY2023's $2,455 million\n\n**Segment performance context:** The rising capex coincided with strong Connectivity segment growth in 2025, which generated revenue of $11,387 million (up 49.8% year-over-year), income from operations of $4,423 million (up 120.4%), and Segment Adjusted EBITDA of $7,168 million (up 86.2%), benefiting from subscriber growth, increasing enterprise adoption, and continued improvement in network efficiency."
+          },
+          {
+            "source_call_id": "call_6b3422ccc9d0405f8a925b03",
+            "content": "[{\"url\": \"https://currentaffairs.adda247.com/amazon-launched-satellite-for-project-kuiper-broadband-internet\", \"title\": \"Amazon Launched Satellite for Project Kuiper Broadband Internet\", \"content\": \"30th, 2025 10:02 am. Amazon has initiated the deployment of its ambitious $10 billion Project Kuiper, launching its first batch of 27 satellites aimed at providing global broadband connectivity, especially to remote and rural areas. This launch marks the beginning of Amazon\\u2019s challenge to SpaceX\\u2019s Starlink, which already has over 8,000 satellites in orbit and millions of users worldwide. On April 28, 2025, Amazon successfully launched the first 27 satellites of its Project Kuiper broadband\", \"score\": 0.78054583, \"raw_content\": null}, {\"url\": \"https://pocket-quant.com/blogs/01968d7e-0c8d-73f4-abe3-bd14149921d4/amazon+q1+2025+earnings+highlight+aws+growth+alexa+and+project+kuiper\", \"title\": \"PocketQuant | Amazon Q1 2025 Earnings Highlight AWS Growth, Alexa, and Project Kuiper\", \"content\": \"operating margin of 39.5% in Q1 2025. North America contributes 60% of sales while maintaining strong operating margins (6.3%), reflecting steady e-commerce growth despite economic uncertainties. International growth at 5% sales increase with positive operating income underscores Amazon\\u2019s expanding global footprint. The substantial 80% increase in capital expenditures to nearly $25 billion in Q1 2025 (from $14.9 billion in Q1 2024) highlights Amazon\\u2019s aggressive investments in fulfillment\", \"score\": 0.7621591, \"raw_content\": null}, {\"url\": \"https://ppc.land/amazon-rebrands-project-kuiper-as-amazon-leo-for-satellite-internet-service\", \"title\": \"Amazon rebrands Project Kuiper as Amazon Leo for satellite internet service\", \"content\": \"When: Amazon announced the rebrand November 13, 2025. The program began seven years earlier with a small engineering team. Amazon received FCC approval in July 2020, opened its manufacturing facility in June 2024, and conducted six successful satellite launches as of November 2025.\", \"score\": 0.7325349, \"raw_content\": null}, {\"url\": \"https://techresearchonline.com/news/amazon-project-kuiper-satellite-internet\", \"title\": \"Amazon Launches Project Kuiper Satellite Internet Service\", \"content\": \"Project Kuiper is Amazon\\u2019s $10 billion plan to build a network of 3,236 satellites. The U.S. Federal Communications Commission enforced a deadline requiring Amazon to deploy at least half of its satellites by mid-2026. Amazon\\u2019s major initiative, Project Kuiper, focuses on providing global broadband internet via satellites. The first 27 operational satellites launched are just the beginning. The company used multiple tests to prepare for this full-scale launch. Amazon expects to start offering\", \"score\": 0.68420124, \"raw_content\": null}, {\"url\": \"https://www.spaceintelreport.com?p=96706\", \"title\": \"Amazon Project Kuiper on Ka-band satellite/terminal tradeoffs & ensuring a return on $10 billion-plus of invested capital - Space Intel Report\", \"content\": \"Title: Amazon Project Kuiper on Ka-band satellite/terminal tradeoffs & ensuring a return on $10 billion-plus of invested capital - Space Intel Report\", \"score\": 0.6301622, \"raw_content\": null}, {\"url\": \"https://www.androbranch.in/post/amazon-plans-satellite-internet-launch-in-india-with-project-kuiper\", \"title\": \"Amazon Plans Satellite Internet Launch in India with Project Kuiper\", \"content\": \"# Amazon Plans Satellite Internet Launch in India with Project Kuiper.  Amazon has applied for a GMPCS license from India's Department of Telecommunications (DoT).  Project Kuiper will use over 3,200 low-Earth orbit (LEO) satellites for internet connectivity.  Amazon is targeting a launch of Project Kuiper in India by the end of 2025.  Project Kuiper promises low latency, high-speed connectivity for underserved communities. In a high-stakes move to transform India's digital connectivity\", \"score\": 0.60498303, \"raw_content\": null}, {\"url\": \"https://www.extremetech.com/aerospace/amazon-takes-on-starlink-with-project-kuiper-satellite-network\", \"title\": \"Amazon Takes on Starlink With 'Project Kuiper' Satellite Network | Extremetech\", \"content\": \"# Amazon Takes on Starlink With 'Project Kuiper' Satellite Network. A United Launch Alliance Atlas V rocket carrying Amazon Project Kuiper lifts off to launch the first production satellites from Space Launch Complex 41 on April 28, 2025, in Cape Canaveral, Florida. Starlink may have dominated the satellite internet scene for the past half-decade, but Amazon is determined to steal some of its spotlight. On Monday, the brand launched 27 satellites via United Launch Alliance's Atlas V rocket,\", \"score\": 0.529191, \"raw_content\": null}, {\"url\": \"https://www.spaceintelreport.com/amazon-project-kuiper-on-ka-band-satellite-terminal-tradeoffs-ensuring-a-return-on-10-billion-plus-of-invested-capital\", \"title\": \"Amazon Project Kuiper on Ka-band satellite/terminal tradeoffs & ensuring a return on $10 billion-plus of invested capital - Space Intel Report\", \"content\": \"Open Cosmos asks ITU to extend deadline for broadband constellation, says launcher shortage is force majeure event\\n\\nPLD, Rocket Factory Augsburg, MaiaSpace: 3 European Launcher Challenge players update their inaugural flight plans\\n\\nMDA Space to buy RTX\\u2019s Blue Canyon for 3.9x forecasted 2026 revenue, 20x EBITDA, sees US opening for MDA Aurora satellite\\n\\nEQT Private Equity purchases rideshare mission manager Exolaunch, which expects 250% revenue increase this year\", \"score\": 0.5054935, \"raw_content\": null}, {\"url\": \"https://telecom.economictimes.indiatimes.com/news/portal-in-portal/satcom/amazon-seeks-dismissal-of-lawsuit-over-kuiper-satellite-launch-contracts/105947105\", \"title\": \"Amazon Project Kuiper: Amazon seeks dismissal of lawsuit over Kuiper satellite launch contracts, ETTelecom\", \"content\": \"Amazon Project Kuiper: Amazon seeks dismissal of lawsuit over Kuiper satellite launch contracts, ETTelecom\", \"score\": 0.35327253, \"raw_content\": null}, {\"url\": \"https://gizmologi.com/News/amazon-kuiper-internet-satellite\", \"title\": \"Amazon Kuiper Internet Satellite Ready to Compete with Starlink - Gizmologi.id\", \"content\": \"ASUS VivoBook 15 (A516), Compact 15\\\"), Compact 15\\u2033 Laptop Prices Starting at IDR 5 Million\\\"). ASUS VivoBook 15 (A516), Compact 15\\u2033 Laptop Prices Starting at IDR 5 Million. ### Amazon Kuiper Internet Satellite. Amazon says the goal of Project Kuiper is to bring fast, affordable broadband to unserved and underserved communities around the world. After receiving FCC regulatory approval, and the KuiperSat-1 and KuiperSat-2 prototypes as the first iteration, Amazon will launch its production\", \"score\": 0.3197057, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5444,
+        "completion_tokens": 173,
+        "cached_tokens": 3264,
+        "cost_usd": 0.011260000000000001
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-25T02:25:15.157987+00:00",
+      "source": "agent",
+      "message": "I have the SpaceX Connectivity capex figures. Now let me search for Amazon's 10-K filing on EDGAR to find the specific line items that would help triangulate Kuiper investment.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I have the SpaceX Connectivity segment capex figures:\n- Q1 2026: $1,332 million\n- FY2025: $4,178 million\n\nNow I need to find Amazon's 10-K disclosures related to Project Kuiper. Let me search for Amazon's 10-K filing on EDGAR to find the specific line items that would help triangulate Kuiper investment.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_2762c02bb0b44112a5915a25",
+          "function_name": "edgar_search",
+          "arguments": {
+            "search_query": "\"Project Kuiper\" satellite",
+            "ciks": [
+              "0001018724"
+            ],
+            "form_types": [
+              "10-K"
+            ]
+          }
+        },
+        {
+          "tool_call_id": "call_a53b193405484b12886cc466",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon 10-K 2024 \"purchases of property and equipment\" \"Kuiper\" satellite"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_2762c02bb0b44112a5915a25",
+            "content": "[]"
+          },
+          {
+            "source_call_id": "call_a53b193405484b12886cc466",
+            "content": "[{\"url\": \"https://orbitaltoday.com/2024/12/20/amazon-partners-with-turkiye-for-kuiper-satellite-production-whats-behind-the-shift\", \"title\": \"Amazon Partners with T\\u00fcrkiye for Kuiper Satellite Production\", \"content\": \"choice.\\u201d Amazon Project Kuiper To Use Turkish-Designed Satellite Parts In October 2023 Amazon officially entered the internet satellite business by announcing their project Kuiper. A few months ago it was announced that Amazon was to kick off the launching of some of its satellites by Q4 2024. With the year gradually coming to an end, Amazon might just move the launch of its Kuiper satellites to 2025. By next year, Amazon and Tezmaksan will start rolling out the necessary components for the\", \"score\": 0.53619206, \"raw_content\": null}, {\"url\": \"https://hothardware.com/news/amazon-joins-spacex-launch-kuiper-satellites\", \"title\": \"Amazon Joins Space Forces With Blue Origin Rival SpaceX On Kuiper Satellite Launch | HotHardware\", \"content\": \"2020. The license requires Amazon to deploy at least half of its satellite constellation by July 2026. As of right now, Amazon has only launched two prototype satellites. Production of the satellites are scheduled to begin ahead of a full-scale deployment in the first half of 2024. The company expects to have enough satellites deployed to begin pilots of the program in the second half of 2024, with SpaceX launches targeted for mid-2025. Project Kuiper\\u2019s initial satellite constellation will\", \"score\": 0.5106191, \"raw_content\": null}, {\"url\": \"https://sen.news/australia-first-amazon-kuiper-satellite-leosat-service\", \"title\": \"Australia First - Amazon Kuiper Satellite LEOsat Service | SEN.news - No. 1\", \"content\": \"project is a long-term initiative. We launched our first 2 prototype satellites on October 6, 2023, and we expect to provide service to the earliest Project Kuiper customers by the end of 2024. Amazon Kuiper Satellite Project started off as an internal code name for the program\\u2014and it stuck. Amazon has a team of more than 1000 engineers, programmers, and support personnel helping deliver on the vision for the Amazon Kuiper Satellite Project.  Amazon Kuiper Satellite System to Lead Easy Global\", \"score\": 0.5087155, \"raw_content\": null}, {\"url\": \"https://www.telecompetitor.com/amazon-takes-steps-toward-kuiper-satellite-broadband-service\", \"title\": \"Amazon Takes Steps Toward Kuiper Satellite Broadband Service\", \"content\": \"FCC authorization requires the company to have 50% of its satellites launched and operating by July 30, 2026. Starlink is already in beta with over 10K subscribers on the system. Starlink is currently offered for $99/month and $499 for equipment. Both SpaceX and Amazon have a history of disruption and both have intimated that\\u2019s their intention for the broadband access industry. Although success for LEO satellite broadband is by no means certain. There are a fair share of skeptics, and there are\", \"score\": 0.43367022, \"raw_content\": null}, {\"url\": \"https://www.geekwire.com/2023/amazon-antennas-kuiper-satellite-network\", \"title\": \"Amazon shows off antennas for Kuiper broadband satellite network\", \"content\": \"(through Amazon Web Services), customer service and the ability to drive down costs at scale. He also talked up an Amazon-designed processing chip called Prometheus, which will be incorporated into all of Kuiper\\u2019s networking equipment. Amazon\\u2019s business model for Kuiper draws upon synergies with the company\\u2019s other market offerings, including AWS\\u2019 relationships with companies that rely on broadband networking. Amazon has committed more than $10 billion to Project Kuiper over the coming years,\", \"score\": 0.39138326, \"raw_content\": null}, {\"url\": \"https://www.govtech.com/news/amazon-internet-program-project-kuiper-to-launch-satellite.html\", \"title\": \"Amazon Internet Program, Project Kuiper, to Launch Satellite\", \"content\": \"a month. Musk and Bezos sparred in recent months over SpaceX's petition asking the FCC to allow its satellites to operate in a lower orbit than initially planned. Amazon has said that would risk interference and collisions with its planned Kuiper satellites. Amazon declined to disclose the value of the ULA contract. Boeing paid $615 million to settle a Justice Department investigation into those allegations. Never miss a story with the GovTech Today newsletter. gov-footer-logo-2024.png.\", \"score\": 0.37175277, \"raw_content\": null}, {\"url\": \"https://gizmologi.com/News/amazon-kuiper-internet-satellite\", \"title\": \"Amazon Kuiper Internet Satellite Ready to Compete with Starlink - Gizmologi.id\", \"content\": \"its production satellites in the first half of 2024, with beta testing beginning with a handful of customers by the end of next year. Given that SpaceX has launched more than 5.000 Starlinks from Florida and California, counting from its first operational satellite in 2019. Subscribe to get the latest posts by email.  Geely Expands Earth-to-Space Mobility Network with 11 New LEO Satellites.  realme Surpasses 300 Million Global Users in Seven Years, Reinforcing Its Youth-Centric Strategy. ####\", \"score\": 0.34900057, \"raw_content\": null}, {\"url\": \"https://currentaffairs.adda247.com/amazon-launched-satellite-for-project-kuiper-broadband-internet\", \"title\": \"Amazon Launched Satellite for Project Kuiper Broadband Internet\", \"content\": \"Amazon has initiated the deployment of its ambitious $10 billion Project Kuiper, launching its first batch of 27 satellites aimed at providing global broadband connectivity, especially to remote and rural areas. This launch marks the beginning of Amazon\\u2019s challenge to SpaceX\\u2019s Starlink, which already has over 8,000 satellites in orbit and millions of users worldwide.\\n\\n### Why in News?\", \"score\": 0.3290472, \"raw_content\": null}, {\"url\": \"https://coingeek.com/amazon-eyes-india-for-kuiper-satellite-internet\", \"title\": \"Amazon eyes India for Kuiper satellite Internet\", \"content\": \"rollout of its space-based Internet network. This milestone initiates Amazon\\u2019s plan to deploy 3,236 satellites into low-Earth orbit, forming the backbone of its $10 billion initiative to provide high-speed Internet access across the globe.\", \"score\": 0.29603875, \"raw_content\": null}, {\"url\": \"https://frank.uz/en/news-en/amazon-signed-a-memorandum-with-uzbekistan-to-launch-the-kuiper-satellite-internet\", \"title\": \"Amazon signed a memorandum with Uzbekistan to launch the Kuiper satellite internet \\u2014 Frank.uz\", \"content\": \"Amazon signed a memorandum with Uzbekistan to launch the Kuiper satellite internet \\u2014 Frank.uz\", \"score\": 0.23351443, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7631,
+        "completion_tokens": 193,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0171675
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-25T02:25:31.092724+00:00",
+      "source": "agent",
+      "message": "Let me search EDGAR for Amazon's 10-K filings directly and look for the specific line items related to capital expenditures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The EDGAR search didn't return results for \"Project Kuiper\" in Amazon's 10-K. Let me try a different search approach to find Amazon's 10-K filings and look for the relevant line items.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_65b01adddb504cc9b45d5ae2",
+          "function_name": "edgar_search",
+          "arguments": {
+            "ciks": [
+              "0001018724"
+            ],
+            "form_types": [
+              "10-K"
+            ],
+            "search_query": "Kuiper"
+          }
+        },
+        {
+          "tool_call_id": "call_c9e83ab004b2422394e5665c",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon 10-K 2024 annual report \"purchases of property and equipment\" cash flow statement"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_65b01adddb504cc9b45d5ae2",
+            "content": "[]"
+          },
+          {
+            "source_call_id": "call_c9e83ab004b2422394e5665c",
+            "content": "[{\"url\": \"https://reports.sfs.com/annual-report/2024/en/consolidated-cash-flow-statement\", \"title\": \"Consolidated cash flow statement - Annual report 2024\", \"content\": \"|  |  |  |  |\\n| Purchases of property, plant and equipment | 3.4 | \\u2013141.3 | \\u2013161.5 |\\n| Proceeds from sale of property, plant and equipment |  | 4.2 | 3.9 |\\n| Purchases of intangible assets | 3.5 | \\u20137.6 | \\u201312.5 |\\n| Proceeds from sale of intangible assets |  | 0.0 | 0.0 |\\n| Proceeds from government grants | 3.4 | 1.8 | 0.7 |\\n| Acquisition of subsidiaries, net of cash acquired | 5.1 | \\u201317.1 | \\u201310.3 |\\n| Changes in loans granted |  | \\u20130.5 | \\u20130.7 |\", \"score\": 0.8921218, \"raw_content\": null}, {\"url\": \"https://report.bellevue.ch/2024/en/consolidated-cash-flow-statement\", \"title\": \"Consolidated cash flow statement - Annual Report 2024\", \"content\": \"| Receivables and other assets | 3 613 | 8 653 |\\n| Financial assets | \\u2013\\u20092 747 | \\u2013\\u20097 058 |\\n| Net increase / (decrease) in liabilities |\\n| Payables and other financial liabilities | \\u2013\\u20092 237 | \\u2013\\u200913 413 |\\n| Paid income taxes | \\u2013\\u20095 196 | \\u2013\\u20095 529 |\\n| Interest paid | \\u2013\\u20091 | \\u2013 |\\n| Interest received | 650 | 457 |\\n| Dividend received | 418 | 589 |\\n| Cash flow from operating activities | 9 402 | 8 886 |\\n| Cash flow from investing activities |\\n| Purchase of property and equipment | \\u2013\\u20094 267 | \\u2013\\u200969 |\", \"score\": 0.838376, \"raw_content\": null}, {\"url\": \"https://2024.annualreport.sbmoffshore.com/financial-information-2024/consolidated-financial-statements/consolidated-cash-flow-statement\", \"title\": \"Consolidated Cash Flow Statement | Annual Report 2024\", \"content\": \"| Gain on disposal of equity-accounted investees |  | 22 \\n| Net (gain)/loss on sale of property, plant and equipment |  | 1 | (0) |\\n| (Increase)/Decrease in working capital: |  |  |  |\\n| - (Increase)/decrease trade and other receivables |  | 161 | (58) |\\n| - (Increase)/decrease contract assets |  | (1,419) | (2,774) |\\n| - (Increase)/decrease inventories |  | (26) | (124) |\\n| - Increase/(decrease) trade and other payables |  | (469) | (226) |\\n| Increase/(decrease) other provisions |  | 4 | 112 |\", \"score\": 0.7644879, \"raw_content\": null}, {\"url\": \"https://report.dormakaba.com/2024_25/consolidated-cash-flow-statement\", \"title\": \"Consolidated cash flow statement - Annual Report 2024/25\", \"content\": \"| Interest paid |  |  | \\u201328.4 |  | \\u201337.2 |\\n| Interest received |  |  | 2.8 |  | 2.4 |\\n| Net cash from operating activities |  |  | 264.5 |  | 286.2 |\\n| Cash flows from investing activities |  |  |  |  |  |\\n| Additions of property, plant, and equipment | 2.3 |  | \\u201371.4 |  | \\u201361.6 |\\n| Proceeds from sale of property, plant, and equipment | 2.3 |  | 19.5 |  | 9.4 |\\n| Additions of intangible assets | 2.3 |  | \\u201335.7 |  | \\u201337.0 |\\n| Change in non-current financial assets |  |  | \\u20130.5 |  | \\u20130.2 |\", \"score\": 0.74273956, \"raw_content\": null}, {\"url\": \"https://report.zehndergroup.com/2024/consolidated-cash-flow-statement\", \"title\": \"Consolidated cash flow statement - Annual Report 2024\", \"content\": \"| \\u20132.2 | \\u20139.6 |. | Increase/(decrease) in provisions | 6 | 5.6 | 0.1 |. | (Increase)/decrease in deferred tax assets | 4 | 4.4 | 1.0 |. | Investments in property, plant and equipment | 4 | \\u201317.1 | \\u201322.8 |. | Investments in intangible assets | 4 | \\u20130.1 | \\u20130.5 |. | Investments in consolidated entities (less cash taken over) | 23 | \\u201394.9 | \\u20130.1 |. | Investments in minority interests | 23 | \\u20134.7 . | Divestment of consolidated entities (net of cash given) | 24 | \\u20133.0 . | Cash flow from investing\", \"score\": 0.6934942, \"raw_content\": null}, {\"url\": \"https://2024-annual-report.kuehne-nagel.com/annual-report/consolidated-financial-statements-2024/cash-flow-statement\", \"title\": \"Cash flow statement - Kuehne+Nagel Annual Report 2024\", \"content\": \"| \\u2014 Property, plant and equipment | 14 | \\u2013300 | \\u2013306 |\\n| \\u2014 Other intangibles | 16 | \\u20134 | \\u20134 |\\n| Disposal of property, plant and equipment |  | 26 | 77 |\\n| (Acquisition)/divestment of businesses, net of cash (acquired)/disposed | 28 | \\u2013201 | \\u201329 |\\n| Settlement of deferred/contingent considerations from business combinations |  | \\u20132 | \\u201331 |\\n| Capital (contributions to)/distributions from joint ventures and associates |  | \\u2013 | \\u20132 |\", \"score\": 0.562874, \"raw_content\": null}, {\"url\": \"https://www.annualreport.sandvik/en/2024/financial-information/financial-statements-parent-company/cash-flow-statement.html\", \"title\": \"Cash flow statement - Sandvik Annual Report 2024\", \"content\": \"| Proceeds from sale of property, plant and equipment |  | 27 | 29 |\\n| Net cash used in investing activities |  | \\u201316,830 | \\u2013411 |\\n| Net cash flow after investing activities |  | 521 | 2,914 |\\n| Cash flow from financing activities |  |  |  |\\n| Changes in advances/loans to Group companies |  | \\u20134,605 | 3,500 |\\n| Changes in advances/loans from Group companies |  | 11,671 | 4,304 |\\n| Proceeds from external borrowings |  | 0 | 0 |\\n| Repayment of external borrowings |  | \\u20131,326 | \\u20133,838 |\", \"score\": 0.25229695, \"raw_content\": null}, {\"url\": \"https://reports.beiersdorf.com/annual-report/2024/consolidated-financial-statements/consolidated-financial-statements/cash-flow-statement.html\", \"title\": \"Cash Flow Statement - Beiersdorf Annual Report 2024\", \"content\": \"| Gain/loss on disposal of property, plant, and equipment, and intangible assets |  | \\u20136 |  | 3 |\\n| Gross cash flow |  | 1,057 |  | 1,269 |\\n| Change in inventories |  | 43 |  | \\u201398 |\\n| Change in receivables and other assets |  | \\u2013108 |  | \\u2013219 |\\n| Change in liabilities and current provisions |  | \\u201351 |  | 279 |\\n| Net cash flow from operating activities |  | 941 |  | 1,231 |\\n| Investments in property, plant, and equipment, and intangible assets |  | \\u2013517 |  | \\u2013437 |\", \"score\": 0.21432978, \"raw_content\": null}, {\"url\": \"https://annualreport2024.volkswagen-group.com/consolidated-financial-statements/cash-flow-statement.html\", \"title\": \"Cash flow Statement - Volkswagen Group Annual Report 2024\", \"content\": \"\\u2212148\\n\\n\\u221263\\n\\nDisposal of other equity investments\\n\\n231\\n\\n41\\n\\nProceeds from disposal of intangible assets, property, plant and equipment, and investment property\\n\\n947\\n\\n501\\n\\nChange in investments in securities and time deposits\\n\\n\\u2212203\\n\\n11,273\\n\\nChange in loans\\n\\n\\u22122,517\\n\\n\\u22123,054\\n\\nCash flows from investing activities\\n\\n\\u221231,573\\n\\n\\u221219,812\\n\\nCapital contributions/capital redemptions\\n\\n\\u22121,144\\n\\n1,003\\n\\nDividends paid\\n\\n\\u22125,779\\n\\n\\u221211,732\\n\\nCapital transactions with non-controlling interest shareholders\\n\\n\\u2013\\n\\n\\u22128\", \"score\": 0.16815943, \"raw_content\": null}, {\"url\": \"https://reports.beiersdorf.com/annual-report/2023/consolidated-financial-statements/consolidated-financial-statements/cash-flow-statement.html\", \"title\": \"Cash Flow Statement - Beiersdorf Annual Report 2023\", \"content\": \"\\u2013108 |. | Change in liabilities and current provisions |  | 396 |  | \\u201351 |. | Net cash flow from operating activities |  | 797 |  | 941 |. | Investments in property, plant, and equipment, and intangible assets |  | \\u2013548 |  | \\u2013517 |. | Payments for acquisitions (net of cash acquired) |  | \\u2013545 |  | \\u2014 |. | Proceeds from the sale of subsidiaries (net of cash disposed) and non-current assets held for sale |  | 10 |  | 23 |. | Net cash flow from investing activities |  | \\u2013402 |  | \\u2013341 |. | Cash\", \"score\": 0.08550305, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9430,
+        "completion_tokens": 140,
+        "cached_tokens": 5440,
+        "cost_usd": 0.018175
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-25T02:25:43.058874+00:00",
+      "source": "agent",
+      "message": "Let me search EDGAR for Amazon's most recent 10-K filing directly.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The web search results aren't directly helpful for finding Amazon's 10-K. Let me search EDGAR for Amazon's most recent 10-K filing directly.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7f1bd43b458c49f0aade36cb",
+          "function_name": "edgar_search",
+          "arguments": {
+            "ciks": [
+              "0001018724"
+            ],
+            "form_types": [
+              "10-K"
+            ],
+            "search_query": "Amazon annual report",
+            "start_date": "2024-01-01",
+            "end_date": "2026-03-01"
+          }
+        },
+        {
+          "tool_call_id": "call_cd73160b3e2c478ca9263850",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon 10-K 2024 SEC filing \"purchases of property and equipment\" cash flow investing activities"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7f1bd43b458c49f0aade36cb",
+            "content": "[{\"accessionNo\": \"0001018724-24-000008\", \"cik\": \"1018724\", \"companyNameLong\": \"AMAZON COM INC (AMZN) (CIK 0001018724)\", \"ticker\": \"AMZN\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872424000008/amzn-20231231.htm\", \"filedAt\": \"2024-02-02\"}, {\"accessionNo\": \"0001018724-25-000004\", \"cik\": \"1018724\", \"companyNameLong\": \"AMAZON COM INC (AMZN) (CIK 0001018724)\", \"ticker\": \"AMZN\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872425000004/amzn-20241231.htm\", \"filedAt\": \"2025-02-07\"}, {\"accessionNo\": \"0001018724-26-000004\", \"cik\": \"1018724\", \"companyNameLong\": \"AMAZON COM INC (AMZN) (CIK 0001018724)\", \"ticker\": \"AMZN\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm\", \"filedAt\": \"2026-02-06\"}]"
+          },
+          {
+            "source_call_id": "call_cd73160b3e2c478ca9263850",
+            "content": "[{\"url\": \"https://beautifydata.com/us-sec/business-finances/latest-annual-financials-per-company/amazon-com-inc/cash-flow\", \"title\": \"AMAZON COM INC - Annual Financials - Cash Flow (SEC)\", \"content\": \"net of cash acquired, non-marketable investments, and other, net | 4973 | 4928 |  |. | Proceeds from short-term debt, and other | 9685 | 3322 |  |. | Purchases of property and equipment | 120131 | 69753 |  |. | Net cash provided by (used in) financing activities | -5938 | -15250 |  |. | Proceeds from property and equipment sales and incentives | 4228 | 4794 |  |. | Foreign currency effect on cash, cash equivalents, and restricted cash | -223 | 640 |  |.\", \"score\": 0.6964752, \"raw_content\": null}, {\"url\": \"https://corporatefinanceinstitute.com/resources/knowledge/accounting/cash-flow-from-investing-activities\", \"title\": \"Cash Flow from Investing Activities\", \"content\": \"Statement of Cash Flows. As you can see in Amazon\\u2019s numbers, the main uses of cash for investing have been in purchasing property/equipment/software/websites, acquiring other businesses, and buying marketable securities (stocks and bonds). ### What Do Investing Activities Not Include? In financial modeling, it\\u2019s critical to have a solid understanding of how to build the investing section of the cash flow statement. Screenshot of a Financial Model in Excel with Investing Activities Example.\", \"score\": 0.6139086, \"raw_content\": null}, {\"url\": \"https://corporatefinanceinstitute.com/resources/accounting/cash-flow-from-investing-activities\", \"title\": \"Cash Flow from Investing Activities - Definition & Examples\", \"content\": \"Source: Amazon.com\\n\\nAs you can see in Amazon\\u2019s numbers, the main uses of cash for investing have been in purchasing property/equipment/software/websites, acquiring other businesses, and buying marketable securities (stocks and bonds).\\n\\nIt\\u2019s also important to point out that the purchase of PP&E (CapEx) has been fairly proportional to depreciation, which indicates the company is consistently reinvesting to keep its assets in good shape.\\n\\n## What Do Investing Activities Not Include?\", \"score\": 0.5900477, \"raw_content\": null}, {\"url\": \"https://corporatefinanceinstitute.com/resources/accounting/cash-flow-from-investing-activities#additional-resources\", \"title\": \"Cash Flow from Investing Activities - Definition & Examples\", \"content\": \"Source: Amazon.com\\n\\nAs you can see in Amazon\\u2019s numbers, the main uses of cash for investing have been in purchasing property/equipment/software/websites, acquiring other businesses, and buying marketable securities (stocks and bonds).\\n\\nIt\\u2019s also important to point out that the purchase of PP&E (CapEx) has been fairly proportional to depreciation, which indicates the company is consistently reinvesting to keep its assets in good shape.\\n\\n## What Do Investing Activities Not Include?\", \"score\": 0.5900477, \"raw_content\": null}, {\"url\": \"https://www.stocktitan.net/sec-filings/ISSC/10-q-innovative-solutions-support-inc-quarterly-earnings-report-42d68ba33de7.html\", \"title\": \"ISSC posts stronger Q1 results and cash flow | ISSC SEC Filing - Form 10-Q\", \"content\": \"$1.1 million for three months ended December 31, 2025 and consisted of expenditures related to additions and improvements in the Company\\u2019s facilities and the purchases of equipment. Net cash used in investing activities was $0.3 million for the three months ended December 31, 2024 and consisted of expenditures related to additions and improvements in the Company\\u2019s facilities and purchases of equipment and computer hardware. Net cash used in financing activities was $1.5 million for the three\", \"score\": 0.50329643, \"raw_content\": null}, {\"url\": \"https://www.vedantu.com/commerce/investing-activities\", \"title\": \"Investing Activities in Accounting: Meaning, Examples & Cash Flow\", \"content\": \"and equipment (PP&E), investments in other companies, and the lending of funds. Investing activities on cash flow statement:. The cash flow statement's investing activities section reports cash inflows and outflows from the purchase and sale of long-term assets and investments. An investing activity is a transaction that involves the purchase or sale of long-term assets or investments made by a business. Is negative cash flow from investing activities always bad? A negative cash flow from\", \"score\": 0.40373197, \"raw_content\": null}, {\"url\": \"https://stocktitan.net/sec-filings/ISSC/10-q-innovative-solutions-support-inc-quarterly-earnings-report-42d68ba33de7.html\", \"title\": \"ISSC posts stronger Q1 results and cash flow | ISSC Quarterly Report (10-Q)\", \"content\": \"| Net cash provided by operating activities | \\u200b |  | 8,159,592 | \\u200b |  | 1,841,458 | \\u200b |\\n| \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b |\\n| CASH FLOWS FROM INVESTING ACTIVITIES: | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b |\\n| Purchases of property and equipment | \\u200b |  | (1,109,890) | \\u200b |  | (261,364) | \\u200b |\\n| Net cash (used in) investing activities | \\u200b |  | (1,109,890) | \\u200b |  | (261,364) | \\u200b |\\n| \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b |\\n| CASH FLOWS FROM FINANCING ACTIVITIES: | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b | \\u200b |\", \"score\": 0.38720417, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/Cash+Flow+from+Investing/NYSE:K\", \"title\": \"K (Kellanova) Cash Flow from Investing\", \"content\": \"in Dec. 2024 is calculated as:. Kellanova's Cash Flow from Investing for the quarter that ended in Sep. 2025 is calculated as:. Cash Flow from Investing for the trailing twelve months (TTM) ended in Sep. 2025 adds up the quarterly data reported by the company within the most recent 12 months, which was $-639 Mil. Kellanova  (NYSE:K) Cash Flow from Investing Explanation. Kellanova's purchase of property, plant, equipment for the three months ended in Sep. 2025 was $-144 Mil. In Warren Buffett's\", \"score\": 0.36026445, \"raw_content\": null}, {\"url\": \"https://www.novuna.co.uk/business-cash-flow/glossary/cash-flow-from-investing-activities\", \"title\": \"Cash flow from investing activities | Novuna\", \"content\": \"activities would be -\\u00a333 billion. ## The importance of cash flow from investing activities. Cash flow from investing activities is significant as it demonstrates how a company is investing cash for the long-term growth of the business. Negative cash flow from investing activities may be required in the short-term to invest in fixed assets such as property, plant, and equipment that generate positive cash flow in the long-term.\", \"score\": 0.27445754, \"raw_content\": null}, {\"url\": \"https://www.stocktitan.net/sec-filings/YELP/8-k-yelp-inc-reports-material-event-cd6442a86816.html\", \"title\": \"Yelp posts record 2025 revenue, lowers 2026 EBITDA | YELP 8-K Filing\", \"content\": \"|  |  |\\n --- |\\n| Three Months Ended December 31, | Year Ended December 31, |\\n| 2025 | 2024 | 2025 | 2024 |\\n| Reconciliation of Net Cash Provided by Operating Activities to Free Cash Flow: |\\n| Net cash provided by operating activities | $ | 84,482 | $ | 70,973 | $ | 372,029 | $ | 285,815 |\\n| Purchases of property, equipment and software | (12,217) | (11,010) | (48,353) | (37,347) |\\n| Free cash flow | $ | 72,265 | $ | 59,963 | $ | 323,676 | $ | 248,468 |\", \"score\": 0.21255913, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12188,
+        "completion_tokens": 144,
+        "cached_tokens": 3072,
+        "cost_usd": 0.02807
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-25T02:25:51.605266+00:00",
+      "source": "agent",
+      "message": "I found Amazon's most recent 10-K filing (filed February 6, 2026 for fiscal year 2025). Let me parse this filing to find the specific line items related to capital expenditures and any Kuiper-related disclosures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I found Amazon's most recent 10-K filing (filed February 6, 2026 for fiscal year 2025). Let me parse this filing to find the specific line items related to capital expenditures and any Kuiper-related disclosures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0a080cf0957b49f7ba479e14",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "key": "amazon_10k_2025",
+            "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0a080cf0957b49f7ba479e14",
+            "content": "SUCCESS: Loaded portable assets for key: amazon_10k_2025"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14823,
+        "completion_tokens": 156,
+        "cached_tokens": 7616,
+        "cost_usd": 0.0290975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-25T02:26:59.824539+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve information from Amazon's 10-K about Project Kuiper and capital expenditures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now let me retrieve information from Amazon's 10-K about Project Kuiper and capital expenditures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0d883c1dbc334da891e8d2fe",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In Amazon's 10-K filing {{amazon_10k_2025}}, find any disclosures about Project Kuiper, satellite investments, or Kuiper-related capital expenditures. Also find the line item \"Purchases of property and equipment\" in the cash flow statement and any segment reporting disclosures. What specific line items would an analyst use to triangulate Kuiper investment?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0d883c1dbc334da891e8d2fe",
+            "content": "Based on the provided text chunks from Amazon's 10-K filing, here are the relevant disclosures and the line items an analyst would use to triangulate Kuiper investment:\n\n### 1. Disclosures About Project Kuiper / Satellite Investments\nThe filing mentions satellite investments within the definition of **Technology and infrastructure costs**:\n> \"Technology and infrastructure costs include payroll and related expenses for employees involved in the research and development of new and existing products and services... Collectively, these costs reflect the investments we make in order to offer a wide variety of products and services to our customers, including expenditures related to initiatives to build and deploy innovative and efficient software and electronic devices and **the development of a satellite network for global broadband service** and autonomous vehicles for ride-hailing services.\"\n\n### 2. \"Purchases of property and equipment\" in the Cash Flow Statement\nThis line item is found in the Consolidated Statements of Cash Flows under Investing Activities:\n> **Purchases of property and equipment** | $(52,729) | | $(82,999) | | $(131,819) | (for years 2023, 2024, and 2025, respectively)\n\nIt is also referenced in the MD&A as:\n> **Purchases of property and equipment, net of proceeds from sales and incentives**\n\n### 3. Segment Reporting Disclosures\nThe filing defines its reporting structure in the significant accounting policies note:\n> \"We have organized our operations into **three segments: North America, International, and AWS**. See \u201cNote 10 \u2014 Segment Information.\u201d\"\n\nThe XBRL metadata also confirms these segment classifications: `amzn:NorthAmericaSegmentMember`, `amzn:InternationalSegmentMember`, and `amzn:AmazonWebServicesSegmentMember`.\n\n---\n\n### Specific Line Items to Triangulate Kuiper Investment\nBecause Amazon does not explicitly break out \"Project Kuiper\" as a separate financial line item, an analyst would need to triangulate the investment by using the following components:\n\n1. **Technology and Infrastructure Costs (Operating Expense):** This is the primary line item capturing the R&D payroll and infrastructure costs (servers, networking, data center depreciation) explicitly tied to the satellite network development.\n2. **Purchases of Property and Equipment (Investing Cash Flow):** This captures the capital expenditures (CapEx) associated with building the satellite network. An analyst would look at the total CapEx and attempt to isolate the portion attributable to Kuiper.\n3. **Property and Equipment Sub-Categories (Balance Sheet):** Using the XBRL tags provided (`amzn:ServersAndNetworkingEquipmentMember`, `us-gaap:ConstructionInProgressMember`, `us-gaap:OtherCapitalizedPropertyPlantAndEquipmentMember`), an analyst can track specific asset classes where Kuiper-related capital is likely being capitalized.\n4. **Segment Information (Note 10):** An analyst would examine the segment breakdown (North America, International, AWS) to see if Kuiper costs are being allocated to a specific segment (e.g., AWS for cloud/network services or International for global broadband) or if they are buried in corporate/unallocated expenses."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14998,
+        "completion_tokens": 122,
+        "cached_tokens": 9408,
+        "cost_usd": 0.026955
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-25T02:28:51.876164+00:00",
+      "source": "agent",
+      "message": "Let me retrieve additional context from the SpaceX S-1 about the Connectivity segment's deployment stage and Starlink satellite count.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive understanding of both companies' disclosures. Let me also verify the SpaceX Connectivity segment capex figures and look for additional context about the deployment stage.\n\nLet me also retrieve more information about the SpaceX Connectivity segment to understand the deployment stage better.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_782636da5cf04ab2a505bd1a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the SpaceX S-1 filing {{spacex_s1}}, find information about the Connectivity segment's deployment stage, including the number of Starlink satellites in orbit, subscriber count, revenue, and any disclosures about the maturity of the satellite network. Also find any context about how the Connectivity segment capex compares to historical periods and what stage of deployment the company is in."
+          }
+        },
+        {
+          "tool_call_id": "call_7130f77d5e38443fa140fe03",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In Amazon's 10-K filing {{amazon_10k_2025}}, find the property and equipment breakdown by category (e.g., fulfillment, technology infrastructure, construction in progress, other). Also find any disclosures about satellite-related assets, launch commitments, or purchase obligations related to Project Kuiper. What does the balance sheet show for property and equipment categories?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_782636da5cf04ab2a505bd1a",
+            "content": "Based on the provided S-1 filing excerpts, here is the information regarding the Connectivity segment's deployment stage, satellite network maturity, subscriber/revenue metrics, and capital expenditure (capex) context:\n\n**Satellite Network Scale and Deployment Stage**\n*   **Satellites in Orbit:** As of March 31, 2026, SpaceX operates approximately 9,600 Starlink broadband and mobile satellites in Low-Earth Orbit (LEO). The majority of these are second-generation V2 Mini satellites. SpaceX owns and operates approximately 75% of all active maneuverable satellites in orbit.\n*   **Mobile Constellation Growth:** Since January 2025, the mobile constellation has grown from approximately 360 V1 Mobile satellites to approximately 650 V1 Mobile satellites, providing satellite-to-mobile connectivity in approximately 30 countries.\n*   **Current Capacity:** The current constellation supports over 700 Tbps of cumulative downlink capacity.\n\n**Maturity of the Satellite Network & Next-Stage Deployment**\nWhile the network is described as the \"world\u2019s largest and most advanced space-based internet broadband service,\" it is explicitly in a rapid scaling and transition phase rather than a mature, static state:\n*   **V3 Satellite Transition:** The company expects to commence deploying next-generation V3 satellites in the second half of 2026. These are designed to offer 1 Tbps of downlink capacity per satellite.\n*   **Starship Integration:** SpaceX expects a single Starship launch to deploy up to 60 V3 satellites (or approximately 50 mobile satellites), representing a twenty-fold increase in downlink capacity deployed per launch compared to Falcon 9. This indicates the network is entering a new deployment phase that will \"materially increase the capacity\" of the constellation at a significantly lower cost.\n\n**Subscriber Metrics and Revenue**\n*   **Subscriber Count:** As of March 31, 2026, the network provides connectivity to approximately 10.3 million Starlink Subscribers across 164 countries, territories, and other markets. This is up approximately 105% from 5.0 million subscribers a year prior. \n*   **Mobile Users:** The segment also serves approximately 7.4 million monthly unique devices with satellite-to-mobile texting and voice services.\n*   **Revenue:** For the three months ended March 31, 2026, the Connectivity segment generated revenue of $3,257 million. For the full year 2025, it generated $11,387 million, representing a 49.8% year-over-year growth.\n\n**Connectivity Segment Capex vs. Historical Periods**\nThe company is in a heavy infrastructure investment stage for the Connectivity segment, with capital expenditures increasing year-over-year to fund satellite and ground equipment expansion:\n*   **Q1 2026 vs. Q1 2025:** Capex increased by $518 million, rising to $1,332 million for the three months ended March 31, 2026, up from $814 million in the prior-year quarter.\n*   **Full Year 2025 vs. 2024:** Capex increased by $680 million to $4,178 million in 2025, up from $3,498 million in 2024.\n*   **Full Year 2024 vs. 2023:** Capex increased by $1,043 million to $3,498 million in 2024, up from $2,455 million in 2023.\n*   **Drivers of Capex:** The filing notes that the increases in each year-over-year period were \"primarily driven by higher satellite and ground equipment costs as we continue to increase our number of satellites and grow our satellite network.\""
+          },
+          {
+            "source_call_id": "call_7130f77d5e38443fa140fe03",
+            "content": "# Property and Equipment Disclosures in Amazon's 2025 10-K\n\n## Important Caveat\n\nThe chunks provided **do not contain the detailed Property and Equipment breakdown table** by category (e.g., fulfillment equipment, technology infrastructure, construction-in-progress, other). That specific table \u2014 which typically appears in Note 1 (Description of Business, Accounting Policies, and Supplemental Disclosures) \u2014 is not included in the supplied text. What follows is everything the provided chunks *do* disclose about property and equipment and Project Kuiper (satellite network) assets.\n\n---\n\n## What the Chunks Do Disclose About Property and Equipment\n\n### 1. Geographic Split (U.S. vs. Non-U.S.)\n\nProperty and equipment, net **plus** operating leases, broken down geographically:\n\n| Region | Dec 31, 2023 | Dec 31, 2024 | Dec 31, 2025 |\n|---|---|---|---|\n| U.S. | $196.0 billion | $241.6 billion | $321.9 billion |\n| Non-U.S. | $80.7 billion | $87.2 billion | $121.2 billion |\n\nOutside the U.S., no single country represented more than 10% of consolidated P&E, net and operating leases.\n\n### 2. Additions Under Finance Leases and Build-to-Suit Arrangements\n\nTwo footnotes (labeled (1) and (2) \u2014 likely corresponding to two P&E categories, presumably fulfillment-related and technology-infrastructure-related, though the category headers themselves are not in the provided chunks):\n\n**Footnote (1) \u2014 likely Fulfillment/Other:**\n- Finance lease additions: $525M (2023), $616M (2024), $1.0B (2025)\n- Build-to-suit additions: $356M (2023), $89M (2024), $20M (2025)\n\n**Footnote (2) \u2014 likely Technology Infrastructure:**\n- Finance lease additions: $117M (2023), $238M (2024), **$1.9B (2025)** \u2014 a sharp increase\n- Build-to-suit additions: $1M (2023), $8M (2024), **$421M (2025)** \u2014 also a sharp increase\n\nThe 2025 jump in footnote (2) is consistent with massive data center / AWS build-out.\n\n### 3. Segment Asset Allocation (Total Segment Assets, not P&E alone)\n\n| Segment | Dec 31, 2023 | Dec 31, 2024 | Dec 31, 2025 |\n|---|---|---|---|\n| North America | $196,029M | $210,120M | $235,652M |\n| International | $69,718M | $69,487M | $81,984M |\n| AWS | $108,533M | $155,953M | **$252,588M** |\n| Corporate | $153,574M | $189,334M | $247,818M |\n| **Consolidated** | **$527,854M** | **$624,894M** | **$818,042M** |\n\nThe filing notes that **technology infrastructure assets** (included in P&E, net) are allocated to segments based on usage, with the **majority allocated to AWS** \u2014 which explains AWS's outsized asset growth in 2025 (from $156B to $253B).\n\n### 4. Facility Square Footage (Properties Section, as of Dec 31, 2025)\n\n| Description of Use | Leased (000s sq ft) | Owned (000s sq ft) | Location |\n|---|---|---|---|\n| Office space | 31,028 | 9,160 | North America |\n| Office space | 26,495 | 1,802 | International |\n| Physical stores | 23,932 | 706 | North America |\n| Physical stores | 148 | \u2014 | International |\n| Fulfillment, data centers, and other | 474,128 | 45,803 | North America |\n| Fulfillment, data centers, and other | 185,814 | 20,660 | International |\n| **Total** | **741,545** | **78,131** | |\n\nBy segment (excluding corporate facilities):\n\n| Segment | Leased (000s sq ft) | Owned (000s sq ft) |\n|---|---|---|\n| North America | 481,153 | 25,437 |\n| International | 174,499 | 13,263 |\n| AWS | 28,370 | 28,469 |\n| **Total** | **684,022** | **67,169** |\n\nPhysical stores footnote: 615 North America and 8 International stores as of Dec 31, 2025.\n\n---\n\n## Project Kuiper / Satellite Network Disclosures\n\nThe filing discusses the satellite network (Project Kuiper) across several places, but **does not break out a separate satellite asset line on the balance sheet**. Instead, satellite-related costs are scattered across multiple balance sheet and income statement captions depending on their nature and stage:\n\n### Accounting Policy (Key Quote)\n> \"We currently expense the majority of the costs associated with the development of our satellite network for global broadband service (including production, launch, and payroll costs, and launch services deposits upon launch). We will capitalize certain of these costs once the service achieves commercial viability, including sales to customers.\"\n\n### Where Satellite Costs Sit Today\n\n| Cost Type | Balance Sheet / Income Statement Location |\n|---|---|\n| **Launch services deposits (pre-launch)** | \"Prepaid expenses and other current assets\" \u2014 $6.9B total at Dec 31, 2025 (includes satellite deposits and non-income taxes; was $6.3B at Dec 31, 2024) |\n| **Launch services deposits (long-term portion)** | \"Other assets\" (long-term) \u2014 listed alongside convertible notes, equity investments, video/music content, deferred tax assets, intangibles, and affordable housing loans |\n| **Launch services deposits \u2014 upon launch** | Expensed immediately to \"Technology and infrastructure\" (income statement) |\n| **Production, launch, and payroll costs** | Expensed to \"Technology and infrastructure\" (income statement) until commercial viability |\n| **Future capitalization** | Once commercial viability (including sales to customers) is achieved, deposits will be reclassified to **Construction-in-Progress within \"Property and equipment, net\"** |\n\n### Reclassification Trigger\n> \"We will reclassify the satellite network launch service deposits to construction-in-progress included within 'Property and equipment, net' on our consolidated balance sheet once the service achieves commercial viability, including sales to customers.\"\n\n### Technology & Infrastructure Cost Context\nThe MD&A states that technology and infrastructure costs include \"the development of a satellite network for global broadband service and autonomous vehicles for ride-hailing services.\" The 2025 increase in technology and infrastructure costs was \"primarily due to an increase in spending on infrastructure, including depreciation and amortization,\" with FX increasing these costs by $312 million in 2025.\n\n### Purchase Obligations Related to Satellite\nThe unconditional purchase obligations footnote (Footnote 2 to the contractual obligations table) covers long-term agreements to \"acquire and license digital media content, procure energy, acquire property and equipment, and license software.\" Satellite-specific purchase obligations are **not separately quantified** in the provided chunks. The footnote states that for agreements with variable terms, Amazon does \"not estimate the total obligation beyond any minimum quantities and/or pricing, or termination penalties.\"\n\n---\n\n## What Is Missing From the Provided Chunks\n\nTo fully answer your question, the following items \u2014 which would normally appear in the 10-K but are **not in the supplied text** \u2014 would be needed:\n\n1. **The detailed P&E table** breaking out:\n   - Fulfillment and customer service equipment and property\n   - Technology infrastructure (servers, networking equipment, data centers)\n   - Construction-in-progress\n   - Other property and equipment\n   - Less: accumulated depreciation\n   - **Property and equipment, net**\n\n2. **A specific Project Kuiper purchase obligation or launch commitment figure** (if disclosed separately).\n\n3. **The full contractual obligations table** with line items and dollar amounts by period.\n\nIf you can provide the chunk containing Note 1's supplemental disclosures (the P&E table) or the full contractual obligations table, I can extract the category-level breakdown you're looking for."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15762,
+        "completion_tokens": 242,
+        "cached_tokens": 14976,
+        "cost_usd": 0.023105
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-25T02:29:26.110112+00:00",
+      "source": "agent",
+      "message": "Let me verify the cumulative SpaceX capex calculation and gather a bit more context on Amazon's Kuiper deployment stage.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have a comprehensive understanding of both companies' disclosures. Let me also verify the Amazon 10-K's specific line items by retrieving more information about the property and equipment breakdown and the cash flow statement.\n\nLet me also look at the specific line items in Amazon's 10-K that would help triangulate Kuiper investment. The key findings so far:\n\nSpaceX Connectivity Segment Capex:\n- FY2025: $4,178 million\n- Q1 2026: $1,332 million\n- Q1 2025: $814 million (for comparison)\n- FY2024: $3,498 million\n- FY2023: $2,455 million\n\nSpaceX Connectivity Segment Context:\n- ~9,600 Starlink satellites in orbit as of March 31, 2026\n- ~10.3 million Starlink Subscribers across 164 countries\n- Revenue of $11,387 million in FY2025 (up 49.8% YoY)\n- Income from operations of $4,423 million (up 120.4%)\n- Segment Adjusted EBITDA of $7,168 million (up 86.2%)\n- Network supports over 700 Tbps of cumulative downlink capacity\n- V3 satellite transition expected in H2 2026\n\nAmazon Project Kuiper:\n- Publicly committed more than $10 billion\n- Industry analysts estimate total program cost at $16.5-20 billion\n- Amazon does not separately disclose Kuiper capex in 10-K segment reporting\n- Three segments: North America, International, AWS\n- Satellite costs are expensed to \"Technology and infrastructure\" until commercial viability\n- Launch services deposits are in \"Prepaid expenses and other current assets\" ($6.9B total at Dec 31, 2025)\n- Once commercial viability is achieved, deposits will be reclassified to Construction-in-Progress within Property and equipment, net\n- \"Purchases of property and equipment\" in cash flow statement: $(131,819) million for 2025\n\nKey line items in Amazon's 10-K to triangulate Kuiper investment:\n1. \"Purchases of property and equipment\" in the Consolidated Statements of Cash Flows (Investing Activities)\n2. \"Technology and infrastructure\" costs in the income statement (where satellite R&D and pre-commercial costs are expensed)\n3. \"Prepaid expenses and other current assets\" on the balance sheet (where launch services deposits sit pre-launch)\n4. \"Construction-in-progress\" within Property and equipment, net (where satellite costs will be capitalized once commercial viability is achieved)\n5. Property and equipment breakdown by category (fulfillment, technology infrastructure, construction-in-progress, other)\n6. Unconditional purchase obligations footnote (for launch contracts)\n\nNow let me calculate the SpaceX capex figures and analyze the relative deployment stages.\n\nSpaceX Connectivity Capex:\n- FY2025: $4,178 million = $4.178 billion\n- Q1 2026: $1,332 million = $1.332 billion\n- Annualized Q1 2026 run rate: $1,332 \u00d7 4 = $5,328 million = $5.328 billion\n\nAmazon's $10 billion commitment is a multi-year program commitment (announced in 2020), not an annual capex figure.\n\nLet me calculate the comparison:\n- SpaceX FY2025 Connectivity capex: $4.178 billion\n- SpaceX Q1 2026 annualized: ~$5.328 billion\n- Amazon's $10 billion commitment: multi-year total (announced 2020, expected to be spent over the life of the project)\n\nThe key analytical limitation is that SpaceX's figure is a segment-level annual capex disclosure (actual cash spent in a period), while Amazon's $10 billion is a program-level commitment estimate (a multi-year total commitment, not actual spending in any single period).\n\nLet me also calculate the cumulative SpaceX capex to understand the deployment stage:\n- FY2023: $2,455 million\n- FY2024: $3,498 million\n- FY2025: $4,178 million\n- Q1 2026: $1,332 million\n\nCumulative (FY2023-FY2025): $2,455 + $3,498 + $4,178 = $10,131 million = ~$10.1 billion\n\nThis is interesting - SpaceX's cumulative Connectivity capex over just FY2023-FY2025 (~$10.1 billion) already equals Amazon's entire multi-year $10 billion commitment floor. This suggests SpaceX is at a much more advanced deployment stage.\n\nLet me verify this calculation.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c3f7691a371a4c7daef00240",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2455 + 3498 + 4178"
+          }
+        },
+        {
+          "tool_call_id": "call_d02820031c994614a1e5c266",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1332 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_2fa2ff769e2d4c59b7f73d1d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2455 + 3498 + 4178 + 1332"
+          }
+        },
+        {
+          "tool_call_id": "call_c2876e0ae8c548c1b4495005",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon Project Kuiper satellites launched 2025 2026 deployment status commercial service"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c3f7691a371a4c7daef00240",
+            "content": "10131"
+          },
+          {
+            "source_call_id": "call_d02820031c994614a1e5c266",
+            "content": "5328"
+          },
+          {
+            "source_call_id": "call_2fa2ff769e2d4c59b7f73d1d",
+            "content": "11463"
+          },
+          {
+            "source_call_id": "call_c2876e0ae8c548c1b4495005",
+            "content": "[{\"url\": \"https://www.deepresearchglobal.com/p/amazon-launches-kuiper-satellites-to-challenge-starlink-dominance\", \"title\": \"Amazon Launches Kuiper Satellites to Challenge Starlink Dominance\", \"content\": \"- April 2025: First operational satellites launched - Late 2025: Limited initial service begins - July 2026: FCC deadline for 50% constellation deployment - 2026-2029: Full constellation deployment and service expansion - July 2029: FCC deadline for complete constellation deployment. The competition between Starlink and Kuiper raises several important considerations for the satellite industry and beyond:. 3. Global digital divide: Satellite internet could help bridge connectivity gaps in remote\", \"score\": 0.84767824, \"raw_content\": null}, {\"url\": \"https://deepresearchglobal.com/p/amazon-launches-kuiper-satellites-to-challenge-starlink-dominance\", \"title\": \"Amazon Launches Kuiper Satellites to Challenge Starlink Dominance\", \"content\": \"can begin. PROJECTED ROADMAP: - April 2025: First operational satellites launched - Late 2025: Limited initial service begins - July 2026: FCC deadline for 50% constellation deployment - 2026-2029: Full constellation deployment and service expansion - July 2029: FCC deadline for complete constellation deployment. 3. Global digital divide: Satellite internet could help bridge connectivity gaps in remote and underserved regions, though affordability remains a significant factor^12. For investors\", \"score\": 0.82560414, \"raw_content\": null}, {\"url\": \"https://ppc.land/amazon-rebrands-project-kuiper-as-amazon-leo-for-satellite-internet-service\", \"title\": \"Amazon rebrands Project Kuiper as Amazon Leo for satellite internet service\", \"content\": \"Amazon rebrands Project Kuiper as Amazon Leo for satellite internet service\\n\\nSeven years into development, Amazon has formally renamed its satellite internet program from Project Kuiper to Amazon Leo, signaling the transition from experimental phase to commercial deployment. The announcement came November 13, 2025, marking a milestone for a project that began with a handful of engineers and designs on paper.\", \"score\": 0.7811474, \"raw_content\": null}, {\"url\": \"https://affairscloud.com/spacex-launched-24-amazon-kuiper-internet-satellites-into-orbit\", \"title\": \"SpaceX Launched 24 Amazon Kuiper Internet Satellites into Orbit\", \"content\": \"# SpaceX Launched 24 Amazon Kuiper Internet Satellites into Orbit. On 16th July 2025, California (United States of America, USA)-based Space Exploration Technologies Corporation (SpaceX), led by Elon Musk, successfully launched 24 Kuiper broadband internet satellites for Amazon.com, Inc., Washington (USA), under the KF-01 (Kuiper Falcon 1) mission using its Falcon 9 rocket from Cape Canaveral Space Force Station, Florida, USA. i.Following the launch, all satellites were deployed successfully\", \"score\": 0.73596483, \"raw_content\": null}, {\"url\": \"https://totaltele.com/amazon-rebrands-project-kuiper-as-amazon-leo\", \"title\": \"Amazon rebrands Project Kuiper as Amazon Leo | Total Telecom\", \"content\": \"# Amazon rebrands Project Kuiper as Amazon Leo. Posted by Harry Baldock | Nov 14, 2025 | INFRASTRUCTURE, Satellite, COMPANY NEWS, Products & Services, Customer, North America, News. ###### Amazon Leo will face fierce competition from SpaceX\\u2019s Starlink, which has a considerable headstart, both in terms of satellites launched and commercial partnerships. With Amazon inching ever closer to its commercial satellite service launch, the company has this week rebranded its satellite initiative from\", \"score\": 0.72254705, \"raw_content\": null}, {\"url\": \"https://www.satellitetoday.com/launch/2025/04/28/amazon-project-kuiper-deployment-begins-with-first-ula-launch\", \"title\": \"Amazon Project Kuiper Deployment Begins With First ULA Launch - Via Satellite\", \"content\": \"Launch\\n\\n# Amazon Project Kuiper Deployment Begins With First ULA Launch\\n\\nBy Photo of Rachel Jewett Rachel Jewett\\n\\n \\n\\nULA launches the Kuiper 1 mission from Cape Canaveral on April 28, 2025. Photo: ULA\\n\\nUnited Launch Alliance (ULA) launched the first full-scale mission for Amazon\\u2019s Project Kuiper constellation on Monday evening, starting the deployment phase of Amazon\\u2019s competitor to Starlink and OneWeb.\", \"score\": 0.71948266, \"raw_content\": null}, {\"url\": \"https://currentaffairs.adda247.com/amazon-launched-satellite-for-project-kuiper-broadband-internet\", \"title\": \"Amazon Launched Satellite for Project Kuiper Broadband Internet\", \"content\": \"### Why in News?\\n\\nOn April 28, 2025, Amazon successfully launched the first 27 satellites of its Project Kuiper broadband internet constellation from Cape Canaveral, Florida, marking the company\\u2019s official entry into the satellite internet race against SpaceX\\u2019s Starlink.\\n\\n### Project Kuiper Launch Details\", \"score\": 0.6994397, \"raw_content\": null}, {\"url\": \"https://spaceinsider.tech/2025/04/29/amazon-begins-full-deployment-of-kuiper-internet-satellites-with-ula-launch\", \"title\": \"Amazon Begins Full Deployment of Kuiper Internet Satellites with ULA Launch\", \"content\": \"Vulcan rocket, aimed at increasing cadence for both commercial and government missions. A United Launch Alliance Atlas V rocket lifted off from Cape Canaveral on April 28, marking the start of full-scale deployment for Amazon\\u2019s Project Kuiper, a satellite network designed to deliver broadband internet service across the globe. \\u201cThis launch is an incredible milestone in Amazon\\u2019s ambitious initiative to provide fast, reliable broadband service to unserved and underserved communities around the\", \"score\": 0.64478505, \"raw_content\": null}, {\"url\": \"https://www.telecomstechnews.com/news/ula-begins-deploying-amazon-project-kuiper-satellites\", \"title\": \"ULA begins deploying Amazon Project Kuiper satellites\", \"content\": \"Cape Canaveral to support the capacity for future Project Kuiper missions in a manner that will ultimately benefit both our commercial and government customers as we endeavour to save lives, explore the universe, and connect the world. This capability will be crucial as ULA balances its commitments to Project Kuiper alongside its long-standing role as a key launch provider for US national security missions. Tags: amazon, connectivity, kuiper, network, networks, rural, satellites, space,\", \"score\": 0.6255073, \"raw_content\": null}, {\"url\": \"https://www.geekwire.com/2023/amazon-kuiper-satellite-atlas-protolaunch\", \"title\": \"Amazon's first Project Kuiper satellites launched into orbit\", \"content\": \"by the end of 2024. Amazon is facing schedule pressure from at least two directions: First of all, the terms of Project Kuiper\\u2019s license from the Federal Communications Commission require Amazon to have at least half of the 3,236 satellites in its proposed constellation launched by mid-2026. Back in 2019, Bezos was asked to identify one of Amazon\\u2019s recent \\u201cbig bets,\\u201d and he didn\\u2019t hesitate to name Project Kuiper. Amazon and ULA count down to second launch attempt for Project Kuiper satellites.\", \"score\": 0.53619206, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 18593,
+        "completion_tokens": 1088,
+        "cached_tokens": 12160,
+        "cost_usd": 0.0421625
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-25T02:30:02.294338+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed to construct a comprehensive answer. Let me compile the analysis.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the information I need to construct a comprehensive answer. Let me summarize the key findings:\n\n**SpaceX Connectivity Segment Capex (from S-1):**\n- FY2025: $4,178 million ($4.178 billion)\n- Q1 2026: $1,332 million ($1.332 billion)\n- Q1 2025: $814 million (for comparison)\n- FY2024: $3,498 million\n- FY2023: $2,455 million\n- Cumulative FY2023-FY2025: $10,131 million (~$10.1 billion)\n- Cumulative FY2023-Q1 2026: $11,463 million (~$11.5 billion)\n- Q1 2026 annualized run rate: $5,328 million (~$5.3 billion)\n\n**SpaceX Connectivity Segment Context:**\n- ~9,600 Starlink satellites in orbit as of March 31, 2026\n- ~10.3 million Starlink Subscribers across 164 countries\n- Revenue of $11,387 million in FY2025 (up 49.8% YoY)\n- Income from operations of $4,423 million (up 120.4%)\n- Segment Adjusted EBITDA of $7,168 million (up 86.2%)\n- Network supports over 700 Tbps of cumulative downlink capacity\n- V3 satellite transition expected in H2 2026\n- Owns ~75% of all active maneuverable satellites in orbit\n\n**Amazon Project Kuiper:**\n- Publicly committed more than $10 billion (announced July 2020)\n- Industry analysts estimate total program cost at $16.5-20 billion\n- Amazon does not separately disclose Kuiper capex in 10-K segment reporting\n- Three segments: North America, International, AWS (no separate Kuiper segment)\n- First operational satellites launched April 28, 2025 (27 satellites via ULA Atlas V)\n- As of November 2025, conducted six successful satellite launches\n- Rebranded as \"Amazon Leo\" in November 2025\n- FCC deadline: 50% of 3,236 satellites by July 2026; full constellation by July 2029\n- Satellite costs are expensed to \"Technology and infrastructure\" until commercial viability\n- Launch services deposits are in \"Prepaid expenses and other current assets\" ($6.9B total at Dec 31, 2025)\n- Once commercial viability is achieved, deposits will be reclassified to Construction-in-Progress within Property and equipment, net\n- \"Purchases of property and equipment\" in cash flow statement: $(131,819) million for 2025\n\n**Key Analytical Points:**\n\n1. **Relative Stage of Deployment:**\n   - SpaceX is at a mature, revenue-generating deployment stage with ~9,600 satellites in orbit, 10.3 million subscribers, and $11.4 billion in FY2025 revenue. Its Connectivity capex of $4.178 billion in FY2025 represents ongoing network expansion and capacity upgrades (V3 satellites, Starship integration).\n   - Amazon is at an early deployment stage, having just begun launching operational satellites in April 2025. As of late 2025, it had conducted only six launches. The $10 billion commitment is a multi-year program total, not annual spending.\n\n2. **Cumulative Comparison:**\n   - SpaceX's cumulative Connectivity capex over just FY2023-FY2025 (~$10.1 billion) already equals Amazon's entire multi-year $10 billion commitment floor.\n   - This suggests SpaceX has already deployed capital at a scale that Amazon has only committed to over the entire program life.\n\n3. **Analytical Limitation:**\n   - SpaceX's figure is a segment-level annual capex disclosure (actual cash spent in a specific period, reflecting ongoing operations and expansion of a mature network).\n   - Amazon's $10 billion is a program-level commitment estimate (a multi-year total commitment announced in 2020, not actual spending in any single period, and not broken out in segment reporting).\n   - The two figures are not directly comparable: one is a flow (annual spending), the other is a stock (cumulative commitment).\n   - Amazon's actual annual Kuiper spending is not disclosed; it's buried within \"Technology and infrastructure\" costs (income statement) and \"Purchases of property and equipment\" (cash flow statement), neither of which is broken out by program.\n\n4. **Specific Line Items in Amazon's 10-K to Triangulate Kuiper Investment:**\n   - **\"Purchases of property and equipment\"** in the Consolidated Statements of Cash Flows (Investing Activities) \u2014 captures capex, but includes all Amazon businesses (fulfillment, AWS, etc.)\n   - **\"Technology and infrastructure\"** costs in the income statement \u2014 where satellite R&D, production, launch, and payroll costs are expensed until commercial viability\n   - **\"Prepaid expenses and other current assets\"** on the balance sheet \u2014 where launch services deposits sit pre-launch ($6.9B total at Dec 31, 2025, includes satellite deposits and non-income taxes)\n   - **\"Construction-in-progress\"** within Property and equipment, net \u2014 where satellite costs will be capitalized once commercial viability is achieved (not yet material as of FY2025)\n   - **Property and equipment breakdown by category** (fulfillment, technology infrastructure, construction-in-progress, other) \u2014 to track where Kuiper-related capital is being capitalized\n   - **Unconditional purchase obligations footnote** \u2014 for launch contracts and long-term agreements\n\nThe most direct line item an analyst would consult is \"Purchases of property and equipment\" in the cash flow statement, combined with the \"Technology and infrastructure\" operating expense line and the \"Prepaid expenses and other current assets\" balance sheet line (where launch services deposits sit). However, none of these isolate Kuiper specifically.\n\nLet me now construct the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_025045afee004a0da87594b2",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4178 / 10000 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_f46fddd5f05e4d7083271c06",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "10131 / 10000"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_025045afee004a0da87594b2",
+            "content": "41.78"
+          },
+          {
+            "source_call_id": "call_f46fddd5f05e4d7083271c06",
+            "content": "1.0131"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21390,
+        "completion_tokens": 1312,
+        "cached_tokens": 18560,
+        "cost_usd": 0.043394999999999996
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-25T02:30:52.623711+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1670b7ac8fa742cfa9d00a9a",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Assessment: SpaceX Connectivity Capex vs. Amazon's Project Kuiper Commitment\n\n### 1. Disclosed SpaceX Connectivity Segment Capex (from S-1)\n\nThe SpaceX S-1 (filed May 20, 2026) discloses the following Connectivity segment capital expenditures:\n\n| Period | Connectivity Capex |\n|---|---|\n| FY2023 | $2,455 million |\n| FY2024 | $3,498 million |\n| **FY2025** | **$4,178 million** |\n| **Q1 2026** | **$1,332 million** |\n| Q1 2025 (comparator) | $814 million |\n\nThe filing attributes the year-over-year increases to \"higher satellite and ground equipment costs as we continue to increase our number of satellites and grow our satellite network.\"\n\n**Cumulative context (calculated):**\n- FY2023\u2013FY2025 cumulative Connectivity capex = $2,455M + $3,498M + $4,178M = **$10,131 million (~$10.1 billion)**\n- FY2023\u2013Q1 2026 cumulative = ~$11.5 billion\n- Q1 2026 annualized run-rate = $1,332M \u00d7 4 = **~$5.3 billion**\n\n### 2. Amazon's Stated Commitment\n\nAmazon publicly committed \"more than $10 billion\" to Project Kuiper in July 2020 (at FCC authorization). Industry analysts (per the question) estimate total program cost at $16.5\u201320 billion. Amazon does **not** separately disclose Kuiper capex in its 10-K segment reporting, which is organized into only three segments: North America, International, and AWS.\n\n### 3. What the Two Figures Suggest About Relative Deployment Stage\n\n**SpaceX is at a mature, revenue-generating scaling stage.** As of March 31, 2026, the S-1 discloses:\n- ~9,600 Starlink satellites in LEO (SpaceX owns ~75% of all active maneuverable satellites globally)\n- ~10.3 million Starlink subscribers across 164 markets (up ~105% YoY)\n- FY2025 Connectivity revenue of $11,387 million (+49.8% YoY)\n- FY2025 segment income from operations of $4,423 million (+120.4%)\n- FY2025 Segment Adjusted EBITDA of $7,168 million (+86.2%)\n- >700 Tbps cumulative downlink capacity\n- Next-generation V3 satellites and Starship integration expected H2 2026\n\nSpaceX's $4.178 billion FY2025 Connectivity capex therefore represents **ongoing capacity expansion and next-generation technology refresh of an already-operational, cash-generative constellation** \u2014 not initial build-out.\n\n**Amazon is at an early deployment stage.** Project Kuiper's first operational satellites launched only on April 28, 2025 (27 satellites via ULA Atlas V). As of November 2025, Amazon had conducted approximately six successful launches. The program was rebranded \"Amazon Leo\" in November 2025, signaling transition from experimental to commercial deployment. The FCC requires 50% of the 3,236-satellite constellation by July 2026 and full deployment by July 2029. Amazon's $10 billion figure is a **multi-year program commitment announced in 2020**, not annual spending.\n\n**Key inference from the comparison:** SpaceX's cumulative Connectivity capex over just FY2023\u2013FY2025 (~$10.1 billion) already equals Amazon's entire multi-year $10 billion commitment floor \u2014 and SpaceX's single-year FY2025 capex ($4.178 billion) represents ~42% of Amazon's total program commitment. This indicates SpaceX has deployed capital at a scale and cadence that Amazon has only committed to over the full life of its program, consistent with SpaceX's multi-year operational head start and Amazon's nascent deployment phase.\n\n### 4. Analytical Limitation: Segment-Level Disclosure vs. Program-Level Commitment\n\nComparing these two figures presents a fundamental **apples-to-oranges** problem along several dimensions:\n\n| Dimension | SpaceX (S-1) | Amazon (10-K / public statements) |\n|---|---|---|\n| **Disclosure type** | Segment-level capex (actual cash spent) | Program-level commitment (stated intention) |\n| **Time basis** | Flow \u2014 annual/quarterly spending in a defined period | Stock \u2014 cumulative multi-year commitment (announced 2020) |\n| **Scope** | Connectivity segment only (Starlink + mobile) | Project Kuiper only (but not isolated in financials) |\n| **Accounting treatment** | Capitalized as PP&E within segment | Mostly expensed to \"Technology and infrastructure\" until commercial viability; launch deposits in prepaid/other assets |\n| **Verifiability** | Audited segment financial disclosure | Management statement / analyst estimate; not separately quantified in 10-K |\n| **Maturity adjustment** | Reflects mature, revenue-generating network | Reflects pre-commercial build-out phase |\n\nThe core limitation: **SpaceX's figure is an actual periodic cash outflow for an operating segment, while Amazon's $10 billion is a forward-looking, multi-year commitment that is not tied to any specific period and is not separately tracked in Amazon's segment reporting.** An analyst cannot derive Amazon's annual Kuiper spend from the $10 billion figure, nor can the $10 billion be compared to SpaceX's $4.178 billion FY2025 figure as if both were annual run-rates. The $10 billion also conflates capex with R&D/opex, since Amazon's accounting policy expenses most Kuiper production, launch, and payroll costs until commercial viability is achieved.\n\n### 5. Specific Line Items in Amazon's 10-K to Triangulate Kuiper Investment\n\nBecause Amazon does not break out Kuiper, an analyst would consult the following line items in Amazon's FY2025 10-K (filed February 6, 2026) to triangulate Kuiper investment:\n\n1. **\"Purchases of property and equipment\"** \u2014 Consolidated Statements of Cash Flows (Investing Activities). This is the primary capex line ($131.8 billion in 2025), but it aggregates all Amazon businesses (fulfillment, AWS data centers, Kuiper). An analyst would need to isolate the Kuiper-attributable portion, which is not separately disclosed.\n\n2. **\"Technology and infrastructure\"** \u2014 Income Statement (operating expense). Per Amazon's accounting policy, this is where the **majority of Kuiper costs currently sit**: \"We currently expense the majority of the costs associated with the development of our satellite network for global broadband service (including production, launch, and payroll costs, and launch services deposits upon launch).\" This line is the most direct proxy for current-period Kuiper spend, though it also includes AWS R&D, devices, and other initiatives.\n\n3. **\"Prepaid expenses and other current assets\"** \u2014 Balance Sheet. Launch services deposits (pre-launch) are recorded here. Total prepaid and other current assets were $6.9 billion at Dec 31, 2025 (includes satellite deposits and non-income taxes). The long-term portion of launch deposits sits in \"Other assets.\"\n\n4. **\"Construction-in-progress\"** within Property and equipment, net \u2014 Balance Sheet. Amazon states it \"will reclassify the satellite network launch service deposits to construction-in-progress included within 'Property and equipment, net'... once the service achieves commercial viability, including sales to customers.\" As of FY2025, this reclassification had not yet occurred (Kuiper not yet commercially viable), so this line is a forward-looking indicator to monitor.\n\n5. **Property and equipment breakdown by category** (Note 1 supplemental disclosures) \u2014 to track fulfillment vs. technology infrastructure vs. construction-in-progress vs. other, and identify where Kuiper capital begins to materialize.\n\n6. **Unconditional purchase obligations footnote** \u2014 for long-term launch service agreements and satellite procurement contracts (though Amazon does not separately quantify satellite-specific obligations).\n\n**Bottom line for triangulation:** The most analytically useful single line item is **\"Technology and infrastructure\"** on the income statement (where Kuiper costs are currently expensed), supplemented by **\"Purchases of property and equipment\"** in the cash flow statement and the **launch services deposits** within prepaid expenses/other assets on the balance sheet. None of these isolates Kuiper, so triangulation requires combining all three with external launch-cadence and satellite-count data \u2014 a materially less precise exercise than reading SpaceX's directly disclosed segment capex.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Connectivity segment capex, satellite count, subscriber metrics, segment financials\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm\",\n      \"name\": \"Amazon.com, Inc. Form 10-K for fiscal year ended December 31, 2025 (filed February 6, 2026) \u2014 segment reporting, property and equipment, technology and infrastructure costs, satellite network accounting policy, cash flow statement\"\n    },\n    {\n      \"url\": \"https://techcrunch.com/2020/07/31/amazon-gains-fcc-approval-for-kuiper-internet-satellite-constellation-and-commits-10-billion-to-the-project\",\n      \"name\": \"TechCrunch \u2014 Amazon gains FCC approval for Kuiper and commits $10 billion (July 31, 2020)\"\n    },\n    {\n      \"url\": \"https://www.satellitetoday.com/launch/2025/04/28/amazon-project-kuiper-deployment-begins-with-first-ula-launch\",\n      \"name\": \"Via Satellite \u2014 Amazon Project Kuiper Deployment Begins With First ULA Launch (April 28, 2025)\"\n    },\n    {\n      \"url\": \"https://ppc.land/amazon-rebrands-project-kuiper-as-amazon-leo-for-satellite-internet-service\",\n      \"name\": \"PPC Land \u2014 Amazon rebrands Project Kuiper as Amazon Leo (November 13, 2025)\"\n    },\n    {\n      \"url\": \"https://www.advanced-television.com/2024/10/23/project-kuiper-a-16-billion-investment\",\n      \"name\": \"Advanced Television \u2014 Project Kuiper: A $16bn investment (analyst estimate context)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1670b7ac8fa742cfa9d00a9a",
+            "content": "## Assessment: SpaceX Connectivity Capex vs. Amazon's Project Kuiper Commitment\n\n### 1. Disclosed SpaceX Connectivity Segment Capex (from S-1)\n\nThe SpaceX S-1 (filed May 20, 2026) discloses the following Connectivity segment capital expenditures:\n\n| Period | Connectivity Capex |\n|---|---|\n| FY2023 | $2,455 million |\n| FY2024 | $3,498 million |\n| **FY2025** | **$4,178 million** |\n| **Q1 2026** | **$1,332 million** |\n| Q1 2025 (comparator) | $814 million |\n\nThe filing attributes the year-over-year increases to \"higher satellite and ground equipment costs as we continue to increase our number of satellites and grow our satellite network.\"\n\n**Cumulative context (calculated):**\n- FY2023\u2013FY2025 cumulative Connectivity capex = $2,455M + $3,498M + $4,178M = **$10,131 million (~$10.1 billion)**\n- FY2023\u2013Q1 2026 cumulative = ~$11.5 billion\n- Q1 2026 annualized run-rate = $1,332M \u00d7 4 = **~$5.3 billion**\n\n### 2. Amazon's Stated Commitment\n\nAmazon publicly committed \"more than $10 billion\" to Project Kuiper in July 2020 (at FCC authorization). Industry analysts (per the question) estimate total program cost at $16.5\u201320 billion. Amazon does **not** separately disclose Kuiper capex in its 10-K segment reporting, which is organized into only three segments: North America, International, and AWS.\n\n### 3. What the Two Figures Suggest About Relative Deployment Stage\n\n**SpaceX is at a mature, revenue-generating scaling stage.** As of March 31, 2026, the S-1 discloses:\n- ~9,600 Starlink satellites in LEO (SpaceX owns ~75% of all active maneuverable satellites globally)\n- ~10.3 million Starlink subscribers across 164 markets (up ~105% YoY)\n- FY2025 Connectivity revenue of $11,387 million (+49.8% YoY)\n- FY2025 segment income from operations of $4,423 million (+120.4%)\n- FY2025 Segment Adjusted EBITDA of $7,168 million (+86.2%)\n- >700 Tbps cumulative downlink capacity\n- Next-generation V3 satellites and Starship integration expected H2 2026\n\nSpaceX's $4.178 billion FY2025 Connectivity capex therefore represents **ongoing capacity expansion and next-generation technology refresh of an already-operational, cash-generative constellation** \u2014 not initial build-out.\n\n**Amazon is at an early deployment stage.** Project Kuiper's first operational satellites launched only on April 28, 2025 (27 satellites via ULA Atlas V). As of November 2025, Amazon had conducted approximately six successful launches. The program was rebranded \"Amazon Leo\" in November 2025, signaling transition from experimental to commercial deployment. The FCC requires 50% of the 3,236-satellite constellation by July 2026 and full deployment by July 2029. Amazon's $10 billion figure is a **multi-year program commitment announced in 2020**, not annual spending.\n\n**Key inference from the comparison:** SpaceX's cumulative Connectivity capex over just FY2023\u2013FY2025 (~$10.1 billion) already equals Amazon's entire multi-year $10 billion commitment floor \u2014 and SpaceX's single-year FY2025 capex ($4.178 billion) represents ~42% of Amazon's total program commitment. This indicates SpaceX has deployed capital at a scale and cadence that Amazon has only committed to over the full life of its program, consistent with SpaceX's multi-year operational head start and Amazon's nascent deployment phase.\n\n### 4. Analytical Limitation: Segment-Level Disclosure vs. Program-Level Commitment\n\nComparing these two figures presents a fundamental **apples-to-oranges** problem along several dimensions:\n\n| Dimension | SpaceX (S-1) | Amazon (10-K / public statements) |\n|---|---|---|\n| **Disclosure type** | Segment-level capex (actual cash spent) | Program-level commitment (stated intention) |\n| **Time basis** | Flow \u2014 annual/quarterly spending in a defined period | Stock \u2014 cumulative multi-year commitment (announced 2020) |\n| **Scope** | Connectivity segment only (Starlink + mobile) | Project Kuiper only (but not isolated in financials) |\n| **Accounting treatment** | Capitalized as PP&E within segment | Mostly expensed to \"Technology and infrastructure\" until commercial viability; launch deposits in prepaid/other assets |\n| **Verifiability** | Audited segment financial disclosure | Management statement / analyst estimate; not separately quantified in 10-K |\n| **Maturity adjustment** | Reflects mature, revenue-generating network | Reflects pre-commercial build-out phase |\n\nThe core limitation: **SpaceX's figure is an actual periodic cash outflow for an operating segment, while Amazon's $10 billion is a forward-looking, multi-year commitment that is not tied to any specific period and is not separately tracked in Amazon's segment reporting.** An analyst cannot derive Amazon's annual Kuiper spend from the $10 billion figure, nor can the $10 billion be compared to SpaceX's $4.178 billion FY2025 figure as if both were annual run-rates. The $10 billion also conflates capex with R&D/opex, since Amazon's accounting policy expenses most Kuiper production, launch, and payroll costs until commercial viability is achieved.\n\n### 5. Specific Line Items in Amazon's 10-K to Triangulate Kuiper Investment\n\nBecause Amazon does not break out Kuiper, an analyst would consult the following line items in Amazon's FY2025 10-K (filed February 6, 2026) to triangulate Kuiper investment:\n\n1. **\"Purchases of property and equipment\"** \u2014 Consolidated Statements of Cash Flows (Investing Activities). This is the primary capex line ($131.8 billion in 2025), but it aggregates all Amazon businesses (fulfillment, AWS data centers, Kuiper). An analyst would need to isolate the Kuiper-attributable portion, which is not separately disclosed.\n\n2. **\"Technology and infrastructure\"** \u2014 Income Statement (operating expense). Per Amazon's accounting policy, this is where the **majority of Kuiper costs currently sit**: \"We currently expense the majority of the costs associated with the development of our satellite network for global broadband service (including production, launch, and payroll costs, and launch services deposits upon launch).\" This line is the most direct proxy for current-period Kuiper spend, though it also includes AWS R&D, devices, and other initiatives.\n\n3. **\"Prepaid expenses and other current assets\"** \u2014 Balance Sheet. Launch services deposits (pre-launch) are recorded here. Total prepaid and other current assets were $6.9 billion at Dec 31, 2025 (includes satellite deposits and non-income taxes). The long-term portion of launch deposits sits in \"Other assets.\"\n\n4. **\"Construction-in-progress\"** within Property and equipment, net \u2014 Balance Sheet. Amazon states it \"will reclassify the satellite network launch service deposits to construction-in-progress included within 'Property and equipment, net'... once the service achieves commercial viability, including sales to customers.\" As of FY2025, this reclassification had not yet occurred (Kuiper not yet commercially viable), so this line is a forward-looking indicator to monitor.\n\n5. **Property and equipment breakdown by category** (Note 1 supplemental disclosures) \u2014 to track fulfillment vs. technology infrastructure vs. construction-in-progress vs. other, and identify where Kuiper capital begins to materialize.\n\n6. **Unconditional purchase obligations footnote** \u2014 for long-term launch service agreements and satellite procurement contracts (though Amazon does not separately quantify satellite-specific obligations).\n\n**Bottom line for triangulation:** The most analytically useful single line item is **\"Technology and infrastructure\"** on the income statement (where Kuiper costs are currently expensed), supplemented by **\"Purchases of property and equipment\"** in the cash flow statement and the **launch services deposits** within prepaid expenses/other assets on the balance sheet. None of these isolates Kuiper, so triangulation requires combining all three with external launch-cadence and satellite-count data \u2014 a materially less precise exercise than reading SpaceX's directly disclosed segment capex.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Connectivity segment capex, satellite count, subscriber metrics, segment financials\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm\",\n      \"name\": \"Amazon.com, Inc. Form 10-K for fiscal year ended December 31, 2025 (filed February 6, 2026) \u2014 segment reporting, property and equipment, technology and infrastructure costs, satellite network accounting policy, cash flow statement\"\n    },\n    {\n      \"url\": \"https://techcrunch.com/2020/07/31/amazon-gains-fcc-approval-for-kuiper-internet-satellite-constellation-and-commits-10-billion-to-the-project\",\n      \"name\": \"TechCrunch \u2014 Amazon gains FCC approval for Kuiper and commits $10 billion (July 31, 2020)\"\n    },\n    {\n      \"url\": \"https://www.satellitetoday.com/launch/2025/04/28/amazon-project-kuiper-deployment-begins-with-first-ula-launch\",\n      \"name\": \"Via Satellite \u2014 Amazon Project Kuiper Deployment Begins With First ULA Launch (April 28, 2025)\"\n    },\n    {\n      \"url\": \"https://ppc.land/amazon-rebrands-project-kuiper-as-amazon-leo-for-satellite-internet-service\",\n      \"name\": \"PPC Land \u2014 Amazon rebrands Project Kuiper as Amazon Leo (November 13, 2025)\"\n    },\n    {\n      \"url\": \"https://www.advanced-television.com/2024/10/23/project-kuiper-a-16-billion-investment\",\n      \"name\": \"Advanced Television \u2014 Project Kuiper: A $16bn investment (analyst estimate context)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 22716,
+        "completion_tokens": 2297,
+        "cached_tokens": 14784,
+        "cost_usd": 0.06128
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 146244,
+    "total_completion_tokens": 6084,
+    "total_cached_tokens": 95424,
+    "total_cost_usd": 0.30716999999999994,
+    "total_steps": 13
+  }
+}

@@ -1,0 +1,532 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "bdc47300-7860-4061-8fcc-88e0d174b3cb",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-25T02:14:58.673583+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-25T02:14:58.673583+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nAcross Space, Connectivity, and AI, identify which segment currently appears most forecastable and which appears least forecastable using only disclosed information. Support your conclusion using the relative visibility of revenue drivers, KPIs, cost structure, and capital-intensity disclosures.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-25T02:14:58.673583+00:00",
+      "source": "agent",
+      "message": "\nI'll analyze the SpaceX S-1 filing to assess forecastability across the three segments (Space, Connectivity, and AI). Let me start by parsing the filing.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking me to analyze the SpaceX S-1 filing (filed May 20, 2026) to determine which segment (Space, Connectivity, or AI) appears most forecastable and which appears least forecastable, based on disclosed information about revenue drivers, KPIs, cost structure, and capital-intensity disclosures.\n\nLet me start by parsing the S-1 filing to understand the segment disclosures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7acce1fdfe494d71b802c455",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7acce1fdfe494d71b802c455",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3171,
+        "completion_tokens": 174,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0058275
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-25T02:18:26.517032+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve information about the three segments' revenue drivers, KPIs, cost structure, and capital intensity.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now let me retrieve information about the segments - Space, Connectivity, and AI - to understand their revenue drivers, KPIs, cost structure, and capital intensity.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_14b1f6f36c5f44dc893bdf4e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, describe the Space segment (launch services, Starship, government contracts). What are the disclosed revenue drivers, key performance indicators (KPIs), backlog, customer concentration, cost structure, and capital intensity for the Space segment? Include any disclosed launch cadence, mission counts, or contract values."
+          }
+        },
+        {
+          "tool_call_id": "call_2264bce9bf9a4c1f80a85456",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, describe the Connectivity segment (Starlink). What are the disclosed revenue drivers, key performance indicators (KPIs) such as subscribers, ARPU, terminals deployed, cost structure, and capital intensity for the Connectivity segment? Include any disclosed subscriber counts, revenue per user, terminal manufacturing costs, or satellite deployment plans."
+          }
+        },
+        {
+          "tool_call_id": "call_18e336be45bf4b2e846f8706",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, describe the AI segment (xAI, Grok). What are the disclosed revenue drivers, key performance indicators (KPIs), cost structure, and capital intensity for the AI segment? Include any disclosed revenue figures, customer concentration, compute infrastructure, GPU purchases, or capital expenditure plans."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_14b1f6f36c5f44dc893bdf4e",
+            "content": "Based on the provided MD&A and financial statement excerpts, here is a detailed description of the Space segment's operations, financial drivers, and metrics:\n\n### Overview\nThe Space segment designs, manufactures, and launches reusable rockets (Falcon 9, Falcon Heavy, Dragon, and the in-development Starship) to provide high-cadence, reliable, and affordable access to space for commercial and government customers. The segment flies to LEO, MEO, GEO, lunar, interplanetary trajectories, and the International Space Station (ISS). \n\n### Revenue Drivers & Recognition\nSpace segment revenue is derived from fixed-price contracts, categorized into two streams:\n*   **Launch Services:** Revenue from deploying payloads to intended orbits for commercial and government customers. Contracts range from one to five years. Revenue is recognized at a **point in time** (upon launch or deployment) due to the interchangeability of flight hardware and minimal unique engineering costs.\n*   **Launch and Development:** Revenue from the development of spacecraft and provision of launch/mission services for government agency space programs. Contracts range from one to fourteen years. Revenue is recognized **over time** using the cost-to-cost input method, as the performance creates an asset with no alternative use and the company has an enforceable right to payment.\n*   **Inter-segment Allocations:** The Space segment does not recognize inter-segment revenue for launches of its own Starlink satellites; those costs are capitalized in the Connectivity segment. The segment currently allocates significant launch capacity to the Connectivity segment and expects to allocate a significant amount to the AI segment in the future. \n*   **Growth Expectations:** Space revenue growth is expected to be lower than total company revenue growth because internal businesses are absorbing most of the growth in launch capacity. Launch and Development is expected to represent a larger portion of Space revenue due to long-term government contracts.\n\n### Key Performance Indicators (KPIs)\nThe Space segment uses two primary operational metrics that grow more rapidly than segment revenue because they include internal constellation deployments:\n*   **Mass to Orbit:** Total kilograms of payload deployed to orbit (excluding failed or scrubbed attempts). \n    *   *2023:* 1,210 metric tons (205 customer / 1,005 internal)\n    *   *2024:* 1,699 metric tons (282 customer / 1,418 internal)\n    *   *2025:* 2,213 metric tons (312 customer / 1,901 internal)\n    *   *Q1 2025:* 450 metric tons\n    *   *Q1 2026:* 556 metric tons\n*   **Launches:** Sum of all successful orbital and flight tests, including internal Starlink deployments, development tests, and third-party customer launches. \n\n### Launch Cadence & Mission Counts\n*   **Falcon 9 Cadence:** Falcon 9 is the most active orbital launch vehicle today, with approximately 620 orbital space launches as of March 31, 2026, and an over 99% mission success rate. Falcon 9 contributes an average capacity of 13 metric tons per mission.\n    *   *2024:* 134 total Falcon launches\n    *   *2025:* 165 total Falcon 9 launches (157 using flight-proven boosters)\n    *   *Q1 2026:* 40 Falcon rockets launched (39 flight-proven)\n*   **Future Transition:** The company expects Falcon 9 launches to decrease over time as it transitions to Starship. Starship V3 is expected to carry 100 metric tons of payload, with future generations designed to double that capacity.\n\n### Cost Structure & Capital Intensity\n*   **Cost of Revenue:** Includes second stages flown (non-reusable), launch operations/overhead, depreciation, employee compensation, engineering costs, inventory excess/obsolescence, and shared production costs. Cost of revenue is expected to increase in absolute dollars and as a percentage of revenue based on the mix of Launch Services and Launch & Development.\n*   **Capital Intensity (Reusable vs. Non-Reusable):** \n    *   *Reusable components:* Boosters, fairings, Merlin engines, and Dragon capsules are classified as Property, Plant, and Equipment (PP&E) and depreciated to cost of revenue.\n    *   *Non-reusable components:* Second stages are recorded to cost of revenue when launched or assigned.\n    *   *Starship:* Currently in the development stage. A majority of costs are expensed to R&D as incurred, and Raptor engines are expensed when used in test flights. Once commercialized (by delivering payload to orbit), Starship costs will generally be capitalized and depreciated in the cost of revenue of the associated payload's segment.\n*   **R&D Expenses:** Mainly relate to Starship development (test flight hardware, Raptor engines, compensation, tooling, depreciation, overhead). R&D is expected to increase in 2026 to invest in Starship commercialization and moderate once it is commercialized.\n*   **SG&A:** Includes allocated employee compensation for sales, facilities, legal, finance, IT, security systems, and facility-level overhead.\n\n### Backlog & Deferred Revenue\n*   Deferred revenue primarily relates to Space agreements and Connectivity enterprise/government contracts.\n*   Total deferred revenue as of December 31, 2024, was **$10,179 million** (of which $4,080 million was recognized as revenue in 2025).\n*   Total deferred revenue as of December 31, 2025, was **$12,116 million**.\n\n### Customer Concentration\nThe segment serves a diversified base of commercial and government customers. Specific key contracts and customers highlighted include:\n*   **NASA:** Extended contract for additional Cargo Resupply Services (CRS) missions to the International Space Station.\n*   **U.S. Department of War:** Increased revenue from a specific contract.\n\n### Disclosed Financials & Contract Values\n*   **2025 Full Year:** Revenue of **$4,086 million** (up 7.6% or $290 million from 2024, driven by a $298 million increase in Launch & Development). Loss from operations of **$(657) million**. Segment Adjusted EBITDA of **$653 million** (down $501 million from 2024 due to accelerated Starship investment). Funded **$3,004 million** in R&D for Starship.\n*   **Q1 2026:** Revenue of **$619 million** (down $246 million from Q1 2025 due to lower Launch Services missions and timing of government work). Loss from operations of **$(662) million**. Segment Adjusted EBITDA of **$(351) million**. Funded **$930 million** in R&D for Starship."
+          },
+          {
+            "source_call_id": "call_2264bce9bf9a4c1f80a85456",
+            "content": "Based on the provided document chunks, here is a detailed description of the Connectivity segment (Starlink), including its revenue drivers, KPIs, cost structure, capital intensity, and operational metrics:\n\n### 1. Revenue Drivers\nThe Connectivity segment generates revenue primarily through subscription fees from consumer subscribers, as well as enterprise and government contracts. Specifically, revenue is generated from:\n*   **Consumer Broadband:** Monthly subscription fees based on geographic market and download speed, recognized ratably over the service period. This is typically accompanied by a one-time sale of a Starlink Kit (terminal). Revenue growth is driven by Starlink Subscriber growth, partially offset by declining ARPU due to international expansion and lower-priced service plans.\n*   **Enterprise and Government:** Revenue is generated through contracts structured as a combination of subscriptions, data consumption, and capacity, or on a percentage-of-completion basis. This includes aviation, maritime, land mobility, and fixed-site enterprise businesses, as well as long-term government contracts for Starshield (a secure satellite network).\n*   **Mobile Connectivity:** The company charges Mobile Network Operators (MNOs) either a fixed fee or a per-mobile user fee-based amount, typically passed through to the customer via the carrier.\n\n### 2. Key Performance Indicators (KPIs)\n**Starlink Subscribers:**\n*   **Definition:** The number of unique Service Lines at the end of a period. It includes Personal (Residential, Roam) and Business (Local Priority, Global Priority) plans, but excludes managed enterprise and government customers.\n*   **Disclosed Counts:**\n    *   Q1 2026 (Three months ended March 31, 2026): 10.3 million (up 105% YoY)\n    *   Q1 2025 (Three months ended March 31, 2025): 5.0 million (up 91% YoY)\n    *   FY 2025: 8.9 million\n    *   FY 2024: 4.4 million\n    *   FY 2023: 2.3 million\n*   **Growth:** 104.7% growth in Q1 2026 vs. Q1 2025; 99.9% growth in FY 2025 vs. FY 2024; 96.5% growth in FY 2024 vs. FY 2023.\n\n**Starlink Subscriber ARPU (Average Revenue Per User):**\n*   **Definition:** Service revenue generated from Starlink Subscribers during the period, divided by the average number of Starlink Subscribers during the period, divided by the number of months in the period.\n*   **Disclosed ARPU:**\n    *   Q1 2026: $66 per month\n    *   Q1 2025: $86 per month\n    *   FY 2025: $81 per month\n    *   FY 2024: $91 per month\n    *   FY 2023: $99 per month\n*   **Trend:** ARPU has been steadily declining (e.g., a 22.9% decline in Q1 2026 vs. Q1 2025, and an 11.2% decline in FY 2025 vs. FY 2024). This is primarily due to international expansion and the addition of lower-priced service plans. The company's strategy prioritizes driving sustainable revenue growth and expanding margins over prioritizing ARPU increases.\n\n**Mobile Connectivity Metrics:**\n*   Satellite-to-mobile texting and over-the-top voice services are provided to approximately 7.4 million monthly unique devices across approximately 30 countries (as of March 31, 2026).\n\n**Network Performance:**\n*   Median latency of approximately 25 milliseconds.\n*   Median download speed of 225 Mbps during peak hours for residential users (as of March 31, 2026).\n\n### 3. Satellite Deployment Plans & Constellation Status\n*   **Current Constellation:** As of March 31, 2026, SpaceX had approximately 9,600 Starlink broadband and mobile satellites in Low-Earth Orbit (LEO), operating across 164 countries, territories, and other markets (home to more than 3.3 billion people).\n*   **Mobile Satellites:** The \"V1\" mobile constellation consists of approximately 650 V1 Mobile satellites in orbit, currently supporting light data, SMS, and over-the-top voice. The company is developing comprehensive satellite-to-mobile services, including broadband data, IoT, and 5G connectivity.\n*   **Launch Capacity Allocation:** The Space segment allocates a significant amount of its launch capacity to the Connectivity segment to deploy Starlink satellites. The costs associated with these launches are capitalized within the Connectivity segment and depreciated over time. \n\n### 4. Cost Structure\nThe Connectivity segment\u2019s cost of revenue includes:\n*   **Depreciation:** Inclusive of launch, satellite, and ground infrastructure costs. This has been a major driver of cost increases due to the growing number of Starlink flights and satellites placed into orbit.\n*   **Starlink Kit Costs:** Hardware costs for terminals. Higher volume spend on kits has driven cost of revenue increases due to higher kit deliveries. *(Note: Specific per-unit terminal manufacturing costs are not disclosed, but kit costs are explicitly listed as a component of cost of revenue).*\n*   **Operating Expenses:** Ground operating expenses, customer support and installation costs, payment processor fees, freight/shipping and handling costs, warranty expense, inventory excess and obsolescence, and customs and duties.\n*   **Employee Compensation:** Salaries, benefits, and share-based compensation for engineering and operations teams.\n*   **R&D Expenses:** Driven by next-generation production development of satellites, Starlink Kits, and ground equipment.\n\n### 5. Capital Intensity\nThe Connectivity segment is highly capital-intensive, requiring significant ongoing investment to scale the constellation and ground infrastructure.\n*   **Capital Expenditures (CapEx):** For the three months ended March 31, 2026, capital expenditures for the Connectivity segment were $1,332 million.\n*   **Capitalized Costs:** The company capitalizes launch and satellite costs, which flow into depreciation over time, creating a substantial fixed asset base.\n*   **Financial Scale:** Despite the capital intensity and declining ARPU, the segment is highly profitable on an operating basis. For Q1 2026, the segment generated $3,257 million in revenue, $1,188 million in income from operations, and $2,087 million in Segment Adjusted EBITDA. For the full year 2025, it generated $11,387 million in revenue, $4,423 million in income from operations, and $7,168 million in Segment Adjusted EBITDA."
+          },
+          {
+            "source_call_id": "call_18e336be45bf4b2e846f8706",
+            "content": "Based on the provided S-1 filing excerpts, here is a detailed description of the AI segment (xAI, Grok), including its revenue drivers, KPIs, cost structure, capital intensity, and other disclosed financial and operational metrics.\n\n### **Overview of the AI Segment**\nSpaceX operates a highly vertically integrated AI platform that spans gigawatt-scale AI compute infrastructure, the \"truth-seeking\" frontier AI model Grok, AI solutions for consumer and enterprise customers, and X (the real-time information, entertainment, and free speech platform formerly known as Twitter). The company acquired xAI in February 2026, which forms the basis of this segment. The segment is focused on capturing a $26.5 trillion potential market opportunity for AI, with a roadmap that includes multi-trillion parameter models. \n\n### **Disclosed Revenue Figures**\nThe AI segment has demonstrated significant revenue growth, though it remains in an early investment stage with substantial operating losses:\n*   **Q1 2026 (Three months ended March 31, 2026):** $818 million in revenue; Loss from operations of $(2,469) million; Segment Adjusted EBITDA of $(609) million.\n*   **Fiscal Year 2025:** $3,201 million in revenue; Loss from operations of $(6,355) million; Segment Adjusted EBITDA of $(1,237) million.\n*   **Fiscal Year 2024:** $2,620 million in revenue; Loss from operations of $(1,561) million.\n*   **Fiscal Year 2023:** $2,961 million in revenue; Loss from operations of $(3,973) million.\n\n### **Revenue Drivers**\nHistorically (in 2023 and 2024), substantially all AI segment revenue consisted of advertising, subscriptions, and data licensing generated from X. The segment has since diversified its revenue streams, driven by:\n1.  **X and Grok Subscriptions:** Consumer and enterprise subscription revenue (recognized ratably over periods ranging from month-to-month up to one year). In Q1 2026, Grok and X subscription revenue increased by $177 million year-over-year. \n2.  **Data Licensing:** Revenue from providing data to customers, recognized ratably over month-to-month to two-year periods. \n3.  **API Access to Grok Models:** Revenue from providing stand-ready access or usage-based arrangements for developers to integrate Grok into external applications.\n4.  **Advertising:** Revenue generated from the X platform. Note: In Q1 2026, advertising revenue decreased by $100 million due to a short-term overhaul of the company\u2019s advertising platform.\n5.  **Enterprise AI Solutions:** Offerings like \"Grok Business\" and \"Grok Enterprise\" for internal business applications, and \"Grok Voice\" (real-time speech engine).\n\n### **Key Performance Indicators (KPIs) & Market Metrics**\nWhile traditional operational KPIs (like active users) are not explicitly detailed in these excerpts, the company highlights the following strategic metrics and market indicators:\n*   **Market Opportunity:** The total potential market opportunity for AI is estimated at $26.5 trillion.\n*   **Compute Demand Metrics:** AI workload demand corresponds to a need for 104 million GPUs. The company applies an 80% utilization rate and a GPU rental rate of $3.33 per hour (based on 2025 median neocloud rental rates) to estimate the AI compute infrastructure market opportunity.\n*   **Strategic Differentiators:** Grok\u2019s integration with X and proprietary access to real-time data inflows are cited as key drivers for addressing high-frequency, high-value consumer use cases and increasing user engagement/willingness to pay.\n\n### **Cost Structure**\nThe AI segment\u2019s cost structure is heavily weighted toward infrastructure and compute costs, driving significant operating losses:\n\n*   **Cost of Revenue:** Includes infrastructure costs (data center facilities, lease/hosting, support, maintenance, energy, bandwidth, depreciation of servers/networking equipment, public cloud hosting), revenue share expenses, payment processor fees, payments to creators, amortization of acquired intangibles, and allocated labor/overhead. In Q1 2026, cost of revenue was $456 million.\n*   **Research and Development (R&D):** Primarily relates to the training of Grok, development/testing of next-generation AI products, and data center training costs. This includes cloud computing expenses, employee compensation, power generation costs, and **depreciation of GPU hardware and data center assets**. R&D is the largest expense driver, totaling $2,379 million in Q1 2026 alone (a $1,471 million increase year-over-year due to GPU depreciation and data center expansion).\n*   **Selling, General, and Administrative (SG&A):** Consists of employee compensation for sales/marketing/admin, professional services (including content moderation), and facilities overhead. SG&A was $463 million in Q1 2026. \n*   **Restructuring Charges:** Costs resulting from the acquisition of Twitter by X Holdings in October 2022. \n\n### **Capital Intensity, Compute Infrastructure, & GPU Purchases**\nThe AI segment is exceptionally capital-intensive, driven by the need for large-scale, power-efficient infrastructure to achieve AGI. The company explicitly states that without such infrastructure, AGI cannot be deployed broadly or economically.\n\n*   **Capital Expenditures (CapEx):** \n    *   **Q1 2026:** $7,723 million (representing the vast majority of the company's $10,107 million total CapEx for the quarter).\n    *   **FY 2024:** $5,633 million.\n    *   **FY 2023:** $463 million.\n*   **Compute Infrastructure & GPU Purchases:** The company operates \"gigawatt-scale\" and \"high-density compute\" infrastructure. A primary driver of both Cost of Revenue and R&D is the **depreciation of GPU hardware** and cloud computing expenses. \n*   **Future Outlook:** The company expects AI R&D expenses to increase in absolute dollars and as a percentage of revenue as it invests in compute infrastructure for Grok. Capital expenditures are expected to scale \"as quickly as we are able to deploy power and compute,\" with a multi-year investment horizon expected before translating into sustained positive AI Segment Adjusted EBITDA. \n\n### **Customer Concentration & Agreements**\nWhile broad customer concentration is not detailed, the filing notes that AI R&D and SG&A expenses may increase specifically as a result of a **compute agreement with Cursor**, indicating a notable B2B infrastructure or partnership arrangement. Revenue is diversified across consumer subscribers, enterprise clients (via Grok Business/Enterprise), developers (via Grok API), and advertising partners on X."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3360,
+        "completion_tokens": 289,
+        "cached_tokens": 3136,
+        "cost_usd": 0.00737
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-25T02:21:20.935680+00:00",
+      "source": "agent",
+      "message": "Let me retrieve additional information about backlog, deferred revenue, and forward-looking statements to better assess forecastability.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I have a good understanding of the three segments now. Let me also retrieve some additional information about backlog, deferred revenue, and any forward-looking statements that might help me assess forecastability.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ef1fe74494bf4226a550c91d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what is the disclosed backlog for each segment (Space, Connectivity, AI)? What are the deferred revenue balances and remaining performance obligations? Are there any disclosed contract values, multi-year agreements, or government contracts that provide revenue visibility?"
+          }
+        },
+        {
+          "tool_call_id": "call_ffaa30fe28b74c388c11f3ab",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what forward-looking statements or risk factors are disclosed about each segment's revenue predictability? What are the disclosed risks to forecastability for Space, Connectivity, and AI segments? Include any disclosures about customer concentration, regulatory risks, technology development risks, or market uncertainty."
+          }
+        },
+        {
+          "tool_call_id": "call_200445d549a54eb0aaaa533d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what are the segment-level revenue, operating income/loss, and Segment Adjusted EBITDA figures for Space, Connectivity, and AI for fiscal years 2023, 2024, 2025, and Q1 2026? Provide a comparison of growth rates and profitability trends across the three segments."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ef1fe74494bf4226a550c91d",
+            "content": "Based on the provided text chunks, here are the details regarding backlog, deferred revenue, and contract visibility:\n\n**1. Backlog by Segment (Space, Connectivity, AI)**\nThe provided text **does not disclose a segment-level breakdown** of the backlog. It only provides the total consolidated backlog and notes that deferred revenue (a component of backlog) primarily relates to Space agreements and Connectivity enterprise and government contracts. \n\nThe total consolidated backlog is reported as:\n*   **$28,377 million** as of December 31, 2025\n*   **$27,621 million** as of March 31, 2026\n\n**2. Deferred Revenue Balances and Remaining Performance Obligations**\n*   **Total Deferred Revenue Balances:**\n    *   **$10,179 million** as of December 31, 2024 (of which $4,080 million was recognized as revenue in 2025).\n    *   **$12,116 million** as of December 31, 2025 (of which $1,165 million was recognized as revenue in Q1 2026).\n    *   **$13,236 million** as of March 31, 2026.\n*   **Remaining Performance Obligations (Backlog):** \n    *   As of Dec 31, 2025: $28,377 million (of which $12,116 million was recognized as deferred revenue). Approximately 32% is expected to be recognized within one year, 53% in 2027 and 2028, and 15% thereafter.\n    *   As of Mar 31, 2026: $27,621 million (of which $13,236 million was recognized as deferred revenue). Approximately 36% is expected to be recognized within one year, 46% between one and three years, and 18% thereafter.\n*   **Historical Recognition:** Revenue recognized during 2024 and 2023 that was included in the deferred revenue balance at the beginning of each period was $3,414 million and $2,691 million, respectively.\n\n**3. Disclosed Contract Values, Multi-Year Agreements, and Government Contracts**\nWhile specific total dollar values for individual contracts are not disclosed, the text provides the following details regarding multi-year agreements and government contracts that provide revenue visibility:\n*   **Space Segment (Launch Services):** Revenue is derived from fixed-price contracts ranging from **one to five years**. Revenue is recognized at a point in time (upon launch/deployment).\n*   **Space Segment (Launch & Development):** Revenue is derived from fixed-price contracts ranging from **one to fourteen years**. These are largely for the development of spacecraft and provision of launch/mission services for **government agency space programs** utilizing Falcon 9, Falcon Heavy, Starship, and Dragon. Revenue is recognized over time using the cost-to-cost input method.\n*   **Connectivity Segment (Starshield):** Revenue for Starshield customers is mostly derived from fixed-price contracts related to the development of a secure satellite network designed specifically for **government and national security applications**.\n*   **Customer Concentration:** A significant customer (\"Customer A\") accounted for **20.9%** of consolidated revenue in 2025, **24.2%** in 2024, and **25.2%** in 2023, providing visibility into a concentrated revenue stream."
+          },
+          {
+            "source_call_id": "call_ffaa30fe28b74c388c11f3ab",
+            "content": "Based on the provided S-1 preamble excerpts, the company discloses significant risks to revenue predictability and forecastability across its three reportable segments (Space, Connectivity, and AI). The prospectus explicitly warns that \"estimates of future market opportunity and forecasts of market growth... may prove to be inaccurate\" because they rely on a mix of internal assumptions and third-party data. \n\nHere is a breakdown of the specific risk factors and forward-looking statements disclosed for each segment's revenue predictability:\n\n### 1. Space Segment\n*   **Technology Development Risks:** Revenue predictability is heavily tied to the successful development of Starship at scale. Unexpected design modifications, anomalies, and technical challenges could delay deployment, which would directly impede business objectives like deploying next-generation satellites and orbital AI compute. Additionally, manufacturing, testing, and launching rockets involve inherent risks of accidents or equipment failures that could result in substantial losses and reputational harm.\n*   **Regulatory Risks:** The segment faces significant regulatory hurdles. Any delays or difficulties in obtaining, maintaining, or renewing required regulatory approvals\u2014specifically FAA launch and reentry licenses\u2014would materially delay or disrupt operations and limit growth.\n*   **Market Uncertainty:** The Space segment's total addressable market (TAM) estimates rely partly on third-party data from Novaspace. Furthermore, emerging markets for lunar-related and interplanetary activities are unproven and \"may not materialize as expected or on anticipated timelines.\"\n*   **Supply Chain & Infrastructure:** The segment depends on third parties for key components (including a concentrated group of advanced semiconductor fabrication facilities). Supply shortages or interruptions could adversely affect the company's ability to meet customer demands and contractual obligations. \n\n### 2. Connectivity Segment\n*   **Regulatory Risks:** Revenue is entirely dependent on access to highly regulated radio frequency spectrum. The company requires authorizations from the FCC and international telecommunications regulators. Acquiring these licenses is \"complex and time-consuming,\" and without them, the company \"cannot generally offer connectivity services in a given market.\" Delays in securing communications licenses and spectrum authorizations could severely disrupt operations.\n*   **Market Uncertainty & Adoption Risks:** Growth depends on the ability to increase market awareness and acceptance of Starlink across numerous international markets, each presenting unique challenges. TAM estimates rely on third-party estimates of households, businesses, aircraft, and maritime vessels, combined with internal assumptions regarding ARPU, pricing, adoption rates, and service penetration across varied economic environments.\n*   **Technology & Infrastructure Risks:** The segment is vulnerable to interruptions in critical infrastructure (satellite networks, ground stations). Specifically, damage to satellites from collisions with space debris or other spacecraft could materially affect the ability to deliver reliable services, harm reputation, and expose the company to liabilities. Growing space debris challenges may also require unplanned investments in additional technologies to maintain compliance.\n*   **Supply Chain:** Like the Space segment, connectivity relies on third-party manufacturers for key components, making it vulnerable to supply shortages that could impact service delivery.\n\n### 3. AI Segment\n*   **Nascent Market & Execution Risks:** The AI business is described as \"recently formed,\" \"in a relatively early stage,\" and still being integrated. Its business strategy is still developing, making revenue highly unpredictable. It operates in a nascent, highly competitive, and rapidly changing industry subject to integration, execution, and operational risks.\n*   **Technology & Infrastructure Risks:** Scaling AI products relies on terrestrial and orbital AI compute infrastructure, which requires massive capital expenditures. This infrastructure is highly dependent on the availability of power, AI processors, and other critical components. Shortages or disruptions in these inputs, or in telecommunications services, would materially adversely affect the business.\n*   **Competitive Risks:** The AI segment faces intense competition from current and potential competitors who have \"greater financial, technical, manufacturing, or other resources.\" Competitors may adopt aggressive pricing, secure better supplier arrangements, or introduce disruptive technological changes that outpace the company's offerings.\n*   **Regulatory Risks:** The company's AI products and the X platform are subject to \"complex and evolving U.S. and foreign laws and regulations that are subject to change and uncertain interpretation.\" This could force changes to products and business practices, leading to monetary penalties, increased costs, declines in user growth, or loss of customers.\n\n### Cross-Segment and General Forecastability Risks\n*   **Customer Concentration:** While specific customer concentration percentages are not detailed in these excerpts, the prospectus notes a general risk that the company may hold assets \"that we cannot easily redeploy, and fail to receive payments from our counterparties or customers.\"\n*   **Macroeconomic & Geopolitical Risks:** All segments are vulnerable to adverse global macroeconomic and geopolitical conditions, as well as preferential treatment for domestic competitors (particularly from companies based in China and other jurisdictions benefiting from government support).\n*   **Capital Expenditure Demands:** The development and maintenance of technologies across all segments require significant capital. If the company cannot generate sufficient cash flow or obtain acceptable financing, forecasted growth and revenue targets will be materially impacted.\n*   **Talent Retention:** The company's ability to meet development and commercialization timelines depends on recruiting and retaining advanced engineering and technical talent in an intensely competitive market."
+          },
+          {
+            "source_call_id": "call_200445d549a54eb0aaaa533d",
+            "content": "# Segment-Level Financial Performance: FY2023\u2013Q1 2026\n\n## 1. Consolidated Data Summary\n\n### Space Segment\n\n| Metric | FY2023 | FY2024 | FY2025 | Q1 2026 | Q1 2025 (for reference) |\n|---|---|---|---|---|---|\n| **Revenue** | $3,557M | $3,796M | $4,086M | $619M | $865M |\n| **Income (loss) from operations** | $(1)M | $21M | $(657)M | $(662)M | $(70)M |\n| **Segment Adjusted EBITDA** | $997M | $1,154M | $653M | $(351)M | $224M |\n\n### Connectivity Segment\n\n| Metric | FY2023 | FY2024 | FY2025 | Q1 2026 | Q1 2025 (for reference) |\n|---|---|---|---|---|---|\n| **Revenue** | $3,869M | $7,599M | $11,387M | $3,257M | $2,475M |\n| **Income (loss) from operations** | $469M | $2,006M | $4,423M | $1,188M | $1,033M |\n| **Segment Adjusted EBITDA** | $1,602M | $3,849M | $7,168M | $2,087M | $1,618M |\n\n### AI Segment\n\n| Metric | FY2023 | FY2024 | FY2025 | Q1 2026 | Q1 2025 (for reference) |\n|---|---|---|---|---|---|\n| **Revenue** | $2,961M | $2,620M | $3,201M | $818M | $727M |\n| **Income (loss) from operations** | $(3,973)M | $(1,561)M | $(6,355)M | $(2,469)M | $(936)M |\n| **Segment Adjusted EBITDA** | $1,222M | $347M | $(1,237)M | $(609)M | $(112)M |\n\n---\n\n## 2. Revenue Growth Rate Comparison\n\n| Period | Space | Connectivity | AI |\n|---|---|---|---|\n| **FY2023 \u2192 FY2024** | +6.7% | +96.4% | \u221211.5% |\n| **FY2024 \u2192 FY2025** | +7.6% | +49.8% | +22.2% |\n| **Q1 2025 \u2192 Q1 2026** | \u221228.4% | +31.6% | +12.5% |\n\n### Key observations:\n- **Connectivity** is the clear growth engine, nearly doubling revenue from 2023 to 2024 and growing another ~50% in 2025, driven by Starlink subscriber growth, enterprise adoption, and network efficiency gains.\n- **Space** revenue growth has been modest in absolute terms (high single digits annually), and actually declined year-over-year in Q1 2026 (from $865M to $619M), reflecting the company's stated strategy of allocating more launch capacity internally to Connectivity and AI rather than to external customers.\n- **AI** revenue declined from 2023 to 2024 but rebounded in 2025, with Q1 2026 showing continued sequential improvement over Q1 2025.\n\n---\n\n## 3. Operating Income/Loss Trend Analysis\n\n### Space\n- Operating results hovered near breakeven in 2023 ($(1)M) and 2024 ($21M), then deteriorated sharply to a $(657)M loss in 2025 and $(662)M in Q1 2026 alone.\n- The primary driver is escalating R&D expense for the next-generation Starship program: $3,004M in 2025 and $930M in Q1 2026. The company characterizes Starship as \"the key enabler of our long-term growth strategy.\"\n- Q1 2026's operating loss ($662M) already matches the full-year 2025 loss ($657M), signaling that Starship investment intensity is accelerating.\n\n### Connectivity\n- Operating income has grown explosively and consistently: $469M \u2192 $2,006M \u2192 $4,423M, representing YoY growth of 327% (2023\u21922024) and 120.4% (2024\u21922025).\n- Q1 2026 operating income of $1,188M is up 15.0% from Q1 2025's $1,033M, suggesting growth is continuing but at a more moderate pace than the full-year 2025 surge.\n- This segment is the sole profit center at the operating-income level and cross-subsidizes the other two segments.\n\n### AI\n- The AI segment has generated operating losses every year, with the loss widening dramatically from $(1,561)M in 2024 to $(6,355)M in 2025.\n- The FY2023 loss of $(3,973)M was heavily inflated by a $3,775M impairment charge; excluding that, the underlying operating loss was approximately $(198)M.\n- Q1 2026's operating loss of $(2,469)M is already 2.6\u00d7 the Q1 2025 loss of $(936)M, indicating accelerating investment.\n- The company explicitly states it will \"prioritize growth and investment to capture significant opportunities in AI applications and compute infrastructure,\" signaling losses are expected to persist.\n\n---\n\n## 4. Segment Adjusted EBITDA Trend Analysis\n\n| Segment | FY2023 | FY2024 | FY2025 | Q1 2026 | Q1 2025 |\n|---|---|---|---|---|---|\n| **Space** | $997M | $1,154M | $653M | $(351)M | $224M |\n| **Connectivity** | $1,602M | $3,849M | $7,168M | $2,087M | $1,618M |\n| **AI** | $1,222M | $347M | $(1,237)M | $(609)M | $(112)M |\n| **Total Reportable Segments** | $3,821M | $5,350M | $6,584M | $1,127M | $1,730M |\n\n### Key observations:\n\n**Space:**\n- Adjusted EBITDA peaked in 2024 at $1,154M, declined 43% to $653M in 2025, and turned negative in Q1 2026 at $(351)M \u2014 a stark reversal from the $224M generated in Q1 2025.\n- The Q1 2026 deterioration is driven by lower revenue ($619M vs. $865M in Q1 2025) combined with sustained high R&D spending ($930M for Starship).\n- Depreciation and amortization has been steadily rising ($571M \u2192 $637M \u2192 $757M \u2192 $166M in Q1 2026 alone), reflecting growing fixed-asset base from launch infrastructure.\n\n**Connectivity:**\n- Adjusted EBITDA has grown every year: $1,602M \u2192 $3,849M (+140%) \u2192 $7,168M (+86.2%).\n- Q1 2026 Adjusted EBITDA of $2,087M represents 29.1% growth over Q1 2025's $1,618M.\n- The segment's Adjusted EBITDA margin on revenue was approximately 63% in 2025, up from 51% in 2024 and 41% in 2023 \u2014 demonstrating strong operating leverage as the Starlink constellation scales.\n- This segment alone generated more Adjusted EBITDA in 2025 ($7,168M) than the total company's consolidated Adjusted EBITDA ($6,584M), meaning it more than fully offsets the losses in Space and AI.\n\n**AI:**\n- Adjusted EBITDA has declined every year: $1,222M \u2192 $347M \u2192 $(1,237)M.\n- The 2023 figure was bolstered by the large impairment add-back ($3,775M); without it, underlying Adjusted EBITDA would have been deeply negative.\n- Q1 2026 Adjusted EBITDA of $(609)M is 5.4\u00d7 worse than Q1 2025's $(112)M, reflecting ramping depreciation from massive capital expenditures ($7,723M in Q1 2026 alone, compared to $2,567M in Q1 2025).\n- The segment's depreciation and amortization has grown from $1,180M (2023) to $1,679M (2024) to $3,568M (2025), and was already $1,493M in Q1 2026 \u2014 annualizing to roughly $5,972M, which would represent a ~67% increase over 2025.\n\n---\n\n## 5. Cross-Segment Profitability Comparison\n\n### FY2025 Adjusted EBITDA Margin (Adjusted EBITDA / Revenue)\n\n| Segment | FY2025 Margin |\n|---|---|\n| Space | 16.0% |\n| Connectivity | 63.0% |\n| AI | (38.6)% |\n| **Consolidated** | **35.3%** |\n\n### Q1 2026 Adjusted EBITDA Margin (Annualized Run-Rate Context)\n\n| Segment | Q1 2026 Margin |\n|---|---|\n| Space | (56.7)% |\n| Connectivity | 64.1% |\n| AI | (74.4)% |\n| **Consolidated** | **24.0%** |\n\n---\n\n## 6. Capital Expenditure Context\n\nCapital expenditure patterns reinforce the strategic narrative:\n\n| Segment | FY2023 | FY2024 | FY2025 | Q1 2026 |\n|---|---|---|---|---|\n| Space | $1,497M | $2,032M | $3,832M | $1,052M |\n| Connectivity | $2,455M | $3,498M | $4,178M | $1,332M |\n| AI | $463M | $5,633M | $12,727M | $7,723M |\n| **Total** | **$4,415M** | **$11,163M** | **$20,737M** | **$10,107M** |\n\n- AI capex has grown ~27\u00d7 from 2023 to 2025 and the Q1 2026 run-rate ($7,723M) annualizes to ~$30.9B, which would exceed the combined capex of Space and Connectivity for all of 2025.\n- Space capex is accelerating due to Starship launch site infrastructure.\n- Connectivity capex is growing steadily but at a far more moderate pace than AI.\n\n---\n\n## 7. Summary of Strategic Profitability Dynamics\n\n1. **Connectivity is the financial backbone.** It is the only segment generating positive operating income and positive Adjusted EBITDA in every period. Its profitability and growth are funding investments in the other two segments. In 2025, Connectivity's $7,168M Adjusted EBITDA exceeded the total consolidated Adjusted EBITDA of $6,584M.\n\n2. **Space is in a deliberate investment trough.** The segment was modestly profitable in 2023\u20132024 but has swung to significant losses as Starship R&D ramps. The company explicitly states that Space revenue growth will lag total company growth because internal launch capacity is being redirected to Connectivity and AI. The Q1 2026 Adjusted EBITDA turning negative ($(351)M) is a notable inflection point.\n\n3. **AI is in an aggressive build-out phase.** Revenue is growing but operating losses are widening rapidly, driven by enormous R&D and depreciation from massive capital expenditures. The segment's Adjusted EBITDA has gone from positive ($1,222M in 2023, though inflated by impairment add-backs) to deeply negative. The company's stated strategy to \"prioritize growth and investment\" suggests profitability is not a near-term expectation.\n\n4. **The consolidated picture masks divergent trajectories.** Total Adjusted EBITDA grew from $3,821M (2023) to $6,584M (2025), but the composition shifted dramatically. In 2023, all three segments contributed positive Adjusted EBITDA. By Q1 2026, only Connectivity is positive, and its $2,087M is being partially consumed by Space ($(351)M) and AI ($(609)M) losses, yielding consolidated Adjusted EBITDA of $1,127M \u2014 down 34.7% from Q1 2025's $1,730M."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7881,
+        "completion_tokens": 271,
+        "cached_tokens": 3328,
+        "cost_usd": 0.0182525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-25T02:22:47.311630+00:00",
+      "source": "agent",
+      "message": "Let me retrieve additional information about the AI segment's revenue composition and any disclosed KPIs that might affect forecastability.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have a comprehensive understanding of the three segments. Let me also check for any additional disclosures about the AI segment's revenue visibility, particularly around the X platform and Grok, since the AI segment seems to have the most uncertainty.\n\nLet me also check on the AI segment's revenue mix and any disclosed KPIs that might help with forecastability.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ebe7b6dccf03473c97867b41",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what is the revenue composition of the AI segment? What percentage of AI revenue comes from advertising, subscriptions, data licensing, and API access? Are there any disclosed user metrics, daily active users, or engagement metrics for X or Grok? What is the disclosed customer concentration for the AI segment?"
+          }
+        },
+        {
+          "tool_call_id": "call_8d217c267da340aabda8cb4d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what are the disclosed KPIs and operational metrics for the Connectivity segment? Are there disclosed terminal shipment volumes, satellite replacement rates, or capacity utilization metrics? What is the disclosed customer concentration for the Connectivity segment?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ebe7b6dccf03473c97867b41",
+            "content": "Based on the provided text chunks, here are the answers to your questions:\n\n**1. What is the revenue composition of the AI segment?**\nThe AI segment generates revenue from two main categories:\n*   **Advertising:** The sale of ad products displayed on the X platform.\n*   **AI Solutions and Infrastructure:** This includes (i) subscription offerings (X Premium/Premium+ and Grok subscriptions), (ii) data licensing arrangements, and (iii) API access to Grok models.\n\n**2. What percentage of AI revenue comes from advertising, subscriptions, data licensing, and API access?**\nThe provided text *does not disclose specific percentages* for the revenue composition of the AI segment. It only states that in 2023 and 2024, \"substantially all\" of the AI segment revenue consisted of advertising, subscriptions, and data licensing. The text provides absolute dollar changes in revenue (e.g., advertising revenue increased by $116 million in 2025, while AI solutions and infrastructure increased by $465 million), but it does not give the percentage breakdown of the total revenue pie.\n\n**3. Are there any disclosed user metrics, daily active users, or engagement metrics for X or Grok?**\nYes, the text discloses several user and engagement metrics as of March 31, 2026:\n*   **Supported Accounts:** Over 1.3 billion accounts active in the last twelve months (up from over 1.1 billion as of Dec 31, 2025).\n*   **Monthly Active Users (MAUs):** Approximately 550 million MAUs across Grok and X (up from 520 million as of Dec 31, 2025).\n*   **Grok AI Users:** Approximately 117 million MAUs used Grok's AI features.\n*   **Daily Posts:** Generating approximately 350 million daily posts.\n*   **Paid Subscribers:** Approximately 6.3 million active paid subscribers, consisting of roughly 4.4 million X Premium/Premium+ subscribers and 1.9 million SuperGrok (including Heavy and Lite) subscribers.\n*   **Content Generation:** The Imagine image and video generation system produced approximately 10 billion images and over 2 billion videos per month, on average, for the quarter ending March 31, 2026.\n\n**4. What is the disclosed customer concentration for the AI segment?**\nThe provided text *does not disclose any customer concentration metrics* (such as revenue percentages from top customers) for the AI segment. It mentions that customers include consumers, enterprises, and government entities, but gives no specific concentration data."
+          },
+          {
+            "source_call_id": "call_8d217c267da340aabda8cb4d",
+            "content": "# Connectivity Segment: Disclosed KPIs and Operational Metrics\n\n## Key Business Metrics (Explicitly Designated as KPIs)\n\nBased on the disclosed information, SpaceX identifies the following as **key business metrics** for the Connectivity segment:\n\n1. **Starlink Subscribers** \u2014 Defined as a unique Service Line directly assigned to a Starlink.com account registered to a person or entity without a direct, negotiated agreement with the Starlink sales team. As of March 31, 2026: **~10.3 million** Starlink Subscribers across **164 countries, territories, and other markets** (collectively home to more than 3.3 billion people).\n\n2. **Starlink Subscriber ARPU** \u2014 Referenced as a key business metric, though no specific value is disclosed in the provided chunks.\n\n3. **Service Lines** \u2014 Defined as individual instances of Starlink broadband internet service provisioned under a subscription plan. Explicitly noted as distinct from unique devices, account holders, end users, or physical persons.\n\n## Operational Metrics Disclosed\n\n| Metric | Disclosed Value | As of / Period |\n|---|---|---|\n| Starlink broadband and mobile satellites in LEO | Over 9,600 | March 31, 2026 |\n| Starlink Subscribers | ~10.3 million | March 31, 2026 |\n| Countries/territories/markets served | 164 | March 31, 2026 |\n| Mobile satellite-to-mobile monthly unique devices | ~7.4 million | March 31, 2026 |\n| Satellite-to-mobile countries | ~30 | March 31, 2026 |\n| Median latency | ~25 milliseconds | March 31, 2026 |\n| Median download speed (peak hours, residential) | 225 Mbps | March 31, 2026 |\n| Mobile V1 satellites (grown from ~360) | ~650 | Since January 2025 to March 31, 2026 |\n| V3 satellite downlink capacity (design spec) | 1 Tbps per satellite | Design specification |\n| V3 satellites per Starship launch (capacity) | Up to 60 | Expected deployment |\n\n## Terminal Production / Shipment Volumes\n\nThe filing discloses **terminal production capacity** \u2014 not shipment volumes:\n\n- Terminal output has been scaled to **approximately 200,000 terminals per week**.\n- The company states it plans to \"continue to further scale production significantly.\"\n- This figure represents manufacturing throughput, not disclosed shipment or deployment volumes.\n\n**No specific terminal shipment volumes are disclosed.**\n\n## Satellite Replacement Rates\n\n**No explicit satellite replacement rate is disclosed.** However, some inferences can be drawn from the disclosed data:\n\n- The constellation composition is described as \"majority composed of our second-generation, V2 Mini satellites\" as of March 31, 2026.\n- Mobile satellites grew from ~360 (V1 Mobile) to ~650 (V1 Mobile) since January 2025.\n- Next-generation V3 satellites are expected to commence deployment in the second half of 2026 via Starship.\n- A single Starship launch is expected to deploy up to 60 V3 satellites, representing a \"twenty-fold increase in Starlink downlink capacity deployed relative to a Falcon 9 launch.\"\n\nThe filing does not provide a formal satellite replacement rate, deorbit schedule, or average useful life metric for the constellation.\n\n## Capacity Utilization Metrics\n\n**No explicit capacity utilization metric is disclosed.** The filing references capacity in qualitative and design-specification terms:\n\n- \"Launching and operating higher-throughput satellites supported Starlink's service quality and customer reach by increasing available network capacity and improving service consistency during peak usage periods.\"\n- V3 satellites are \"designed to offer one Tbps of downlink capacity per satellite.\"\n- No metric is provided for utilized vs. available capacity, network utilization percentage, or bandwidth utilization rates.\n\n## Customer Concentration\n\n**No customer concentration is disclosed for the Connectivity segment.** The filing describes the customer base in categorical terms:\n\n- **Consumer** customers (Starlink Consumer Broadband)\n- **Enterprise** customers (\"Increasing Enterprise Customer Adoption\" section discusses growth opportunities)\n- **Government** customers\n\nHowever, no percentage of revenue from the largest customer, top 5 customers, or any concentration ratio is disclosed in the provided chunks. The filing notes that Starlink Subscribers are defined as accounts that \"do not have a direct, negotiated agreement with the Starlink sales team,\" which by definition excludes enterprise/government contracts from the subscriber count \u2014 but no concentration data is provided for those negotiated agreements either.\n\n## Financial KPIs for the Connectivity Segment\n\n| Metric | Q1 2026 | FY 2025 | FY 2024 | FY 2023 |\n|---|---|---|---|---|\n| Revenue | $3,257M | $11,387M | $7,599M | $3,869M |\n| Income from operations | $1,188M | $4,423M | $2,006M | $469M |\n| Segment Adjusted EBITDA | $2,087M | $7,168M | N/D | N/D |\n| YoY revenue growth (2025) | \u2014 | 49.8% | \u2014 | \u2014 |\n| YoY operating income growth (2025) | \u2014 | 120.4% | \u2014 | \u2014 |\n| YoY Adj. EBITDA growth (2025) | \u2014 | 86.2% | \u2014 | \u2014 |\n| Capital expenditures | $1,332M (Q1 2026) | $4,178M | $3,498M | $2,455M |\n| Depreciation & amortization | N/D | $2,376M | $1,508M | $884M |\n| Share-based compensation | N/D | $369M | $296M | $249M |\n\n## Summary of Gaps\n\nThe following metrics are **not disclosed** in the provided chunks:\n\n- **Terminal shipment volumes** (only production capacity of ~200K/week is disclosed)\n- **Satellite replacement rates or average satellite useful life**\n- **Capacity utilization** (no utilized vs. available bandwidth metric)\n- **Customer concentration** (no top-customer or percentage-of-revenue disclosure)\n- **Churn rate** for Starlink Subscribers\n- **ARPU value** (referenced as a KPI but not quantified)\n- **Enterprise vs. consumer vs. government revenue split**\n- **Geographic revenue breakdown** beyond the aggregate country count"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12827,
+        "completion_tokens": 232,
+        "cached_tokens": 7872,
+        "cost_usd": 0.0245475
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-25T02:23:35.692057+00:00",
+      "source": "agent",
+      "message": "I now have comprehensive information to assess forecastability across the three segments. Let me compile my analysis.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have a comprehensive understanding of all three segments. Let me synthesize this information to assess forecastability.\n\nLet me think about forecastability for each segment:\n\n**Space Segment:**\n- Revenue drivers: Fixed-price contracts (1-5 years for Launch Services, 1-14 years for Launch & Development)\n- KPIs: Mass to Orbit, Launches (both disclosed with historical data)\n- Backlog: Significant deferred revenue primarily from Space agreements\n- Cost structure: Mix of reusable (depreciated) and non-reusable (expensed) components; Starship costs currently expensed to R&D\n- Capital intensity: Moderate; Starship development is a major R&D expense\n- Customer concentration: Diversified commercial and government base, but Customer A is 20.9% of consolidated revenue\n- Forecastability factors:\n  - Long-term government contracts (1-14 years) provide visibility\n  - Launch cadence is predictable (Falcon 9 has 99% success rate)\n  - BUT: Starship development is uncertain (technology risk)\n  - Q1 2026 revenue declined 28.4% YoY due to internal capacity reallocation\n  - The company explicitly states Space revenue growth will lag total company growth\n  - Regulatory risks (FAA licenses)\n  - The segment is in an \"investment trough\" with operating losses\n\n**Connectivity Segment:**\n- Revenue drivers: Subscription fees (consumer), enterprise/government contracts, mobile connectivity\n- KPIs: Starlink Subscribers (10.3M as of Q1 2026), ARPU ($66/month in Q1 2026), Service Lines\n- Backlog: Deferred revenue includes Connectivity enterprise/government contracts\n- Cost structure: Depreciation (launch, satellite, ground infrastructure), Starlink Kit costs, operating expenses\n- Capital intensity: High but more moderate than AI; CapEx of $1,332M in Q1 2026\n- Customer concentration: Not disclosed\n- Forecastability factors:\n  - Strong KPIs with clear historical trends (subscriber growth ~100% YoY)\n  - ARPU declining but predictable trend (international expansion, lower-priced plans)\n  - Recurring subscription revenue model\n  - Terminal production capacity disclosed (200K/week)\n  - Network performance metrics disclosed (latency, download speed)\n  - BUT: ARPU declining, regulatory risks (spectrum licenses)\n  - Strong operating leverage (Adjusted EBITDA margin ~63% in 2025)\n  - Most profitable segment, funding other segments\n\n**AI Segment:**\n- Revenue drivers: Advertising, subscriptions, data licensing, API access\n- KPIs: MAUs (550M), Grok AI users (117M), paid subscribers (6.3M), daily posts (350M)\n- Backlog: Not specifically disclosed for AI\n- Cost structure: Infrastructure costs, R&D (GPU depreciation, data center), SG&A\n- Capital intensity: Extremely high; CapEx of $7,723M in Q1 2026 (majority of total)\n- Customer concentration: Not disclosed\n- Forecastability factors:\n  - \"Recently formed,\" \"in a relatively early stage,\" still being integrated\n  - Revenue declined from 2023 to 2024, then rebounded\n  - Operating losses widening dramatically\n  - Massive capital expenditures with multi-year investment horizon before sustained positive EBITDA\n  - Nascent, highly competitive, rapidly changing industry\n  - Revenue mix shifting (advertising declining, AI solutions growing)\n  - Q1 2026 advertising revenue decreased $100M due to platform overhaul\n  - Compute agreement with Cursor noted\n  - $26.5T TAM estimate (highly uncertain)\n  - GPU depreciation is a major cost driver\n  - Strategy to \"prioritize growth and investment\"\n\nNow let me assess forecastability:\n\n**Most Forecastable: Connectivity**\n- Clear, quantified KPIs with strong historical trends (subscribers, ARPU)\n- Recurring subscription revenue model\n- Strong operating leverage and consistent profitability\n- Predictable cost structure (depreciation, kit costs)\n- Moderate capital intensity relative to AI\n- Network performance metrics disclosed\n- Terminal production capacity disclosed\n- The segment has demonstrated consistent growth and profitability\n\n**Least Forecastable: AI**\n- \"Recently formed,\" \"in a relatively early stage\"\n- Revenue mix is shifting (advertising declining, AI solutions growing)\n- Operating losses widening dramatically\n- Massive capital expenditures with multi-year horizon before sustained positive EBITDA\n- Nascent, highly competitive, rapidly changing industry\n- Q1 2026 advertising revenue decreased due to platform overhaul\n- $26.5T TAM estimate is highly speculative\n- GPU depreciation is a major cost driver but depends on utilization\n- Strategy to \"prioritize growth and investment\" suggests losses will persist\n- No customer concentration disclosed\n- No specific revenue composition percentages disclosed\n\nWait, let me reconsider. The Space segment also has significant uncertainty due to:\n- Starship development (technology risk)\n- Q1 2026 revenue declined 28.4% YoY\n- Operating losses widening\n- Regulatory risks\n\nBut the Space segment has:\n- Long-term government contracts (1-14 years) providing visibility\n- Predictable launch cadence (Falcon 9)\n- Significant deferred revenue\n- Diversified customer base\n\nThe AI segment has:\n- No long-term contracts disclosed\n- Shifting revenue mix\n- Massive capital expenditures\n- Nascent market\n- No customer concentration disclosed\n- Widening losses\n\nI think the AI segment is clearly the least forecastable, and the Connectivity segment is the most forecastable.\n\nLet me also consider the Space segment's forecastability more carefully. The Space segment has:\n- Long-term contracts (1-14 years) - this provides revenue visibility\n- BUT: Starship development is uncertain\n- Q1 2026 revenue declined significantly\n- The company explicitly states Space revenue growth will lag\n\nActually, I think the Space segment is more forecastable than AI but less than Connectivity. The long-term government contracts provide significant visibility, but the Starship development and internal capacity reallocation introduce uncertainty.\n\nLet me finalize my assessment:\n\n**Most Forecastable: Connectivity**\n- Strong, quantified KPIs with clear historical trends\n- Recurring subscription revenue model\n- Consistent profitability and operating leverage\n- Predictable cost structure\n- Moderate capital intensity\n\n**Least Forecastable: AI**\n- \"Recently formed,\" \"in a relatively early stage\"\n- Shifting revenue mix\n- Widening operating losses\n- Massive capital expenditures with multi-year horizon\n- Nascent, highly competitive market\n- No long-term contracts or backlog disclosed\n- Speculative TAM estimates\n\nLet me now prepare my final answer with supporting analysis.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1e91c7943dfe49e3b420add4",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(10300000 - 5000000) / 5000000 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_22a8e068da1b4c0fb363fd6b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(66 - 86) / 86 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_4220370675cf49928e780d54",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 / 11387 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1e91c7943dfe49e3b420add4",
+            "content": "106.0"
+          },
+          {
+            "source_call_id": "call_22a8e068da1b4c0fb363fd6b",
+            "content": "-23.25581395348837"
+          },
+          {
+            "source_call_id": "call_4220370675cf49928e780d54",
+            "content": "62.94897690348643"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14969,
+        "completion_tokens": 1487,
+        "cached_tokens": 0,
+        "cost_usd": 0.0522925
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-25T02:24:34.568080+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed to assess forecastability across the three segments. Let me submit my final analysis.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the data I need. Let me prepare my final answer.\n\nKey findings:\n- Connectivity: Most forecastable\n  - Starlink Subscribers grew 106% YoY (Q1 2026 vs Q1 2025)\n  - ARPU declining predictably (-23.3% YoY)\n  - Adjusted EBITDA margin ~63% in 2025\n  - Recurring subscription revenue\n  - Clear KPIs with historical trends\n  \n- AI: Least forecastable\n  - \"Recently formed,\" \"in a relatively early stage\"\n  - Revenue mix shifting (advertising declining, AI solutions growing)\n  - Operating losses widening dramatically\n  - Massive CapEx ($7,723M in Q1 2026)\n  - Multi-year investment horizon before sustained positive EBITDA\n  - Nascent, highly competitive market\n  - No long-term contracts or backlog disclosed\n  - Speculative $26.5T TAM\n\n- Space: Middle ground\n  - Long-term government contracts (1-14 years) provide visibility\n  - BUT: Starship development uncertain\n  - Q1 2026 revenue declined 28.4% YoY\n  - Operating losses widening\n\nLet me write up the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bfe286783c18443f9070cc25",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Forecastability Assessment: Space, Connectivity, and AI Segments\n\n**Conclusion: Connectivity is the most forecastable segment; AI is the least forecastable segment.** Space sits in between, with strong contract-backed visibility offset by Starship development uncertainty and internal capacity reallocation.\n\n---\n\n### 1. CONNECTIVITY (Most Forecastable)\n\n**Revenue Drivers \u2014 High Visibility**\n- Recurring subscription model: Consumer broadband revenue is recognized ratably over the service period, providing predictable, recurring revenue.\n- Enterprise/government contracts (including Starshield) are largely fixed-price, contributing to deferred revenue.\n- Mobile connectivity revenue is structured as fixed fees or per-mobile-user fees with MNOs.\n\n**KPIs \u2014 Most Quantified and Trended**\n- **Starlink Subscribers:** 10.3M (Q1 2026), up ~106% YoY from 5.0M (Q1 2025); consistent ~100% YoY growth across 2023 (2.3M) \u2192 2024 (4.4M) \u2192 2025 (8.9M).\n- **ARPU:** $66/month (Q1 2026), declining predictably from $99 (2023) \u2192 $91 (2024) \u2192 $81 (2025) \u2192 $86 (Q1 2025) \u2192 $66 (Q1 2026). The company explicitly attributes the decline to international expansion and lower-priced plans\u2014a disclosed, directional trend.\n- **Network performance:** Median latency ~25ms; median download speed 225 Mbps (peak hours, residential).\n- **Terminal production capacity:** ~200,000 terminals/week.\n- **Mobile metrics:** ~7.4M monthly unique devices across ~30 countries.\n\n**Cost Structure \u2014 Most Stable and Disclosed**\n- Cost of revenue components are explicitly enumerated: depreciation (launch, satellite, ground infrastructure), Starlink Kit hardware costs, ground operating expenses, customer support, payment processor fees, freight, warranty, and employee compensation.\n- Depreciation is the largest cost driver but is tied to a disclosed, growing fixed-asset base with predictable amortization schedules.\n\n**Capital Intensity \u2014 High but Moderate and Disciplined**\n- CapEx: $2,455M (2023) \u2192 $3,498M (2024) \u2192 $4,178M (2025) \u2192 $1,332M (Q1 2026). Growth is steady and far less volatile than AI.\n- The segment is the only consistently profitable segment: Adjusted EBITDA margin of ~63% in FY2025 ($7,168M on $11,387M revenue), with operating income growing from $469M (2023) to $4,423M (2025).\n\n**Why Most Forecastable:** Connectivity combines (i) a recurring subscription revenue base, (ii) the most quantified and consistently trended KPIs in the filing, (iii) a stable, well-disclosed cost structure dominated by predictable depreciation, (iv) moderate and steadily-growing capital intensity, and (v) consistent, expanding profitability that funds the other segments. The ARPU decline is itself a disclosed, directional trend rather than an unpredictable shock.\n\n---\n\n### 2. SPACE (Middle \u2014 Contract Visibility Offset by Starship Uncertainty)\n\n**Revenue Drivers \u2014 Mixed Visibility**\n- **Launch Services:** Fixed-price contracts of 1\u20135 years; revenue recognized at a point in time (upon launch/deployment).\n- **Launch & Development:** Fixed-price contracts of 1\u201314 years, largely for government agency space programs; revenue recognized over time using cost-to-cost input method. These long-dated government contracts provide substantial visibility.\n- Deferred revenue primarily relates to Space agreements; total deferred revenue was $12,116M (Dec 31, 2025) and $13,236M (Mar 31, 2026).\n- Total remaining performance obligations (backlog): $28,377M (Dec 31, 2025) / $27,621M (Mar 31, 2026), with ~32\u201336% expected within one year.\n\n**KPIs \u2014 Disclosed but Include Internal Allocations**\n- **Mass to Orbit:** 1,210t (2023) \u2192 1,699t (2024) \u2192 2,213t (2025); Q1 2026: 556t. However, the majority is internal (e.g., 1,901t of 2,213t in 2025 was internal Starlink deployment), so this KPI grows faster than external Space revenue.\n- **Launches:** 134 Falcon launches (2024) \u2192 165 (2025) \u2192 40 (Q1 2026). Falcon 9 has ~99% mission success rate over ~620 launches.\n- The company explicitly states Space revenue growth will lag total company growth because internal businesses are absorbing most launch capacity.\n\n**Cost Structure \u2014 Disclosed but in Flux**\n- Reusable components (boosters, fairings, Merlin engines, Dragon) are PP&E and depreciated; non-reusable second stages are expensed when launched.\n- Starship costs are currently expensed to R&D as incurred (including Raptor engines used in test flights). Once commercialized, costs will be capitalized and depreciated\u2014a structural change that will alter the cost profile.\n- R&D for Starship: $3,004M (2025) and $930M (Q1 2026 alone).\n\n**Capital Intensity \u2014 Accelerating**\n- CapEx: $1,497M (2023) \u2192 $2,032M (2024) \u2192 $3,832M (2025) \u2192 $1,052M (Q1 2026), driven by Starship launch site infrastructure.\n\n**Why Middle:** Space benefits from the longest-dated, most contractually visible revenue stream in the filing (1\u201314 year government development contracts) and a predictable Falcon 9 cadence. However, forecastability is materially impaired by (i) Starship development risk (technology, regulatory/FAA, and commercialization timing), (ii) the explicit reallocation of launch capacity away from external customers (Q1 2026 revenue fell 28.4% YoY to $619M), (iii) a structural cost-accounting change pending Starship commercialization, and (iv) deteriorating profitability (Adjusted EBITDA turned negative at $(351)M in Q1 2026 vs. +$224M in Q1 2025).\n\n---\n\n### 3. AI (Least Forecastable)\n\n**Revenue Drivers \u2014 Lowest Visibility**\n- Revenue streams are diversifying but shifting: historically \"substantially all\" revenue was advertising, subscriptions, and data licensing from X; now also includes Grok API access and enterprise AI solutions (Grok Business/Enterprise/Voice).\n- Q1 2026 advertising revenue *decreased* $100M YoY due to a \"short-term overhaul of the company's advertising platform\"\u2014an unpredictable, discretionary event.\n- No long-term contract values, no segment-specific backlog, and no segment-specific deferred revenue are disclosed for AI.\n- Revenue trajectory has been non-monotonic: $2,961M (2023) \u2192 $2,620M (2024, \u221211.5%) \u2192 $3,201M (2025, +22.2%) \u2192 $818M (Q1 2026, +12.5% YoY).\n\n**KPIs \u2014 Disclosed but Disconnected from Revenue Economics**\n- User/engagement metrics are disclosed: ~550M MAUs across Grok and X; ~117M Grok MAUs; ~6.3M paid subscribers (4.4M X Premium + 1.9M SuperGrok); ~350M daily posts; ~10B images and ~2B videos/month.\n- However, the filing does **not** disclose: revenue composition percentages (advertising vs. subscriptions vs. data licensing vs. API), customer concentration, churn, or ARPU for AI.\n- The $26.5T TAM estimate relies on internal assumptions (104M GPUs needed, 80% utilization, $3.33/GPU-hour based on 2025 neocloud rates)\u2014explicitly flagged as potentially inaccurate.\n\n**Cost Structure \u2014 Highly Volatile and Scaling**\n- R&D is the largest expense driver: $2,379M in Q1 2026 alone (up $1,471M YoY), driven by GPU depreciation and data center expansion.\n- Cost of revenue includes infrastructure costs, revenue share, payments to creators, and amortization of acquired intangibles.\n- The company explicitly states AI R&D will increase \"in absolute dollars and as a percentage of revenue.\"\n\n**Capital Intensity \u2014 Extreme and Accelerating**\n- CapEx: $463M (2023) \u2192 $5,633M (2024) \u2192 $12,727M (2025) \u2192 $7,723M (Q1 2026, ~76% of total company CapEx of $10,107M).\n- Q1 2026 CapEx annualizes to ~$30.9B, exceeding combined Space + Connectivity CapEx for all of 2025.\n- The company states CapEx will scale \"as quickly as we are able to deploy power and compute,\" with a \"multi-year investment horizon expected before translating into sustained positive AI Segment Adjusted EBITDA.\"\n\n**Disclosed Risks to Forecastability**\n- The segment is described as \"recently formed,\" \"in a relatively early stage,\" and \"still being integrated.\"\n- It operates in a \"nascent, highly competitive, and rapidly changing industry subject to integration, execution, and operational risks.\"\n- Operating losses are widening dramatically: $(1,561)M (2024) \u2192 $(6,355)M (2025); Q1 2026 loss of $(2,469)M is 2.6\u00d7 Q1 2025's $(936)M.\n- Adjusted EBITDA has deteriorated every year: $1,222M (2023, inflated by a $3,775M impairment add-back) \u2192 $347M (2024) \u2192 $(1,237)M (2025) \u2192 $(609)M (Q1 2026).\n- Strategy is to \"prioritize growth and investment,\" signaling sustained losses.\n\n**Why Least Forecastable:** AI combines (i) a shifting, non-monotonic revenue mix with no disclosed composition or concentration, (ii) KPIs (users, posts, images) that are not directly tied to revenue economics, (iii) a cost structure dominated by rapidly-scaling GPU depreciation and R&D with no near-term margin visibility, (iv) extreme and accelerating capital intensity ($7.7B in a single quarter) with an explicitly multi-year horizon to positive EBITDA, (v) self-described \"early stage\" and \"nascent\" market status, and (vi) discretionary revenue disruptions (e.g., the advertising platform overhaul). No long-term contracts or segment backlog are disclosed to anchor forward revenue.\n\n---\n\n### Summary Comparison\n\n| Forecastability Dimension | Connectivity (Most) | Space (Middle) | AI (Least) |\n|---|---|---|---|\n| **Revenue driver visibility** | Recurring subscriptions + fixed-price enterprise/govt contracts | 1\u201314 yr govt contracts (high) offset by internal capacity reallocation | Shifting mix; no long-term contracts or segment backlog disclosed |\n| **KPI quality** | Subscribers, ARPU, latency, speed, terminal capacity\u2014all trended | Mass-to-orbit, launches (but mostly internal) | Users/posts/images disclosed, but no revenue-tied KPIs, ARPU, or churn |\n| **Cost structure stability** | Stable; depreciation-dominated, well-disclosed | In flux pending Starship commercialization accounting change | Highly volatile; GPU depreciation scaling rapidly |\n| **Capital intensity** | High but steady (~$4.2B/yr) | Accelerating (~$3.8B/yr) | Extreme and accelerating (~$30.9B annualized Q1 2026) |\n| **Profitability trend** | Consistently profitable; ~63% Adj. EBITDA margin | Deteriorating; Adj. EBITDA turned negative Q1 2026 | Widening losses every period |\n| **Backlog/contract visibility** | Deferred revenue includes Connectivity enterprise/govt | Deferred revenue primarily from Space; 1\u201314 yr contracts | None disclosed at segment level |\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment MD&A, Key Business Metrics, Risk Factors, and Consolidated Financial Statements\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bfe286783c18443f9070cc25",
+            "content": "## Forecastability Assessment: Space, Connectivity, and AI Segments\n\n**Conclusion: Connectivity is the most forecastable segment; AI is the least forecastable segment.** Space sits in between, with strong contract-backed visibility offset by Starship development uncertainty and internal capacity reallocation.\n\n---\n\n### 1. CONNECTIVITY (Most Forecastable)\n\n**Revenue Drivers \u2014 High Visibility**\n- Recurring subscription model: Consumer broadband revenue is recognized ratably over the service period, providing predictable, recurring revenue.\n- Enterprise/government contracts (including Starshield) are largely fixed-price, contributing to deferred revenue.\n- Mobile connectivity revenue is structured as fixed fees or per-mobile-user fees with MNOs.\n\n**KPIs \u2014 Most Quantified and Trended**\n- **Starlink Subscribers:** 10.3M (Q1 2026), up ~106% YoY from 5.0M (Q1 2025); consistent ~100% YoY growth across 2023 (2.3M) \u2192 2024 (4.4M) \u2192 2025 (8.9M).\n- **ARPU:** $66/month (Q1 2026), declining predictably from $99 (2023) \u2192 $91 (2024) \u2192 $81 (2025) \u2192 $86 (Q1 2025) \u2192 $66 (Q1 2026). The company explicitly attributes the decline to international expansion and lower-priced plans\u2014a disclosed, directional trend.\n- **Network performance:** Median latency ~25ms; median download speed 225 Mbps (peak hours, residential).\n- **Terminal production capacity:** ~200,000 terminals/week.\n- **Mobile metrics:** ~7.4M monthly unique devices across ~30 countries.\n\n**Cost Structure \u2014 Most Stable and Disclosed**\n- Cost of revenue components are explicitly enumerated: depreciation (launch, satellite, ground infrastructure), Starlink Kit hardware costs, ground operating expenses, customer support, payment processor fees, freight, warranty, and employee compensation.\n- Depreciation is the largest cost driver but is tied to a disclosed, growing fixed-asset base with predictable amortization schedules.\n\n**Capital Intensity \u2014 High but Moderate and Disciplined**\n- CapEx: $2,455M (2023) \u2192 $3,498M (2024) \u2192 $4,178M (2025) \u2192 $1,332M (Q1 2026). Growth is steady and far less volatile than AI.\n- The segment is the only consistently profitable segment: Adjusted EBITDA margin of ~63% in FY2025 ($7,168M on $11,387M revenue), with operating income growing from $469M (2023) to $4,423M (2025).\n\n**Why Most Forecastable:** Connectivity combines (i) a recurring subscription revenue base, (ii) the most quantified and consistently trended KPIs in the filing, (iii) a stable, well-disclosed cost structure dominated by predictable depreciation, (iv) moderate and steadily-growing capital intensity, and (v) consistent, expanding profitability that funds the other segments. The ARPU decline is itself a disclosed, directional trend rather than an unpredictable shock.\n\n---\n\n### 2. SPACE (Middle \u2014 Contract Visibility Offset by Starship Uncertainty)\n\n**Revenue Drivers \u2014 Mixed Visibility**\n- **Launch Services:** Fixed-price contracts of 1\u20135 years; revenue recognized at a point in time (upon launch/deployment).\n- **Launch & Development:** Fixed-price contracts of 1\u201314 years, largely for government agency space programs; revenue recognized over time using cost-to-cost input method. These long-dated government contracts provide substantial visibility.\n- Deferred revenue primarily relates to Space agreements; total deferred revenue was $12,116M (Dec 31, 2025) and $13,236M (Mar 31, 2026).\n- Total remaining performance obligations (backlog): $28,377M (Dec 31, 2025) / $27,621M (Mar 31, 2026), with ~32\u201336% expected within one year.\n\n**KPIs \u2014 Disclosed but Include Internal Allocations**\n- **Mass to Orbit:** 1,210t (2023) \u2192 1,699t (2024) \u2192 2,213t (2025); Q1 2026: 556t. However, the majority is internal (e.g., 1,901t of 2,213t in 2025 was internal Starlink deployment), so this KPI grows faster than external Space revenue.\n- **Launches:** 134 Falcon launches (2024) \u2192 165 (2025) \u2192 40 (Q1 2026). Falcon 9 has ~99% mission success rate over ~620 launches.\n- The company explicitly states Space revenue growth will lag total company growth because internal businesses are absorbing most launch capacity.\n\n**Cost Structure \u2014 Disclosed but in Flux**\n- Reusable components (boosters, fairings, Merlin engines, Dragon) are PP&E and depreciated; non-reusable second stages are expensed when launched.\n- Starship costs are currently expensed to R&D as incurred (including Raptor engines used in test flights). Once commercialized, costs will be capitalized and depreciated\u2014a structural change that will alter the cost profile.\n- R&D for Starship: $3,004M (2025) and $930M (Q1 2026 alone).\n\n**Capital Intensity \u2014 Accelerating**\n- CapEx: $1,497M (2023) \u2192 $2,032M (2024) \u2192 $3,832M (2025) \u2192 $1,052M (Q1 2026), driven by Starship launch site infrastructure.\n\n**Why Middle:** Space benefits from the longest-dated, most contractually visible revenue stream in the filing (1\u201314 year government development contracts) and a predictable Falcon 9 cadence. However, forecastability is materially impaired by (i) Starship development risk (technology, regulatory/FAA, and commercialization timing), (ii) the explicit reallocation of launch capacity away from external customers (Q1 2026 revenue fell 28.4% YoY to $619M), (iii) a structural cost-accounting change pending Starship commercialization, and (iv) deteriorating profitability (Adjusted EBITDA turned negative at $(351)M in Q1 2026 vs. +$224M in Q1 2025).\n\n---\n\n### 3. AI (Least Forecastable)\n\n**Revenue Drivers \u2014 Lowest Visibility**\n- Revenue streams are diversifying but shifting: historically \"substantially all\" revenue was advertising, subscriptions, and data licensing from X; now also includes Grok API access and enterprise AI solutions (Grok Business/Enterprise/Voice).\n- Q1 2026 advertising revenue *decreased* $100M YoY due to a \"short-term overhaul of the company's advertising platform\"\u2014an unpredictable, discretionary event.\n- No long-term contract values, no segment-specific backlog, and no segment-specific deferred revenue are disclosed for AI.\n- Revenue trajectory has been non-monotonic: $2,961M (2023) \u2192 $2,620M (2024, \u221211.5%) \u2192 $3,201M (2025, +22.2%) \u2192 $818M (Q1 2026, +12.5% YoY).\n\n**KPIs \u2014 Disclosed but Disconnected from Revenue Economics**\n- User/engagement metrics are disclosed: ~550M MAUs across Grok and X; ~117M Grok MAUs; ~6.3M paid subscribers (4.4M X Premium + 1.9M SuperGrok); ~350M daily posts; ~10B images and ~2B videos/month.\n- However, the filing does **not** disclose: revenue composition percentages (advertising vs. subscriptions vs. data licensing vs. API), customer concentration, churn, or ARPU for AI.\n- The $26.5T TAM estimate relies on internal assumptions (104M GPUs needed, 80% utilization, $3.33/GPU-hour based on 2025 neocloud rates)\u2014explicitly flagged as potentially inaccurate.\n\n**Cost Structure \u2014 Highly Volatile and Scaling**\n- R&D is the largest expense driver: $2,379M in Q1 2026 alone (up $1,471M YoY), driven by GPU depreciation and data center expansion.\n- Cost of revenue includes infrastructure costs, revenue share, payments to creators, and amortization of acquired intangibles.\n- The company explicitly states AI R&D will increase \"in absolute dollars and as a percentage of revenue.\"\n\n**Capital Intensity \u2014 Extreme and Accelerating**\n- CapEx: $463M (2023) \u2192 $5,633M (2024) \u2192 $12,727M (2025) \u2192 $7,723M (Q1 2026, ~76% of total company CapEx of $10,107M).\n- Q1 2026 CapEx annualizes to ~$30.9B, exceeding combined Space + Connectivity CapEx for all of 2025.\n- The company states CapEx will scale \"as quickly as we are able to deploy power and compute,\" with a \"multi-year investment horizon expected before translating into sustained positive AI Segment Adjusted EBITDA.\"\n\n**Disclosed Risks to Forecastability**\n- The segment is described as \"recently formed,\" \"in a relatively early stage,\" and \"still being integrated.\"\n- It operates in a \"nascent, highly competitive, and rapidly changing industry subject to integration, execution, and operational risks.\"\n- Operating losses are widening dramatically: $(1,561)M (2024) \u2192 $(6,355)M (2025); Q1 2026 loss of $(2,469)M is 2.6\u00d7 Q1 2025's $(936)M.\n- Adjusted EBITDA has deteriorated every year: $1,222M (2023, inflated by a $3,775M impairment add-back) \u2192 $347M (2024) \u2192 $(1,237)M (2025) \u2192 $(609)M (Q1 2026).\n- Strategy is to \"prioritize growth and investment,\" signaling sustained losses.\n\n**Why Least Forecastable:** AI combines (i) a shifting, non-monotonic revenue mix with no disclosed composition or concentration, (ii) KPIs (users, posts, images) that are not directly tied to revenue economics, (iii) a cost structure dominated by rapidly-scaling GPU depreciation and R&D with no near-term margin visibility, (iv) extreme and accelerating capital intensity ($7.7B in a single quarter) with an explicitly multi-year horizon to positive EBITDA, (v) self-described \"early stage\" and \"nascent\" market status, and (vi) discretionary revenue disruptions (e.g., the advertising platform overhaul). No long-term contracts or segment backlog are disclosed to anchor forward revenue.\n\n---\n\n### Summary Comparison\n\n| Forecastability Dimension | Connectivity (Most) | Space (Middle) | AI (Least) |\n|---|---|---|---|\n| **Revenue driver visibility** | Recurring subscriptions + fixed-price enterprise/govt contracts | 1\u201314 yr govt contracts (high) offset by internal capacity reallocation | Shifting mix; no long-term contracts or segment backlog disclosed |\n| **KPI quality** | Subscribers, ARPU, latency, speed, terminal capacity\u2014all trended | Mass-to-orbit, launches (but mostly internal) | Users/posts/images disclosed, but no revenue-tied KPIs, ARPU, or churn |\n| **Cost structure stability** | Stable; depreciation-dominated, well-disclosed | In flux pending Starship commercialization accounting change | Highly volatile; GPU depreciation scaling rapidly |\n| **Capital intensity** | High but steady (~$4.2B/yr) | Accelerating (~$3.8B/yr) | Extreme and accelerating (~$30.9B annualized Q1 2026) |\n| **Profitability trend** | Consistently profitable; ~63% Adj. EBITDA margin | Deteriorating; Adj. EBITDA turned negative Q1 2026 | Widening losses every period |\n| **Backlog/contract visibility** | Deferred revenue includes Connectivity enterprise/govt | Deferred revenue primarily from Space; 1\u201314 yr contracts | None disclosed at segment level |\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment MD&A, Key Business Metrics, Risk Factors, and Consolidated Financial Statements\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16489,
+        "completion_tokens": 3034,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0677225
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 58697,
+    "total_completion_tokens": 5487,
+    "total_cached_tokens": 20480,
+    "total_cost_usd": 0.17601250000000002,
+    "total_steps": 8
+  }
+}

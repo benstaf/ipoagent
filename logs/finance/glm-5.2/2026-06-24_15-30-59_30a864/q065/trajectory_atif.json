@@ -1,0 +1,775 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "92493ba1-6c5d-419c-b1e3-b789fc06a9c8",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-24T15:31:13.659360+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-24T15:31:13.659360+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nAmazon disclosed that FY2025 free cash flow fell from $32.9 billion to $7.7 billion as capex consumed approximately 94% of operating cash flow. Using SpaceX's disclosed Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source) and annualized Q1 2026 AI capex, construct an analogous FCF pressure ratio for SpaceX. Compare the two ratios and assess whether SpaceX's internal funding position for AI infrastructure is more or less constrained than Amazon's was in FY2025. What disclosure does the SpaceX S-1 provide or omit that limits confidence in this comparison?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-24T15:31:13.659360+00:00",
+      "source": "agent",
+      "message": "\nI'll analyze this question by:\n1. Parsing the SpaceX S-1 filing to find Connectivity Segment Adjusted EBITDA and AI capex disclosures\n2. Verifying Amazon's FY2025 free cash flow data\n3. Constructing the FCF pressure ratio comparison\n\nLet me start by parsing the SpaceX S-1 and searching for Amazon's FY2025 data.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking me to:\n1. Find Amazon's FY2025 free cash flow data ($32.9B to $7.7B, capex ~94% of operating cash flow)\n2. Find SpaceX's Connectivity Segment Adjusted EBITDA from the S-1 filing\n3. Find SpaceX's Q1 2026 AI capex (annualized)\n4. Construct an analogous FCF pressure ratio for SpaceX\n5. Compare the two ratios\n6. Assess whether SpaceX's internal funding position for AI infrastructure is more or less constrained than Amazon's\n7. Identify what disclosure SpaceX S-1 provides or omits that limits confidence in this comparison\n\nLet me start by parsing the SpaceX S-1 filing and searching for Amazon's FY2025 free cash flow data.\n\nThe SpaceX S-1 URL is: https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nLet me parse this filing first, and also search for Amazon's FY2025 free cash flow data.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8d70d63176964afd856a5d1c",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        },
+        {
+          "tool_call_id": "call_25356a0147b14d439d59bf2a",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon FY2025 free cash flow $7.7 billion capex operating cash flow annual report"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8d70d63176964afd856a5d1c",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          },
+          {
+            "source_call_id": "call_25356a0147b14d439d59bf2a",
+            "content": "[{\"url\": \"https://www.winvesta.in/blog/investors/cash-flow-statement-the-most-important-financial-document\", \"title\": \"Cash flow statement analysis: The most important financial document\", \"content\": \"Amazon's situation illustrates the trade-off between growth and investment. Despite generating a robust operating cash flow of $130.7 billion through Q3 2025, CapEx of $115.9 billion consumed nearly all of it. Free cash flow dropped to just $14.8 billion\\u2014down from $47.7 billion the prior year. The company sacrifices current free cash flow for future AI infrastructure capabilities.\", \"score\": 0.72884524, \"raw_content\": null}, {\"url\": \"https://www.barchart.com/story/news/29350759/amazon-s-cash-flow-surges-amzn-stock-looks-cheap-to-investors\", \"title\": \"Amazon's Cash Flow Surges - AMZN Stock Looks Cheap to Investors\", \"content\": \"Therefore, assuming Amazon makes an 18.2% OCF margin (the same as its TTM Q3 margin - see above), its operating cash flow is forecast to be $128.2 billion. Moreover, after subtracting $67 billion in net capex spending (slightly higher than the $65 billion spent over the last year), the 2025 FCF would be $61 billion.\", \"score\": 0.70702106, \"raw_content\": null}, {\"url\": \"https://www.cgaa.org/article/amzn-free-cash-flow\", \"title\": \"amzn free cash flow drops due to tariffs and rising costs\", \"content\": \"The main culprit behind this drop is a massive increase in capital expenditures, or capex, which rose almost 80% to $88 billion in the 12 months leading up to Q1 2025.\\n\\nCapex spending now accounts for 13.5% of Amazon's sales, up from 8.1% in the previous year.\\n\\nIf we look at Amazon's operating cash flow, which was $113.9 billion, and subtract the capex as a percentage of sales, we get a hypothetical free cash flow of $61.2 billion.\", \"score\": 0.68420124, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/capex-to-operating-cash-flow/XYZ\", \"title\": \"Block (XYZ) Capex-to-Operating-Cash-Flow\", \"content\": \"| Block Annual Data | | | | | | | | | | | |\\n ---  ---  ---  ---  ---  --- |\\n|  | Trend | Dec16 | Dec17 | Dec18 | Dec19 | Dec20 | Dec21 | Dec22 | Dec23 | Dec24 | Dec25 |\\n| Capex-to-Operating-Cash-Flow | |  |  |  |  |  |  |  |  |  |  |  ---  ---  ---  ---  --- | | | | | | | | | | | | | Get a 7-Day Free Trial | | | Premium Member Only | Premium Member Only | 0.36 | 0.97 | 1.50 | 0.09 | 0.06 |\\n\\n|  |  |  |  |  |  |  |  |  |  |\\n ---  ---  ---  ---  --- |\\n| | | | | | | | | | |\", \"score\": 0.40924495, \"raw_content\": null}, {\"url\": \"https://www.monexa.ai/blog/lam-research-lrcx-strong-fy2025-cash-flow-and-marg-LRCX-2025-08-25\", \"title\": \"Lam Research (LRCX) \\u2014 FY2025 Margins, Cash Flow & Strategic Position | Monexa\", \"content\": \"optionality to fund buybacks, dividends and selective reinvestment. Free cash flow of $5.41B represents a 29.34% free\\u2011cash\\u2011flow margin on revenue \\u2014 exceptional for a capital equipment manufacturer \\u2014 and operating cash flow of $6.17B implies an operating cash conversion ratio (operating cash flow / net income) of ~115.12%, meaning reported earnings are well backed by cash generation rather than non\\u2011cash adjustments.Lam FY2025 financials (filling date 2025-07-30). First, Lam\\u2019s FY2025 performance\", \"score\": 0.12426638, \"raw_content\": null}, {\"url\": \"https://widgets.macroaxis.com/financial-statements/SKYH/Capex-To-Operating-Cash-Flow\", \"title\": \"Sky Harbour Capex To Operating Cash Flow Report | Stocks: SKYH\", \"content\": \"|  |  |  |  |\\n ---  --- |\\n|  |  | FY2025 Reported | FY2026 estimate |\\n|  | Other Operating Expenses | $55.57 million | $58.35 million |\\n|  | Operating Income | $-28.03 million | $-26.63 million |\\n|  | Total Operating Expenses | $23.82 million | $13.76 million |\\n|  | Total Cash From Operating Activities | $-9.1 million | $-2.34 million |\\n|  | Change To Operating Activities | $-284,514 | $-270,289 |\\n|  | Operating Cash Flow Per Share | -0.07 | -0.07 |\", \"score\": 0.11206474, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/capex_to_operating_cash_flow/GDDY\", \"title\": \"GDDY (GoDaddy)  Capex-to-Operating-Cash-Flow\", \"content\": \"Capex-to-Operating-Cash-Flow ratio assesses how much of a company\\u2019s Cash Flow from Operations is being devoted to Capital Expenditure. It is a good indicator in terms of how much the company is focused on growth. In general, a high Capex-to-Operating-Cash-Flow ratio indicates that the company is investing more in physical assets and is focused on growth and expansion. Conversely, lower ratio could indicate that a company has reached maturity and is no longer pursuing aggressive growth.\", \"score\": 0.10503621, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/capex_to_operating_cash_flow/MAN/Capex-to-Operating-Cash-Flow\", \"title\": \"MAN (ManpowerGroup) Capex-to-Operating-Cash-Flow\", \"content\": \"ManpowerGroup's Capex-to-Operating-Cash-Flow for the fiscal year that ended in Dec. 2024 is calculated as. ManpowerGroup's Capex-to-Operating-Cash-Flow for the quarter that ended in Sep. 2025 is calculated as. ManpowerGroup  (NYSE:MAN) Capex-to-Operating-Cash-Flow Explanation. Capex-to-Operating-Cash-Flow ratio assesses how much of a company\\u2019s Cash Flow from Operations is being devoted to Capital Expenditure. It is a good indicator in terms of how much the company is focused on growth. In\", \"score\": 0.079217605, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/capex-to-operating-cash-flow/NAS:GFS\", \"title\": \"GLOBALFOUNDRIES Capex-to-Operating-Cash-Flow: 0.56 \\u2014 24% B\", \"content\": \"GLOBALFOUNDRIES Capex-to-Operating-Cash-Flow: 0.56 \\u2014 24% B\", \"score\": 0.060846824, \"raw_content\": null}, {\"url\": \"https://www.gurufocus.com/term/capex-to-operating-cash-flow/CCJ\", \"title\": \"CCJ (Cameco) Capex-to-Operating-Cash-Flow\", \"content\": \"from Operating Activities. # CCJ (Cameco) Capex-to-Operating-Cash-Flow : 0.59 (As of Sep. 2025). ## What is Cameco Capex-to-Operating-Cash-Flow? Capex-to-Operating-Cash-Flow assesses how much of a company\\u2019s cash flow from operations is being devoted to capital expenditure. Its Cash Flow from Operations for the three months ended in Sep. 2025 was $112.56 Mil. Hence, Cameco's Capex-to-Operating-Cash-Flow for the three months ended in Sep. 2025 was 0.59. ## Cameco Capex-to-Operating-Cash-Flow\", \"score\": 0.059324715, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3244,
+        "completion_tokens": 387,
+        "cached_tokens": 0,
+        "cost_usd": 0.01198
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-24T15:32:45.361713+00:00",
+      "source": "agent",
+      "message": "Let me search for Amazon's 10-K filing for FY2025 and retrieve SpaceX's Connectivity Segment Adjusted EBITDA and AI capex disclosures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The web search didn't give me the exact Amazon FY2025 figures. Let me search for Amazon's 10-K filing for FY2025 to get the exact figures. The question states Amazon's FY2025 FCF fell from $32.9B to $7.7B with capex consuming ~94% of operating cash flow. Let me verify this with Amazon's 10-K.\n\nAlso, I need to retrieve information from the SpaceX S-1 about:\n1. Connectivity Segment Adjusted EBITDA\n2. Q1 2026 AI capex\n\nLet me do both in parallel.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_daae72b30bd14809a80f6506",
+          "function_name": "edgar_search",
+          "arguments": {
+            "search_query": "Amazon free cash flow operating activities capital expenditures 2025",
+            "form_types": [
+              "10-K"
+            ],
+            "ciks": [
+              "0001018724"
+            ],
+            "start_date": "2026-01-01",
+            "end_date": "2026-03-31"
+          }
+        },
+        {
+          "tool_call_id": "call_374522e5aec0408d86df4163",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Connectivity Segment Adjusted EBITDA disclosed in the SpaceX S-1 filing {{spacex_s1}}? Provide the exact figures for all periods presented (Q1 2026, FY2025, FY2024, etc.). Also identify any reconciliation tables showing how Connectivity Segment Adjusted EBITDA is calculated from segment revenue or operating income."
+          }
+        },
+        {
+          "tool_call_id": "call_0d3b99c07ab74bd3bbeb00ef",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the SpaceX S-1 filing {{spacex_s1}} disclose about AI infrastructure capital expenditures (capex) in Q1 2026 and full year 2025? Look for any disclosure of capital expenditures related to AI, data centers, compute infrastructure, Grok, xAI, or Colossus. Provide exact dollar figures and any breakdown by segment or category."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_daae72b30bd14809a80f6506",
+            "content": "[{\"accessionNo\": \"0001018724-26-000004\", \"cik\": \"1018724\", \"companyNameLong\": \"AMAZON COM INC (AMZN) (CIK 0001018724)\", \"ticker\": \"AMZN\", \"description\": \"10-K\", \"formType\": \"10-K\", \"type\": \"10-K\", \"filingUrl\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm\", \"filedAt\": \"2026-02-06\"}]"
+          },
+          {
+            "source_call_id": "call_374522e5aec0408d86df4163",
+            "content": "Based on the SpaceX S-1 filing preamble provided, here are the exact figures for the Connectivity Segment Adjusted EBITDA across all reported periods, along with the reconciliation details.\n\n### Connectivity Segment Adjusted EBITDA Figures\nThe filing discloses the following Connectivity Segment Adjusted EBITDA figures:\n*   **Q1 2026** (Three months ended March 31, 2026): **$2,087 million**\n*   **FY 2025** (Year ended December 31, 2025): **$7,168 million**\n*   **Q1 2025** (Three months ended March 31, 2025): **$1,618 million**\n*   **FY 2024** (Year ended December 31, 2024): **$3,849 million**\n*   **FY 2023** (Year ended December 31, 2023): **$1,602 million**\n\n### Reconciliation Tables\nThe filing contains explicit reconciliation tables showing how Connectivity Segment Adjusted EBITDA is calculated. Rather than starting directly from segment revenue, the reconciliations begin at **Income from operations** and add back specific non-cash and one-time items: Depreciation and amortization, Share-based compensation, Restructuring charges, and Impairments. \n\nBelow are the reconciliations for the periods presented:\n\n**For the Three Months Ended March 31, 2026:**\n| (in millions) | Connectivity |\n| :--- | :--- |\n| Income from operations | $1,188 |\n| Add: Depreciation and amortization | 783 |\n| Add: Share-based compensation | 116 |\n| Add: Restructuring charges | \u2014 |\n| **Segment Adjusted EBITDA** | **$2,087** |\n\n**For the Year Ended December 31, 2025:**\n| (in millions) | Connectivity |\n| :--- | :--- |\n| Income from operations | $4,423 |\n| Add: Depreciation and amortization | 2,376 |\n| Add: Share-based compensation | 369 |\n| Add: Restructuring charges | \u2014 |\n| Add: Impairment | \u2014 |\n| **Segment Adjusted EBITDA** | **$7,168** |\n\n**For the Three Months Ended March 31, 2025:**\n| (in millions) | Connectivity |\n| :--- | :--- |\n| Income from operations | $1,033 |\n| Add: Depreciation and amortization | 510 |\n| Add: Share-based compensation | 75 |\n| Add: Restructuring charges | \u2014 |\n| Add: Impairment | \u2014 |\n| **Segment Adjusted EBITDA** | **$1,618** |\n\n**For the Year Ended December 31, 2024:**\n| (in millions) | Connectivity |\n| :--- | :--- |\n| Income from operations | $2,006 |\n| Add: Depreciation and amortization | 1,508 |\n| Add: Share-based compensation | 296 |\n| Add: Restructuring charges | \u2014 |\n| Add: Impairment | 39 |\n| **Segment Adjusted EBITDA** | **$3,849** |\n\n**For the Year Ended December 31, 2023:**\n| (in millions) | Connectivity |\n| :--- | :--- |\n| Income from operations | $469 |\n| Add: Depreciation and amortization | 884 |\n| Add: Share-based compensation | 249 |\n| Add: Restructuring charges | \u2014 |\n| Add: Impairment | \u2014 |\n| **Segment Adjusted EBITDA** | **$1,602** |"
+          },
+          {
+            "source_call_id": "call_0d3b99c07ab74bd3bbeb00ef",
+            "content": "Based on the provided S-1 filing excerpt, SpaceX discloses substantial capital expenditures (capex) for its AI segment, driven primarily by investments in terrestrial data centers and compute infrastructure. \n\nHere are the exact figures and breakdowns for Q1 2026 and Full Year 2025:\n\n### **Capital Expenditures by Segment (AI Segment)**\n*   **Q1 2026 (Three Months Ended March 31, 2026):** $7,723 million\n    *   *Context:* This represents an increase of $5,156 million compared to $2,567 million in Q1 2025.\n*   **Full Year 2025 (Year Ended December 31, 2025):** $12,727 million\n    *   *Context:* This represents an increase of $7,094 million compared to $5,633 million in 2024.\n\n### **Breakdown and Drivers of AI Capex**\nSpaceX attributes these massive expenditures to the following categories and drivers:\n*   **Terrestrial Data Centers:** The increases in both Q1 2026 and FY 2025 were \"primarily driven by investments in the rapid expansion of our terrestrial data centers, including the development, construction, and equipping of new facilities and supporting infrastructure.\"\n*   **COLOSSUS Data Centers:** The terrestrial AI compute infrastructure forms the backbone of the Grok model family and is anchored by the COLOSSUS and COLOSSUS II data centers. Together, they provide approximately 1.0 gigawatt of compute power. SpaceX notes it achieved significant cost efficiency, bringing COLOSSUS II online in 91 days with construction costs considerably lower than industry benchmarks on a per-megawatt basis.\n*   **xAI Acquisition:** SpaceX acquired xAI in February 2026, which forms the basis of the AI segment. The company expects to continue allocating substantial capital to expand compute infrastructure to address a $26.5 trillion potential AI market opportunity.\n*   **Terafab Initiative:** Through a joint initiative with Tesla (and Intel, joining in April 2026), SpaceX is building a manufacturing facility capable of producing 1 terawatt per year of compute hardware to vertically integrate into chip design and manufacturing, aiming to alleviate future chip shortages and reduce compute costs.\n\n### **Additional Subsequent AI Infrastructure Investments**\nBeyond the standard capex tables, the filing notes an additional infrastructure purchase:\n*   **Turbine Purchases:** In March 2026, SpaceX executed a purchase agreement with an unaffiliated third party to acquire additional turbines for the AI infrastructure totaling **$805 million** through 2029. (COLOSSUS II is noted as being capable of operating entirely by a self-built, behind-the-meter gigawatt-scale natural gas power plant)."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5573,
+        "completion_tokens": 396,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0138925
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-24T15:34:41.015003+00:00",
+      "source": "agent",
+      "message": "I have the SpaceX data. Now let me verify Amazon's FY2025 figures by parsing their 10-K, and retrieve additional SpaceX disclosures about cash flow and AI capex funding.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I have the SpaceX data:\n- Connectivity Segment Adjusted EBITDA Q1 2026: $2,087 million\n- Connectivity Segment Adjusted EBITDA FY2025: $7,168 million\n- AI capex Q1 2026: $7,723 million\n- AI capex FY2025: $12,727 million\n\nNow I need to verify Amazon's FY2025 free cash flow data. The question states:\n- FY2025 FCF fell from $32.9B to $7.7B\n- Capex consumed approximately 94% of operating cash flow\n\nLet me parse Amazon's 10-K to verify these figures.\n\nActually, let me think about this. The question says \"Amazon disclosed that FY2025 free cash flow fell from $32.9 billion to $7.7 billion as capex consumed approximately 94% of operating cash flow.\"\n\nSo Amazon's FY2025:\n- FCF: $7.7 billion (down from $32.9 billion in FY2024)\n- Capex consumed ~94% of operating cash flow\n\nIf capex = 94% of OCF, then FCF = 6% of OCF\nIf FCF = $7.7B, then OCF = $7.7B / 0.06 = $128.33B\nAnd capex = $128.33B \u00d7 0.94 = $120.63B\n\nLet me verify this with Amazon's 10-K. Let me parse the Amazon 10-K.\n\nActually, let me first calculate the SpaceX ratio:\n- Annualized Q1 2026 AI capex = $7,723M \u00d7 4 = $30,892M\n- Connectivity Segment Adjusted EBITDA Q1 2026 = $2,087M\n- Annualized Connectivity Segment Adjusted EBITDA = $2,087M \u00d7 4 = $8,348M\n\nWait, the question says \"Using SpaceX's disclosed Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source) and annualized Q1 2026 AI capex, construct an analogous FCF pressure ratio for SpaceX.\"\n\nSo the ratio would be:\n- Annualized Q1 2026 AI capex / Connectivity Segment Adjusted EBITDA\n\nBut which Connectivity Segment Adjusted EBITDA? Q1 2026 or FY2025?\n\nThe question says \"SpaceX's disclosed Connectivity Segment Adjusted EBITDA\" - this is ambiguous. Let me think about this more carefully.\n\nThe Amazon ratio is: capex / operating cash flow = 94%\nOr equivalently: FCF / OCF = 6%\n\nFor SpaceX, the analogous ratio would be:\n- AI capex / Connectivity Segment Adjusted EBITDA\n\nIf we use Q1 2026 figures annualized:\n- Annualized AI capex = $7,723M \u00d7 4 = $30,892M\n- Annualized Connectivity Segment Adjusted EBITDA = $2,087M \u00d7 4 = $8,348M\n- Ratio = $30,892M / $8,348M = 370%\n\nOr if we use Q1 2026 AI capex annualized vs FY2025 Connectivity Segment Adjusted EBITDA:\n- Annualized AI capex = $30,892M\n- FY2025 Connectivity Segment Adjusted EBITDA = $7,168M\n- Ratio = $30,892M / $7,168M = 431%\n\nHmm, the question is a bit ambiguous. Let me re-read it:\n\n\"Using SpaceX's disclosed Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source) and annualized Q1 2026 AI capex, construct an analogous FCF pressure ratio for SpaceX.\"\n\nI think the most natural interpretation is:\n- Numerator: Annualized Q1 2026 AI capex\n- Denominator: Connectivity Segment Adjusted EBITDA\n\nThe question doesn't specify which period for Connectivity Segment Adjusted EBITDA. Given that we're using Q1 2026 AI capex annualized, it would make sense to use Q1 2026 Connectivity Segment Adjusted EBITDA annualized for consistency. But the FY2025 figure is also a \"disclosed\" figure.\n\nActually, let me think about this differently. The Amazon ratio is:\n- Capex / OCF = 94% (i.e., capex consumed 94% of OCF)\n- Or FCF / OCF = 6%\n\nFor SpaceX, the analogous ratio would be:\n- AI capex / Connectivity Segment Adjusted EBITDA\n\nThis represents how much of the internal cash source (Connectivity Segment Adjusted EBITDA) is consumed by AI capex.\n\nIf we use Q1 2026 annualized:\n- Annualized AI capex = $30,892M\n- Annualized Connectivity Segment Adjusted EBITDA = $8,348M\n- Ratio = 370% (i.e., AI capex is 3.7x the Connectivity Segment Adjusted EBITDA)\n\nThis means SpaceX's AI capex far exceeds its Connectivity Segment Adjusted EBITDA, indicating a much more constrained internal funding position than Amazon's.\n\nWait, but I should also consider that SpaceX has other segments that generate cash. The question specifically says \"Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source)\". So we're using only the Connectivity segment as the internal cash source.\n\nLet me also verify the Amazon figures by parsing the 10-K.\n\nActually, let me also retrieve more information from the SpaceX S-1 about:\n1. Whether there's any disclosure about total operating cash flow or free cash flow\n2. Whether the Connectivity Segment Adjusted EBITDA is described as the \"primary internal cash source\"\n3. Any disclosure about how AI capex is funded\n\nLet me also check if there are other segments that generate cash.\n\nLet me parse the Amazon 10-K and retrieve more SpaceX information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4c272fe56ddc4198bbc0ccb9",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "key": "amazon_10k_2025",
+            "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm"
+          }
+        },
+        {
+          "tool_call_id": "call_3774b84ce30c4ea08a7603ed",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the SpaceX S-1 filing {{spacex_s1}}, what is disclosed about the company's total consolidated cash flow from operations, free cash flow, and capital expenditures for FY2025 and Q1 2026? Also, does the filing describe the Connectivity Segment as the \"primary internal cash source\" or similar language? What segments does SpaceX report and what are their respective Adjusted EBITDA figures?"
+          }
+        },
+        {
+          "tool_call_id": "call_f586966aa1f544f6994904ef",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the SpaceX S-1 filing {{spacex_s1}}, what does the filing disclose or omit about how AI infrastructure capital expenditures are funded? Is there any disclosure of debt financing, equity financing, or intercompany funding for AI capex? Does the filing break down total capital expenditures by segment (Launch, Connectivity, AI, Other)? Provide the segment-level capex breakdown for Q1 2026 and FY2025."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4c272fe56ddc4198bbc0ccb9",
+            "content": "SUCCESS: Loaded portable assets for key: amazon_10k_2025"
+          },
+          {
+            "source_call_id": "call_3774b84ce30c4ea08a7603ed",
+            "content": "# Analysis of SpaceX S-1 Filing Disclosures\n\n## 1. Cash Flow from Operations, Free Cash Flow, and Capital Expenditures\n\n### Capital Expenditures (Clearly Disclosed)\n\nThe filing provides detailed capex by segment:\n\n| Segment | Q1 2026 | FY2025 | FY2024 | FY2023 |\n|---|---|---|---|---|\n| Space | $1,052M | $3,832M | $2,032M | $1,497M |\n| Connectivity | $1,332M | $4,178M | $3,498M | $2,455M |\n| AI | $7,723M | $12,727M | $5,633M | $463M |\n| **Total** | **$10,107M** | **$20,737M** | **$11,163M** | **$4,415M** |\n\nThe MD&A notes that Space capex increases were \"primarily driven by increased investment in our launch site infrastructure for Starship.\"\n\n### Cash Flow from Operations and Free Cash Flow\n\n**The provided chunks do not disclose specific consolidated cash flow from operations figures for FY2025 or Q1 2026.** The filing references the \"Consolidated Statements of Cash Flows for the Years Ended December 31, 2025, 2024, and 2023\" in the financial statement index, and states that \"Our primary sources of liquidity are cash flows generated from operations, our total cash and cash equivalents of $15,852 million as of March 31, 2026, short-term marketable securities of $7,823 million as of March 31, 2026,\" but the actual operating cash flow line items are not included in the excerpts provided.\n\n**\"Free cash flow\" is not mentioned anywhere in the provided chunks.** SpaceX does not appear to present a free cash flow metric in these excerpts.\n\n---\n\n## 2. Is Connectivity Described as the \"Primary Internal Cash Source\"?\n\n**No.** The exact phrase \"primary internal cash source\" (or close variants) does **not appear** in the provided chunks. The closest related language is in the Capital Allocation and Funding Strategy section, which describes the funding relationship between segments:\n\n> \"We initially raised capital to fund what is now our Space segment, which generates revenue from commercial and government customers while serving as the backbone for our Connectivity segment. We invested in our Connectivity segment as we generated Segment Adjusted EBITDA from our Space segment, along with additional equity capital that we raised externally, creating a segment that generates predictable and recurring revenue from consumer, enterprise, and government customers.\"\n\nThe filing notes that:\n- The **Space segment** became Segment Adjusted EBITDA positive on a sustained basis beginning in **2018**\n- The **Connectivity segment** became Segment Adjusted EBITDA positive on a sustained basis beginning in **2023**\n- Over $9 billion of equity capital has been raised since founding to fund Space and Connectivity\n\nSo while Connectivity is clearly the largest EBITDA contributor by 2025\u20132026, the filing does not explicitly label it the \"primary internal cash source.\"\n\n---\n\n## 3. Reportable Segments and Adjusted EBITDA Figures\n\nSpaceX reports **three operating segments**: **Space**, **Connectivity**, and **AI**.\n\n### Consolidated Adjusted EBITDA\n\n| Period | Consolidated Adjusted EBITDA |\n|---|---|\n| Q1 2026 | $1,127M |\n| FY2025 | $6,584M |\n\n### Segment Adjusted EBITDA \u2014 Q1 2026 (Three Months Ended March 31, 2026)\n\n| Segment | Income (Loss) from Operations | Segment Adjusted EBITDA |\n|---|---|---|\n| Space | $(662)M | $(351)M |\n| Connectivity | $1,188M | $2,087M |\n| AI | $(2,469)M | $(609)M |\n| **Total** | **$(1,943)M** | **$1,127M** |\n\n### Segment Adjusted EBITDA \u2014 FY2025\n\n| Segment | Income (Loss) from Operations | Segment Adjusted EBITDA |\n|---|---|---|\n| Space | $(657)M | $653M |\n| Connectivity | $4,423M | $7,168M |\n| AI | $(6,355)M | $(1,237)M |\n| **Total** | **$(2,589)M** | **$6,584M** |\n\n### Segment Adjusted EBITDA \u2014 FY2024 (from year-over-year comparisons)\n\n| Segment | Segment Adjusted EBITDA |\n|---|---|\n| Space | $1,154M |\n| Connectivity | $3,849M |\n\n### Segment Adjusted EBITDA \u2014 FY2023 (from reconciliation table)\n\n| Segment | Income (Loss) from Operations | Segment Adjusted EBITDA |\n|---|---|---|\n| Space | $(1)M | $997M |\n| Connectivity | $469M | $1,602M |\n| AI | $(3,973)M | $1,222M |\n| **Total** | **$(3,505)M** | **$3,821M** |\n\n> **Note on 2023 AI segment:** The positive Adjusted EBITDA of $1,222M was entirely driven by a $3,775M impairment add-back; the underlying operating loss was $(3,973)M.\n\n### Q1 2025 Segment Adjusted EBITDA (derived from year-over-year commentary)\n\n| Segment | Q1 2025 Segment Adjusted EBITDA |\n|---|---|\n| Space | ~$224M (referenced in YoY comparison) |\n| Connectivity | $1,618M (explicitly stated) |\n\n---\n\n## Key Takeaways\n\n1. **Capital expenditures are fully disclosed** and show dramatic escalation, particularly in the AI segment ($12.7B in FY2025; $7.7B in just Q1 2026 alone).\n2. **Operating cash flow and free cash flow figures are not in the provided excerpts** \u2014 the cash flow statement is referenced in the index but its contents are not included in the chunks.\n3. **Connectivity is not explicitly labeled the \"primary internal cash source,\"** though it is clearly the dominant EBITDA generator by FY2025 ($7.2B vs. Space's $0.7B and AI's negative $1.2B).\n4. **Three segments** are reported: Space, Connectivity, and AI \u2014 with Connectivity being the only segment generating positive Adjusted EBITDA in both Q1 2026 and FY2025."
+          },
+          {
+            "source_call_id": "call_f586966aa1f544f6994904ef",
+            "content": "Based on the provided S-1 filing chunks, here are the answers to your questions regarding AI infrastructure capital expenditures and segment-level capex breakdowns:\n\n### 1. How are AI Infrastructure Capital Expenditures Funded?\nThe filing discloses that AI infrastructure capital expenditures are funded through a combination of debt financing, equity financing, and alternative financing structures, backed by the company's overall liquidity. \n\n**Debt Financing:**\n*   **AI Segment Specific Debt:** The filing notes that the increase in financing activities for the year ended December 31, 2025, was \"primarily driven by an increase in proceeds from debt and other financing arrangements for our AI segment of $16,055 million.\"\n*   **SpaceX Bridge Loan:** In Q1 2026, financing activities were driven by \"an increase in proceeds from the SpaceX Bridge Loan and other financing arrangements of $17,950 million.\" The filing details that the SpaceX Bridge Loan is a new unsecured bridge term loan facility entered into in March 2026 with an aggregate principal amount of $20,000 million.\n*   **Failed Sale-Leaseback Transactions:** The filing explicitly states that \"Other financings\" include \"obligations related to certain AI infrastructure assets recorded as failed sale-leaseback transactions.\"\n\n**Equity Financing:**\n*   **Sale of Capital Stock:** In Q1 2026, SpaceX used \"proceeds from sale of our capital stock of $7,420 million\" to help fund operations and growth. \n*   **Future Public Offerings:** The company states it plans to \"access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth.\"\n\n**General Liquidity & Intercompany Reallocation:**\n*   **Cash on Hand & Operations:** Primary sources of liquidity include cash flows from operations, $15,852 million in cash and cash equivalents, $7,823 million in short-term marketable securities (as of March 31, 2026), and borrowings under credit facilities.\n*   **Intercompany Funding / Capital Reallocation:** While it does not use the exact phrase \"intercompany funding,\" the filing notes that SpaceX retains the flexibility to adjust spending across segments. It explicitly states that if near-term AI data center needs decrease or ramp more slowly than expected, it \"may reduce future capital expenditures in this segment and reallocate those expenditures to other segments based on business priorities.\"\n\n### 2. Does the filing break down total capital expenditures by segment (Launch, Connectivity, AI, Other)?\nYes, the filing breaks down total capital expenditures by segment. However, it does not use \"Launch\" or \"Other\" as segment categories. Instead, capital expenditures are broken down into three reportable segments: **Space** (which encompasses launch vehicles), **Connectivity**, and **AI**.\n\n### 3. Segment-Level Capex Breakdown for Q1 2026 and FY2025\nBased on the capital expenditures table provided in the filing:\n\n**Three Months Ended March 31, 2026 (Q1 2026):**\n*   **Space:** $1,052 million\n*   **Connectivity:** $1,332 million\n*   **AI:** $7,723 million\n*   **Total Capital Expenditures:** $10,107 million\n\n**Year Ended December 31, 2025 (FY 2025):**\n*   **Space:** $3,832 million\n*   **Connectivity:** $4,178 million\n*   **AI:** $12,727 million\n*   **Total Capital Expenditures:** $20,737 million"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7474,
+        "completion_tokens": 1551,
+        "cached_tokens": 5568,
+        "cost_usd": 0.027235000000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-24T15:35:16.625563+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve Amazon's FY2025 cash flow figures from their 10-K to verify the question's stated figures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a clearer picture. Let me also verify the Amazon FY2025 figures by retrieving information from the Amazon 10-K.\n\nKey SpaceX data:\n- Connectivity Segment Adjusted EBITDA Q1 2026: $2,087M\n- Connectivity Segment Adjusted EBITDA FY2025: $7,168M\n- AI capex Q1 2026: $7,723M\n- AI capex FY2025: $12,727M\n- Total capex Q1 2026: $10,107M\n- Total capex FY2025: $20,737M\n- Consolidated Adjusted EBITDA Q1 2026: $1,127M\n- Consolidated Adjusted EBITDA FY2025: $6,584M\n\nImportant findings:\n1. The filing does NOT explicitly label Connectivity as the \"primary internal cash source\" - this is the question's framing\n2. The filing does NOT disclose free cash flow as a metric\n3. The filing does NOT disclose consolidated cash flow from operations in the excerpts (though it's referenced in the index)\n4. The filing DOES disclose that AI capex is funded through debt ($16B in 2025, $17.95B SpaceX Bridge Loan in Q1 2026), equity ($7.42B in Q1 2026), and failed sale-leaseback transactions\n\nNow let me verify Amazon's FY2025 figures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e6b61aafd7154e768c64b2bf",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the Amazon 10-K filing {{amazon_10k_2025}}, what are the exact figures for: (1) Net cash provided by operating activities for FY2025 and FY2024, (2) Capital expenditures (purchases of property and equipment) for FY2025 and FY2024, and (3) Free cash flow for FY2025 and FY2024? Provide the exact dollar amounts in millions or billions as reported."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e6b61aafd7154e768c64b2bf",
+            "content": "# Amazon's Key Cash Flow Metrics (FY2024 vs. FY2025)\n\nBased on the free cash flow reconciliation table and Consolidated Statements of Cash Flows in Amazon's 10-K filing, here are the exact figures:\n\n## 1. Net Cash Provided by Operating Activities\n\n| Fiscal Year | Amount |\n|---|---|\n| **FY2024** | **$115,877 million** (~$115.9 billion) |\n| **FY2025** | **$139,514 million** (~$139.5 billion) |\n\nThis represented an increase of approximately $23.6 billion year-over-year, driven by higher net income (excluding non-cash expenses) and working capital changes.\n\n## 2. Capital Expenditures (Purchases of Property and Equipment)\n\nTwo figures are presented in the filing:\n\n**As shown in the Free Cash Flow reconciliation (net of proceeds from sales and incentives):**\n\n| Fiscal Year | Amount |\n|---|---|\n| **FY2024** | **$(77,658) million** (~$77.7 billion) |\n| **FY2025** | **$(128,320) million** (~$128.3 billion) |\n\n**As shown on the Consolidated Statements of Cash Flows (gross, before proceeds):**\n\n| Fiscal Year | Amount |\n|---|---|\n| **FY2024** | **$(82,999) million** (~$83.0 billion) |\n| **FY2025** | **$(131,819) million** (~$131.8 billion) |\n\nThe filing notes these expenditures \"primarily reflect investments in technology infrastructure (the majority of which is to support AWS business growth) and in additional capacity to support our fulfillment network,\" with expectations of further increases in 2026.\n\n## 3. Free Cash Flow (Non-GAAP)\n\n| Fiscal Year | Amount |\n|---|---|\n| **FY2024** | **$38,219 million** (~$38.2 billion) |\n| **FY2025** | **$11,194 million** (~$11.2 billion) |\n\n## Summary Comparison\n\n| Metric | FY2024 | FY2025 | Change |\n|---|---|---|---|\n| Operating Cash Flow | $115,877M | $139,514M | +$23,637M |\n| CapEx (net of proceeds) | $(77,658)M | $(128,320)M | -$50,662M |\n| Free Cash Flow | $38,219M | $11,194M | -$27,025M |\n\nThe **~71% decline in free cash flow** ($27.0 billion decrease) was driven almost entirely by the surge in capital expenditures, which increased by approximately $50.7 billion year-over-year. Despite operating cash flow growing by $23.6 billion, the massive ramp in infrastructure investment\u2014particularly for AWS and fulfillment capacity\u2014overwhelmed the operating gains, resulting in significantly reduced free cash flow."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11258,
+        "completion_tokens": 434,
+        "cached_tokens": 7424,
+        "cost_usd": 0.023205
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-24T15:36:05.928765+00:00",
+      "source": "agent",
+      "message": "The Amazon 10-K figures I retrieved don't exactly match the question's stated figures ($32.9B to $7.7B). Amazon reports multiple free cash flow metrics. Let me search for the specific figures mentioned in the question.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Interesting. The Amazon 10-K shows:\n- FY2024 FCF: $38,219M (~$38.2B)\n- FY2025 FCF: $11,194M (~$11.2B)\n- FY2024 OCF: $115,877M\n- FY2025 OCF: $139,514M\n- FY2024 Capex (net): $77,658M\n- FY2025 Capex (net): $128,320M\n\nBut the question states:\n- FY2025 FCF fell from $32.9B to $7.7B\n- Capex consumed approximately 94% of operating cash flow\n\nThese don't match the 10-K figures I retrieved. Let me check if there's a different free cash flow metric. Amazon reports multiple free cash flow metrics:\n1. Free cash flow\n2. Free cash flow less equipment finance leases and financing obligations\n3. Free cash flow less principal repayments of finance leases and financing obligations\n\nThe question's figures ($32.9B to $7.7B) might be one of these alternative metrics. Let me search for more details.\n\nActually, let me calculate:\n- If FCF = $7.7B and capex consumed 94% of OCF, then:\n  - FCF = 6% of OCF\n  - OCF = $7.7B / 0.06 = $128.33B\n  - Capex = $128.33B \u00d7 0.94 = $120.63B\n\nHmm, that doesn't match either. Let me check the \"free cash flow less equipment finance leases\" metric.\n\nActually, Amazon's \"free cash flow less equipment finance leases and financing obligations\" is a more conservative metric. Let me retrieve that.\n\nWait, let me reconsider. The question says \"Amazon disclosed that FY2025 free cash flow fell from $32.9 billion to $7.7 billion as capex consumed approximately 94% of operating cash flow.\"\n\nLet me check if these are the \"free cash flow less principal repayments of finance leases and financing obligations\" figures.\n\nActually, let me search for the specific Amazon figures mentioned in the question.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_69a377218e0840f0ba6101f1",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the Amazon 10-K filing {{amazon_10k_2025}}, what are ALL the free cash flow metrics disclosed? Amazon typically reports: (1) Free cash flow, (2) Free cash flow less equipment finance leases and financing obligations, and (3) Free cash flow less principal repayments of finance leases and financing obligations. Please provide the exact figures for FY2025 and FY2024 for ALL three metrics, including any reconciliation tables. Also provide the exact operating cash flow and capex figures used in each reconciliation."
+          }
+        },
+        {
+          "tool_call_id": "call_bd8f119e73424d4897d15a87",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon FY2025 free cash flow \"$7.7 billion\" \"$32.9 billion\" 10-K annual report"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_69a377218e0840f0ba6101f1",
+            "content": "# Free Cash Flow Metrics Disclosed in the Provided Chunks\n\n## Metric 1: Free Cash Flow (Basic)\n\nThis is the **only** free cash flow metric explicitly disclosed with a full reconciliation table in the provided chunks. The reconciliation appears in the MD&A's liquidity section:\n\n| Line Item | FY2024 | FY2025 |\n|---|---|---|\n| Net cash provided by (used in) operating activities | $115,877M | $139,514M |\n| Purchases of property and equipment, net of proceeds from sales and incentives | $(77,658)M | $(128,320)M |\n| **Free cash flow** | **$38,219M** | **$11,194M** |\n\nThe filing states: *\"Free cash flow is cash flow from operations reduced by 'Purchases of property and equipment, net of proceeds from sales and incentives.'\"*\n\n---\n\n## Metrics 2 and 3: NOT Explicitly Disclosed in the Provided Chunks\n\nThe two additional free cash flow variants you reference \u2014 **Free cash flow less equipment finance leases and financing obligations** and **Free cash flow less principal repayments of finance leases and financing obligations** \u2014 **do not appear** in any of the provided chunks. While Amazon has historically reported these in its 10-K MD&A, the specific reconciliation tables for these two metrics are not included in the text provided to me.\n\n### Relevant Components That ARE Disclosed\n\nHowever, the individual line items needed to construct these metrics are scattered across the provided chunks, specifically in the supplemental cash flow table:\n\n| Component | FY2024 | FY2025 |\n|---|---|---|\n| Property and equipment acquired under finance leases, net of remeasurements and modifications | $854M | $2,911M |\n| Principal repayments of finance leases | $2,043M | $1,557M |\n| Principal repayments of financing obligations | $669M | $328M |\n\nAdditionally, the financing activities narrative states: *\"Property and equipment acquired under finance leases was $854 million and $2.9 billion in 2024 and 2025.\"*\n\n---\n\n## Summary\n\n| Metric | FY2024 | FY2025 | Status in Provided Chunks |\n|---|---|---|---|\n| Free cash flow | $38,219M | $11,194M | \u2705 Fully disclosed with reconciliation |\n| Free cash flow less equipment finance leases and financing obligations | \u2014 | \u2014 | \u274c Not present in provided text |\n| Free cash flow less principal repayments of finance leases and financing obligations | \u2014 | \u2014 | \u274c Not present in provided text |\n\n**Key drivers of the FY2025 decline in basic free cash flow:** Operating cash flow grew from $115.9B to $139.5B (+$23.6B), but capex surged from $77.7B to $128.3B (+$50.7B), resulting in a $27.0B decline in free cash flow (from $38.2B to $11.2B). The filing's preamble attributes this capex increase to \"investments we make in longer-term strategic initiatives, including capital expenditures focused on improving the customer experience.\""
+          },
+          {
+            "source_call_id": "call_bd8f119e73424d4897d15a87",
+            "content": "[{\"url\": \"https://news.futunn.com/en/notice/306443239/amazon-10-k-fy2025-annual-report\", \"title\": \"Amazon | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"Amazon delivered stellar financial results for fiscal year 2025, with revenue surging 12% to $716.9 billion and net income soaring 31% to $77.7 billion. Operating income increased 17% to $80.0 billion, driven by strong growth across all segments. AWS revenue grew 20% to $128.7 billion while North America sales rose 10% to $426.3 billion.The company continued major investments in artificial intelligence and infrastructure, with capital expenditures reaching $128.3 billion, primarily for AWS and\", \"score\": 0.83932644, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/306434499/10-k-fy2025-annual-report\", \"title\": \"10-K: FY2025 Annual Report - Futubull\", \"content\": \"issued $37.3 billion in senior unsecured notes and announced plans to acquire Wiz for $32 billion and Intersect for $4.8 billion to strengthen its cloud security and infrastructure capabilities.Other notable developments included a $24.1 billion net gain on equity securities, primarily from unrealized gains on non-marketable investments. Operating cash flow remained robust at $164.7 billion, while the company maintained a strong balance sheet with $126.8 billion in cash and marketable\", \"score\": 0.65887916, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/306435503/sirius-xm-10-k-fy2025-annual-report\", \"title\": \"Sirius XM | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"Sirius XM Holdings reported total revenue of $8.56 billion for 2025, down 2% from $8.70 billion in 2024, as subscriber revenue declined 2% to $5.96 billion due to lower self-pay subscribers and increased promotional plans. The company posted net income of $805 million compared to a loss of $2.08 billion in 2024, with adjusted EBITDA of $2.67 billion, down 2% year-over-year.The SiriusXM service ended 2025 with 32.9 million subscribers, down 299,000 from 2024, while Pandora's monthly active users\", \"score\": 0.42491361, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/306446101/rtx-corp-10-k-fy2025-annual-report\", \"title\": \"RTX Corp | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"Aerospace up 7% to $30.2 billion, and Raytheon increasing 5% to $28.0 billion. The company's commercial aerospace business benefited from higher aftermarket volume, while defense orders remained strong with $61 billion in new bookings. Total backlog reached $268 billion, up from $218 billion at the end of 2024.The company maintained strong cash generation with operating cash flow of $10.6 billion, up 48% from 2024. RTX continued to invest in next-generation technologies while executing\", \"score\": 0.39824316, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/305248439/atlassian-10-k-fy2025-annual-report\", \"title\": \"Atlassian | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"health. The company successfully issued $1 billion in senior notes and established a new $750 million revolving credit facility, while maintaining strong free cash flow of $1.4 billion for the fiscal year.\", \"score\": 0.32254782, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/303944017/okta-10-k-fy2025-annual-report\", \"title\": \"Okta | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"Reason For Report\\n\\nRecommended\\n\\n \\n\\n  SpaceX loses $400 billion in market value in a single day\\u2014has high interest rates started to erode valuations?\\n\\n  Golden10 Data\\n   \\u00b7 3m\\n \\n\\n  Futu Morning Brief | 60-Day Waiver: U.S. Temporarily Lifts Sanctions on Iranian Oil; Philadelphia Semiconductor Index Hits Record High, Micro\\u2026\\n\\n  Futu News\\n   \\u00b7 5m\\n \\n\\n  IPO News | Independent mobile charging brand Anker Innovations has launched its IPO subscription and is scheduled to list on July 2, with a\\u2026\", \"score\": 0.31713063, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/305109832/cintas-10-k-fy2025-annual-report\", \"title\": \"Cintas | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"Cintas Corporation delivered strong financial results for fiscal year 2025, with total revenue increasing 7.7% to $10.3 billion and net income rising 15.3% to $1.81 billion. Operating income grew 14.1% to $2.36 billion, while diluted EPS increased 16.1% to $4.40. The company's gross margin improved to 50.0% from 48.8% in the prior year.The Uniform Rental and Facility Services segment, representing 77.1% of total revenue, grew 6.8% to $7.98 billion with operating income up 12.9%. First Aid and\", \"score\": 0.30476588, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/306444478/texas-instruments-10-k-fy2025-annual-report\", \"title\": \"Texas Instruments | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"elevated capital expenditures cycle and expects to spend $2-3 billion in 2026. Management maintained its focus on free cash flow growth as the key metric for long-term value creation, returning $6.48 billion to shareholders through dividends and share repurchases in 2025.\", \"score\": 0.3043936, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/306168382/broadcom-10-k-fy2025-annual-report\", \"title\": \"Broadcom | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"The semiconductor solutions segment revenue grew 22% to $36.9 billion, driven by strong demand for AI accelerators and networking products, while infrastructure software revenue increased 26% to $27.0 billion, bolstered by VMware Cloud Foundation adoption.Operating income nearly doubled to $25.5 billion as gross margin expanded to 68% from 63% in the prior year. The company generated robust operating cash flow of $27.5 billion and returned significant value to shareholders through $11.1 billion\", \"score\": 0.28597528, \"raw_content\": null}, {\"url\": \"https://news.futunn.com/en/notice/306435287/intercontinental-exchange-10-k-fy2025-annual-report\", \"title\": \"Intercontinental Exchange | 10-K: FY2025 Annual Report - Futubull\", \"content\": \"Intercontinental Exchange (ICE) delivered robust financial results for FY2025, posting revenue of $9.931 billion and operating income of $4.929 billion. Net income reached $3.315 billion with diluted earnings per share of $5.77, demonstrating solid operational execution across all business segments.The company maintained strong performance across its core business divisions, with notable growth in data services and trading platforms. Management highlighted successful integration of recent\", \"score\": 0.20654209, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12328,
+        "completion_tokens": 666,
+        "cached_tokens": 11200,
+        "cost_usd": 0.02348
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-24T15:36:29.380008+00:00",
+      "source": "agent",
+      "message": "The Amazon 10-K basic FCF figures ($38.2B \u2192 $11.2B) don't exactly match the question's stated figures ($32.9B \u2192 $7.7B). Amazon reports multiple FCF variants. Let me search for the specific figures and check Amazon's Q4 2025 earnings release.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The Amazon 10-K shows:\n- FY2024 FCF: $38,219M\n- FY2025 FCF: $11,194M\n\nBut the question states FCF fell from $32.9B to $7.7B. These don't match the basic free cash flow metric. Let me check if these are the \"free cash flow less equipment finance leases and financing obligations\" or \"free cash flow less principal repayments of finance leases and financing obligations\" metrics.\n\nLet me calculate:\n- FCF less equipment finance leases and financing obligations:\n  - FY2024: $38,219M - $854M = $37,365M (doesn't match $32.9B)\n  - FY2025: $11,194M - $2,911M = $8,283M (close to $7.7B but not exact)\n\n- FCF less principal repayments of finance leases and financing obligations:\n  - FY2024: $38,219M - $2,043M - $669M = $35,507M (doesn't match $32.9B)\n  - FY2025: $11,194M - $1,557M - $328M = $9,309M (doesn't match $7.7B)\n\nHmm, neither matches exactly. Let me search for the specific Amazon figures.\n\nActually, wait. Let me reconsider. The question says \"Amazon disclosed that FY2025 free cash flow fell from $32.9 billion to $7.7 billion as capex consumed approximately 94% of operating cash flow.\"\n\nLet me check: if capex consumed 94% of OCF, then FCF = 6% of OCF.\n- If FCF = $7.7B, then OCF = $7.7B / 0.06 = $128.33B\n- If FCF = $32.9B, then OCF = $32.9B / 0.06 = $548.33B (this doesn't make sense)\n\nWait, the 94% is for FY2025 only. So:\n- FY2025: capex = 94% of OCF, FCF = 6% of OCF\n- If FCF = $7.7B, then OCF = $128.33B, capex = $120.63B\n\nBut the 10-K shows FY2025 OCF = $139.5B and capex (net) = $128.3B.\n- Capex / OCF = $128.3B / $139.5B = 91.97% \u2248 92%\n\nThat's close to 94% but not exact. And FCF = $11.2B, not $7.7B.\n\nLet me check if the question is using different figures. Maybe the question is using the \"free cash flow less equipment finance leases and financing obligations\" metric, or perhaps a different definition.\n\nActually, let me search more specifically for these Amazon figures.\n\nActually, I think the question might be using approximate or rounded figures, or perhaps a different source. Let me search for the specific $7.7B and $32.9B figures.\n\nWait, I should also consider that the question might be using TTM (trailing twelve months) figures as of a certain date, or perhaps figures from Amazon's Q4 2025 earnings release rather than the 10-K.\n\nLet me search for this.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_90a5ffc3cfaa4582ad7d8493",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon Q4 2025 earnings \"free cash flow\" \"$7.7 billion\" OR \"7.7B\" trailing twelve months"
+          }
+        },
+        {
+          "tool_call_id": "call_49cedcfdf11d40b08fcc791f",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Amazon 2025 annual \"free cash flow\" \"32.9 billion\" OR \"$32.9B\" prior year comparison"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_90a5ffc3cfaa4582ad7d8493",
+            "content": "[{\"url\": \"https://www.ainvest.com/news/nvidia-blowout-earnings-flow-question-2602\", \"title\": \"Nvidia's Blowout Earnings: The Flow Question\", \"content\": \"nearly $700 billion a year on AI infrastructure, with Amazon alone committing $200 billion for 2026. The scale is unprecedented, and the market is now pricing in the financial strain this creates. Amazon's AWS revenue grew 24% year-over-year to $35.6 billion in Q4, but its free cash flow collapsed to $7.7 billion from $32.9 billion the prior year. Capital spending consumed 94.5% of operating cash flow in 2025, compressing its financial buffer. This pattern of massive capex consuming cash flow\", \"score\": 0.818055, \"raw_content\": null}, {\"url\": \"https://postandparcel.info/158391/news/parcel/amazon-q4-results-net-sales-increased-10-to-187-8-billion\", \"title\": \"Amazon Q4 results: net sales increased 10% to $187.8 billion | Post & Parcel\", \"content\": \"+ AWS segment operating income was $39.8 billion, compared with operating income of $24.6 billion in 2023.\\n Net incomeincreased to $59.2 billion in 2024, or $5.53 per diluted share, compared with $30.4 billion, or $2.90 per diluted share, in 2023.\\n Operating cash flowincreased 36% to $115.9 billion for the trailing twelve months, compared with $84.9 billion for the trailing twelve months ended December 31, 2023.\", \"score\": 0.57408494, \"raw_content\": null}, {\"url\": \"https://s206.q4cdn.com/479360582/files/doc_financials/2025/q4/4/2025q4-alphabet-earnings-slides.pdf\", \"title\": \"Alphabet Q4 2025 Earnings Slides\", \"content\": \"151,424 73,552 (77,872) 52,402 (27,851) 24,551 164,713 73,266 (91,447) We provide non-GAAP free cash flow for the current quarter and trailing twelve months (\\u201cTTM\\u201d) because it is a liquidity measure that provides useful information to management and investors about the amount of cash generated by the business that can be used for strategic opportunities, including investing in our business and acquisitions, and to strengthen our balance sheet.\", \"score\": 0.47928494, \"raw_content\": null}, {\"url\": \"https://www.marketscreener.com/quote/stock/AMAZON-COM-INC-12864605/news/Amazon-com-Q4-2024-AMZN-Earnings-Release-48986748\", \"title\": \"Amazon com : Q4 2024 AMZN Earnings Release - MarketScreener.com\", \"content\": \"Economic Calendar Company calendar All our articles Most Read News Hot News. Excluding the $0.9 billion unfavorable impact from year-over-year changes in foreign exchange rates throughout the quarter, net sales increased 11% compared with fourth quarter 2023.  Free cash flow less equipment finance leases and principal repayments of all other finance leases and financing obligations increased to $36.2 billion for the trailing twelve months, compared with $35.5 billion for the trailing twelve\", \"score\": 0.4277797, \"raw_content\": null}, {\"url\": \"https://panabee.com/news/amazon-q2-earnings-2025\", \"title\": \"Amazon Q2 Earnings 2025 | Amazon News & Analysis\", \"content\": \"profitability, with operating income increasing to $11.5 billion, contributing the largest portion of the company's overall operating profit, and sales growing a steady 17% year-over-year. The North America segment also contributed to the profit growth, with operating income increasing to $5.8 billion on 8% higher sales. While operating cash flow for the trailing twelve months increased 15% to $113.9 billion, free cash flow decreased significantly by 48% to $25.9 billion for the same period,\", \"score\": 0.40627348, \"raw_content\": null}, {\"url\": \"https://www.panabee.com/news/amazon-q2-earnings-2025\", \"title\": \"Amazon Q2 Earnings 2025 | Amazon News & Analysis\", \"content\": \"Free cash flow decreased by 48% to $25.9 billion for the trailing twelve months ended March 31, 2025, compared to $50.1 billion for the same period in 2024.\\n ### What contributed to the decrease in free cash flow?\", \"score\": 0.39515805, \"raw_content\": null}, {\"url\": \"https://pulse2.com/amazon-amzn-125-6-billion-revenue-q4-2020-and-jeff-bezos-steps-down-as-ceo\", \"title\": \"Amazon (AMZN): $125.6 Billion Revenue For Q4 2020 And Jeff Bezos Steps Down As CEO\", \"content\": \"Operating cash flow for the company had increased 72% to $66.1 billion for the trailing twelve months, compared with $38.5 billion for the trailing twelve months ended December 31, 2019. The free cash flow increased to $31 billion for the trailing twelve months, compared with $25.8 billion for the trailing twelve months ended December 31, 2019.\", \"score\": 0.363173, \"raw_content\": null}, {\"url\": \"https://technotrenz.com/news/airbnb-q4-2025-earnings\", \"title\": \"Airbnb Q4 2025 Earnings: Revenue Hits $2.8B\", \"content\": \"Net cash generated from operating activities reached USD 526 million in Q4 2025, down from USD 1.36 billion in Q3 2025 but up from USD 466 million in the same quarter of the prior year.\\n Free cash flow totaled USD 521 million in Q4 2025 and USD 4.61 billion over the trailing twelve months, indicating continued strong cash generation.\\n Share repurchases totalled USD 1.1 billion in the fourth quarter. As of year-end 2025, USD 5.6 billion remained available under the authorized buyback program.\", \"score\": 0.28425848, \"raw_content\": null}, {\"url\": \"https://finance.yahoo.com/news/shopify-q4-earnings-31-revenue-134305708.html?fr=sycsrp_catchall\", \"title\": \"Shopify Q4 Earnings: 31% Revenue Surge, Free Cash Flow Growth, GMV Hits $94.5 Billion\", \"content\": \"- Amazon Spring Sale early deals. - Amazon Spring Sale fashion deals. - Amazon Spring Sale travel deals. - Amazon Spring Sale kitchen deals. - Amazon Spring Sale shoe deals. - Best gifts for sister-in-law. - Best birthday gifts for her. - Best get well soon gifts. - Best gifts for mother-in-law. - Best anniversary gifts for wife.  Amazon Spring Sale tech deals. ### New on Yahoo. + Amazon Spring Sale tech deals. - Best streaming device of 2026. # Yahoo Finance. # Shopify Q4 Earnings: 31% Revenue\", \"score\": 0.26109344, \"raw_content\": null}, {\"url\": \"https://www.stocktitan.net/news/TXN/ti-reports-q4-2024-and-2024-financial-results-and-shareholder-1ilvbt1iuekt.html\", \"title\": \"Texas Instruments Q4 Earnings Show Mixed Results: Revenue Dips 2% as Free Cash Flow Rises | TXN Stock News\", \"content\": \"|  |\\n\\n| Trailing 12 Months |\\n| (In millions) | Q4 2024 | Q4 2024 | Q4 2023 | Change |\\n| Cash flow from operations | $ | 1,998 | $ | 6,318 | $ | 6,420 | (2) % |\\n| Capital expenditures | $ | 1,192 | $ | 4,820 | $ | 5,071 | (5) % |\\n| Free cash flow | $ | 806 | $ | 1,498 | $ | 1,349 | 11 % |\\n| Free cash flow % of revenue | 9.6 % | 7.7 % |\\n\\nCash return\\n\\n|  |\", \"score\": 0.16803654, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_49cedcfdf11d40b08fcc791f",
+            "content": "[{\"url\": \"https://www.aol.com/articles/amazon-200-billion-ai-spending-153341032.html\", \"title\": \"Amazon\\u2019s $200 Billion AI Spending Shocker Has Wall Street Asking One Question - AOL\", \"content\": \"# Amazon\\u2019s $200 Billion AI Spending Shocker Has Wall Street Asking One Question. Amazon (AMZN) committed to $200B in capital expenditure for 2026. Amazon\\u2019s AWS revenue hit $35.6B in Q4 2025. Amazon\\u2019s free cash flow fell to $7.7B from $32.9B. Capital spending consumed 94.5% of operating cash flow. A recent study identified one single habit that doubled Americans\\u2019 retirement savings and moved retirement from dream, to reality. Amazon.com (NASDAQ:AMZN) has committed $200 billion in capital\", \"score\": 0.82694983, \"raw_content\": null}, {\"url\": \"https://finance.yahoo.com/news/amazon-200-billion-ai-spending-153341517.html\", \"title\": \"Amazon\\u2019s $200 Billion AI Spending Shocker Has Wall Street Asking One Question\", \"content\": \"The scale of the commitment is hard to overstate. Amazon's 2025 capital expenditures reached $131.8 billion, up 58.8% from $83.0 billion in 2024, and the $200 billion guidance signals another significant step up. Free cash flow has already compressed sharply as a result: 2025 FCF fell to $7.7 billion from $32.9 billion in 2024, with CapEx consuming 94.5% of operating cash flow. The company generated $139.5 billion in operating cash flow in 2025, providing a meaningful buffer, but the margin for\", \"score\": 0.80442166, \"raw_content\": null}, {\"url\": \"https://macrohint.com/amazon-stock-analysis-amzn-aws-margins-cash-flow-2025\", \"title\": \"Amazon Stock Analysis (AMZN): AWS, Margins & Cash Flow 2025 - MacroHint\", \"content\": \"# Amazon Stock Analysis (AMZN): AWS, Margins & Cash Flow 2025. ## Amazon Stock Analysis (AMZN): AWS, Margins & Cash Flow 2025. Amazon reported $716.9 billion in net sales for FY2025, representing 12% year-over-year growth. Operating income reached $80.0 billion, up from $68.6 billion in FY2024. Operating cash flow increased to $139.5 billion (from $115.9 billion), while free cash flow declined to $11.2 billion (from $38.2 billion) due to a substantial rise in capital expenditures. The\", \"score\": 0.73755574, \"raw_content\": null}, {\"url\": \"https://techloy.com/amazon-reports-213b-q4-2025-sales-and-plans-200b-ai-spending-surge-as-free-cash-flow-drops\", \"title\": \"Amazon Reports $213B Q4 2025 Sales and Plans $200B AI Spending Surge as Free Cash Flow Drops\", \"content\": \"Amazon Reports $213B Q4 2025 Sales and Plans $200B AI Spending Surge as Free Cash Flow Drops. Amazon Reports $213B Q4 2025 Sales and Plans $200B AI Spending Surge as Free Cash Flow Drops Post image. # Amazon Reports $213B Q4 2025 Sales and Plans $200B AI Spending Surge as Free Cash Flow Drops.  Amazon posted $213.4 billion in Q4 net sales, a 14% year-over-year increase, driven by growth across all major segments.  While annual operating cash flow grew 20% to $139.5 billion, free cash flow\", \"score\": 0.61057013, \"raw_content\": null}, {\"url\": \"https://www.tradingview.com/chart/AMZN/j4uy8BZw-An-Apples-to-Apples-Comparison-of-two-MAG-7-Giants\", \"title\": \"An Apples to Apples Comparison of two MAG-7 Giants for NASDAQ:AMZN by SonicDaisy \\u2014 TradingView\", \"content\": \"\\u2022 Free Cash Flow (TTM): \\u2248 $123.3 billion, according to certain data tracking services.  \\n  \\n\\ud83d\\udccc Annual Free Cash Flow (Fiscal Year Basis)  \\n \\u2022 FY 2025 Free Cash Flow: \\u2248 $98.8 billion, down about ~9% from FY 2024, when it was roughly $108.8 billion.  \\n \\u2022 FY 2024 Free Cash Flow: \\u2248 $108.8 billion, which increased versus FY 2023.  \\n \\u2022 FY 2023 Free Cash Flow: \\u2248 $99.6 billion.  \\n  \\n\\u2e3b  \\n  \\n\\ud83d\\udcca Year-Over-Year Trends Summary  \\n  \\nTime Period Free Cash Flow (Approx.) YoY Trend\", \"score\": 0.57437146, \"raw_content\": null}, {\"url\": \"https://www.ainvest.com/news/amazon-anticipated-gain-15-billion-cash-flow-legislation-2507\", \"title\": \"Amazon Anticipated to Gain $15 Billion in Cash Flow from New Legislation\", \"content\": \"# Amazon Anticipated to Gain $15 Billion in Cash Flow from New Legislation. Amazon is expected to gain significantly from new legislation, with analysts predicting a $15 billion increase in annual free cash flow from 2025 to 2027, and a projected $11 billion gain in 2028. Much of this financial boost is expected to be reinvested into Amazon Web Services, potentially leading to substantial savings through automation. Amazon is poised to experience a significant financial boost following new\", \"score\": 0.46104163, \"raw_content\": null}, {\"url\": \"https://www.alphapilot.tech/finance/amzn/free-cash-flow\", \"title\": \"Amazon.com, Inc. (AMZN) Stock Price, Forecast, AI Analysis & News | AlphaPilot\", \"content\": \"Despite a temporary collapse in free cash flow due to aggressive capital expenditures, Amazon's Q1 2026 revenue reached $181.5 billion, driven by a 28% surge in AWS revenue. The company is pivoting heavily toward AI i...\\n\\n### Jeff Bezos Targets $70 Trillion Industrial Market with $12 Billion War Chest\", \"score\": 0.2580599, \"raw_content\": null}, {\"url\": \"https://finance.yahoo.com/news/newmonts-record-free-cash-flow-135300320.html\", \"title\": \"Can Newmont's Record Free Cash Flow Momentum Carry Into Q4?\", \"content\": \"Carry Into Q4? Newmont Corporation NEM logged a record quarterly free cash flow in the third quarter of 2025, underscoring its operational efficiency and the strength of its Tier 1 portfolio. Its free cash flow more than doubled year to year to record $1.6 billion, led by an increase in net cash from operating activities. This marked the fourth straight quarter of free cash flow exceeding $1 billion. Net cash from operating activities shot up 40% from the prior-year quarter to $2.3 billion.\", \"score\": 0.097571015, \"raw_content\": null}, {\"url\": \"https://wallstreetnumbers.com/stocks/axp/free-cash-flow\", \"title\": \"AXP Free Cash Flow History & Chart Since 1989\", \"content\": \"# American Express Company (AXP) Free Cash Flow. ## Annual FCF. ### \\ud83d\\udcc8Free Cash Flow Chart. | Annual Free Cash Flow | Dec 31, 25 | $16.08B | +32.5% | -16.4% | +290.9% | +91.4% |. | Annual Cash From Operations | Dec 31, 25 | $18.50B | +31.7% | -12.2% | +230.9% | +99.2% |. | Annual CAPEX | Dec 31, 25 | $2.43B | +26.6% | +30.7% | +64.0% | +173.5% |. | Annual Dividends Paid | Dec 31, 25 | $2.27B | +13.6% | +45.1% | +54.1% | +161.9% |. | Annual Net Income | Dec 31, 25 | $10.76B | +7.0% | +44.3% |\", \"score\": 0.07777658, \"raw_content\": null}, {\"url\": \"https://wallstreetnumbers.com/stocks/glw/free-cash-flow\", \"title\": \"GLW Free Cash Flow History & Chart Since 1983\", \"content\": \"# Corning Incorporated (GLW) Free Cash Flow. ## Annual FCF. ### \\ud83d\\udcc8Free Cash Flow Chart. | Annual Free Cash Flow | Dec 31, 25 | $1.41B | +45.1% | +39.8% | +76.0% | -50.0% |. | TTM Free Cash Flow | Mar 31, 26 | $1.50B | +39.8% | +249.7% | -2.2% | -37.5% |. | Annual Cash From Operations | Dec 31, 25 | $2.70B | +39.0% | +3.1% | +23.6% | -29.7% |. | Annual CAPEX | Dec 31, 25 | $1.28B | +32.9% | -20.1% | -6.9% | +27.3% |. | Annual Dividends Paid | Dec 31, 25 | $999.00M | +1.3% | +7.2% | +26.9% |\", \"score\": 0.067233816, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15478,
+        "completion_tokens": 886,
+        "cached_tokens": 3200,
+        "cost_usd": 0.043555
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-24T15:38:37.210946+00:00",
+      "source": "agent",
+      "message": "I now have confirmation. The question's Amazon figures ($32.9B \u2192 $7.7B, 94.5% capex/OCF) are based on gross capex (purchases of property and equipment before proceeds), not the net figure in the 10-K's FCF reconciliation. Let me verify: $139.5B OCF - $131.8B gross capex = $7.7B FCF, and $131.8B/$139.5B = 94.5%. \n\nNow let me retrieve SpaceX's consolidated cash flow statement to check what's disclosed about operating cash flow.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have confirmation. The question's figures come from external news sources (Yahoo Finance, AOL, ainvest.com) that report:\n- Amazon's 2025 FCF fell to $7.7B from $32.9B in 2024\n- Capex consumed 94.5% of operating cash flow\n- Amazon generated $139.5B in operating cash flow in 2025\n- Amazon's 2025 capex reached $131.8B (up 58.8% from $83.0B in 2024)\n\nWait, but the 10-K shows:\n- FY2024 FCF: $38,219M (~$38.2B)\n- FY2025 FCF: $11,194M (~$11.2B)\n- FY2024 OCF: $115,877M\n- FY2025 OCF: $139,514M\n- FY2024 Capex (gross): $82,999M (~$83.0B)\n- FY2025 Capex (gross): $131,819M (~$131.8B)\n- FY2024 Capex (net): $77,658M\n- FY2025 Capex (net): $128,320M\n\nSo the news sources are using a different FCF definition. Let me figure out which one.\n\nIf FCF = $7.7B and OCF = $139.5B, then capex = $139.5B - $7.7B = $131.8B (gross capex).\nCapex / OCF = $131.8B / $139.5B = 94.48% \u2248 94.5% \u2713\n\nSo the question is using GROSS capex (purchases of property and equipment before proceeds from sales and incentives), not net capex.\n\nAnd for FY2024:\n- OCF = $115.9B\n- Gross capex = $83.0B\n- FCF = $115.9B - $83.0B = $32.9B \u2713\n\nSo the question's figures are based on:\n- FCF = OCF - Gross Capex (not net of proceeds)\n- FY2024: $115.9B - $83.0B = $32.9B\n- FY2025: $139.5B - $131.8B = $7.7B\n- Capex/OCF ratio FY2025: $131.8B / $139.5B = 94.5%\n\nThis makes sense now. The question is using a simplified FCF definition (OCF minus gross capex), which is a common external reporting convention.\n\nNow, for the SpaceX comparison:\n\nThe question asks me to construct an \"analogous FCF pressure ratio\" for SpaceX using:\n1. Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source)\n2. Annualized Q1 2026 AI capex\n\nThe Amazon ratio is: Capex / OCF = 94.5% (or equivalently, FCF / OCF = 5.5%)\n\nFor SpaceX, the analogous ratio would be:\n- AI capex (annualized Q1 2026) / Connectivity Segment Adjusted EBITDA\n\nBut which Connectivity Segment Adjusted EBITDA? The question says \"SpaceX's disclosed Connectivity Segment Adjusted EBITDA\" without specifying a period. Given that we're annualizing Q1 2026 AI capex, the most consistent approach would be to annualize Q1 2026 Connectivity Segment Adjusted EBITDA as well.\n\nLet me calculate both scenarios:\n\nScenario 1: Annualized Q1 2026 figures\n- Annualized Q1 2026 AI capex = $7,723M \u00d7 4 = $30,892M\n- Annualized Q1 2026 Connectivity Segment Adjusted EBITDA = $2,087M \u00d7 4 = $8,348M\n- Ratio = $30,892M / $8,348M = 370.0%\n\nScenario 2: Annualized Q1 2026 AI capex vs FY2025 Connectivity Segment Adjusted EBITDA\n- Annualized Q1 2026 AI capex = $30,892M\n- FY2025 Connectivity Segment Adjusted EBITDA = $7,168M\n- Ratio = $30,892M / $7,168M = 431.0%\n\nI think Scenario 1 is more appropriate because we're comparing like-for-like periods (both annualized Q1 2026). But let me also consider that the question might want us to use the most recent full-year figure for Connectivity Segment Adjusted EBITDA.\n\nActually, re-reading the question: \"Using SpaceX's disclosed Connectivity Segment Adjusted EBITDA (the filing's primary internal cash source) and annualized Q1 2026 AI capex, construct an analogous FCF pressure ratio for SpaceX.\"\n\nThe question specifically says \"annualized Q1 2026 AI capex\" but just \"Connectivity Segment Adjusted EBITDA\" without a period qualifier. This is ambiguous, but I think the most natural reading is to use the Q1 2026 Connectivity Segment Adjusted EBITDA (annualized) to match the Q1 2026 AI capex (annualized). This gives a consistent point-in-time comparison.\n\nHowever, I should also note that the question's framing of Connectivity as \"the filing's primary internal cash source\" is actually NOT explicitly stated in the filing. The retrieval showed that the filing does NOT use this exact phrase. This is an important disclosure gap to note.\n\nLet me also consider: should I use the consolidated Adjusted EBITDA instead? The question specifically says \"Connectivity Segment Adjusted EBITDA\" so I should use that.\n\nBut wait - the consolidated Adjusted EBITDA for Q1 2026 is only $1,127M (because Space and AI segments are negative). If I annualize that: $1,127M \u00d7 4 = $4,508M. And the ratio would be $30,892M / $4,508M = 685%.\n\nBut the question specifically asks for Connectivity Segment Adjusted EBITDA, so I'll use that.\n\nLet me also think about what \"FCF pressure ratio\" means. The Amazon ratio is capex/OCF = 94.5%, meaning capex consumes 94.5% of OCF. The higher this ratio, the more constrained the internal funding position.\n\nFor SpaceX:\n- If we use annualized Q1 2026 figures: AI capex / Connectivity Adj EBITDA = 370%\n- This means AI capex is 3.7x the Connectivity Segment Adjusted EBITDA\n\nThis is dramatically higher than Amazon's 94.5%, indicating SpaceX's internal funding position for AI infrastructure is MUCH more constrained than Amazon's.\n\nHowever, there are important caveats:\n1. SpaceX has other sources of cash: Space segment (small positive), debt financing ($16B in 2025, $17.95B bridge loan in Q1 2026), equity financing ($7.42B in Q1 2026), and cash on hand ($15.85B + $7.82B marketable securities)\n2. The Connectivity Segment Adjusted EBITDA is not the same as operating cash flow - it's a non-GAAP measure that adds back D&A, SBC, etc.\n3. The filing does NOT explicitly label Connectivity as the \"primary internal cash source\"\n4. The filing does NOT disclose a free cash flow metric\n5. The filing does NOT disclose consolidated cash flow from operations in the excerpts I retrieved (though it's referenced in the index)\n6. The AI capex is only one component of total capex - total capex is much higher\n\nLet me also verify the consolidated cash flow from operations figure. Let me retrieve that.\n\nActually, let me also check if the filing discloses consolidated cash flow from operations. The retrieval said \"The provided chunks do not disclose specific consolidated cash flow from operations figures for FY2025 or Q1 2026\" but also said \"Our primary sources of liquidity are cash flows generated from operations, our total cash and cash equivalents of $15,852 million as of March 31, 2026...\"\n\nLet me try to retrieve the cash flow statement directly.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7b9d200496fd441580033e4f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the SpaceX S-1 filing {{spacex_s1}}, retrieve the Consolidated Statements of Cash Flows. What are the exact figures for: (1) Net cash provided by (used in) operating activities for FY2025, FY2024, FY2023, and Q1 2026 if disclosed; (2) Capital expenditures (purchases of property and equipment) for the same periods; (3) Any free cash flow calculation or disclosure. Also, does the filing disclose cash flow from operations by segment?"
+          }
+        },
+        {
+          "tool_call_id": "call_cca665f10d1e4ad4a8e19588",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the SpaceX S-1 filing {{spacex_s1}}, what does the filing say about the Connectivity segment being a source of cash to fund other segments, particularly the AI segment? Look for any language about cross-segment funding, capital allocation strategy, or how Connectivity cash flow supports AI investments. Also, what does the filing disclose about total liquidity, debt, and equity raised to fund AI infrastructure?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7b9d200496fd441580033e4f",
+            "content": "# Consolidated Statements of Cash Flows \u2014 Key Figures\n\n## (1) Net Cash Provided by Operating Activities\n\n| Period | Net Cash from Operating Activities |\n|---|---|\n| **Q1 2026** (3 months ended Mar 31, 2026) | **$1,047 million** |\n| Q1 2025 (comparable) | $727 million |\n| **FY2025** | **$6,785 million** |\n| **FY2024** | **$5,776 million** |\n| **FY2023** | **$4,520 million** |\n\n## (2) Capital Expenditures (Purchases of Property, Plant, and Equipment)\n\n| Period | Total Capex | Related-Party Portion |\n|---|---|---|\n| **Q1 2026** | **$(10,107) million** | $34 million |\n| Q1 2025 (comparable) | $(4,140) million | $84 million |\n| **FY2025** | **$(20,737) million** | $666 million |\n| **FY2024** | **$(11,163) million** | $171 million |\n| **FY2023** | **$(4,415) million** | $11 million |\n\n### Capex by Segment (separately disclosed)\n\n| Segment | Q1 2026 | Q1 2025 | FY2025 | FY2024 | FY2023 |\n|---|---|---|---|---|---|\n| Space | $1,052 | $759 | $3,832 | $2,032 | $1,497 |\n| Connectivity | $1,332 | $814 | $4,178 | $3,498 | $2,455 |\n| AI | $7,723 | $2,567 | $12,727 | $5,633 | $463 |\n| **Total** | **$10,107** | **$4,140** | **$20,737** | **$11,163** | **$4,415** |\n\n## (3) Free Cash Flow\n\n**The filing does not explicitly define or disclose a \"free cash flow\" metric.** However, it can be derived from the two line items above:\n\n| Period | Operating Cash Flow | Capex | Implied Free Cash Flow |\n|---|---|---|---|\n| Q1 2026 | $1,047 | $(10,107) | **$(9,060) million** |\n| Q1 2025 | $727 | $(4,140) | $(3,413) million |\n| FY2025 | $6,785 | $(20,737) | **$(13,952) million** |\n| FY2024 | $5,776 | $(11,163) | $(5,387) million |\n| FY2023 | $4,520 | $(4,415) | **$105 million** |\n\nFree cash flow turned sharply negative beginning in FY2024 and deteriorated further in FY2025 and Q1 2026, driven almost entirely by the ramp in AI segment capital expenditures (which grew from $463 million in FY2023 to $12,727 million in FY2025 and $7,723 million in Q1 2026 alone).\n\n## (4) Cash Flow from Operations by Segment\n\n**No \u2014 the filing does not disclose net cash provided by operating activities on a segment-by-segment basis.** The segment tables presented in the MD&A and notes disclose, by segment:\n\n- Revenue\n- Cost of revenue, R&D, SG&A, restructuring\n- Income (loss) from operations\n- Depreciation and amortization\n- Share-based compensation\n- Capital expenditures\n\nOperating cash flow in aggregate is reconciled on the consolidated statement of cash flows through net income, non-cash adjustments, and working capital changes, but none of these working-capital line items (accounts receivable, inventory, accounts payable, deferred revenue, etc.) are broken out by segment."
+          },
+          {
+            "source_call_id": "call_cca665f10d1e4ad4a8e19588",
+            "content": "Based on the provided S-1 filing chunks, here is what SpaceX discloses regarding cross-segment funding, capital allocation strategy, and the liquidity and financing used to support its AI infrastructure:\n\n### Connectivity as a Source of Cash and Cross-Segment Funding Strategy\nSpaceX frames its capital allocation strategy as a series of historical investment cycles where cash generated from mature segments is reinvested into nascent opportunities. \n\n*   **Historical Cross-Segment Funding:** The filing notes, \"We invested in our Connectivity segment as we generated Segment Adjusted EBITDA from our Space segment, along with additional equity capital that we raised externally, creating a segment that generates predictable and recurring revenue.\" \n*   **Connectivity's Cash Generation:** The Connectivity segment became Segment Adjusted EBITDA positive on a sustained basis in 2023. In 2025, it generated **$4,423 million** in income from operations and **$7,168 million** in Segment Adjusted EBITDA. \n*   **Reinvestment Philosophy:** Under its operational principles, SpaceX states: \"As our businesses scale, they generate significant cash flow, which we reinvest into nascent market opportunities\u2014driving a self-reinforcing cycle of constant innovation and potentially creating significant additional value.\"\n*   **Funding AI and Operational Flexibility:** The filing states that cash generated from core operations enables the company to fund R&D (Starship, next-gen satellites) as well as \"the construction of future data centers, and the continued expansion of our AI-enabled products.\" Furthermore, SpaceX retains flexibility to adjust spending across segments: \"if our near-term data center needs decrease in scale or ramp more slowly than expected... we may reduce future capital expenditures in this segment and reallocate those expenditures to other segments based on business priorities and growth opportunities.\"\n\n### Total Liquidity, Debt, and Equity Raised for AI Infrastructure\nSpaceX discloses robust liquidity and a heavy reliance on both debt and equity to fund its rapid AI infrastructure expansion.\n\n**1. Total Liquidity (as of March 31, 2026):**\n*   **Cash and cash equivalents:** $15,852 million\n*   **Short-term marketable securities:** $7,823 million\n*   **Available Credit:** $1,500 million available to borrow under the SpaceX Credit Facility.\n\n**2. Debt and Equity Raised to Fund AI:**\n*   **2025 Financing Activities:** Net cash provided by financing activities was $26,350 million in 2025, an increase of $14,520 million year-over-year. This was \"primarily driven by an increase in proceeds from debt and other financing arrangements for our AI segment of $16,055 million.\"\n*   **Q1 2026 Financing Activities:** Net cash provided by financing activities was $7,125 million for the three months ended March 31, 2026. This was primarily driven by:\n    *   **Debt:** Proceeds from the SpaceX Bridge Loan and other financing arrangements of $17,950 million (partially offset by $14,703 million in payments on existing debt/debt extinguishment costs).\n    *   **Equity:** Proceeds from the sale of capital stock totaling $7,420 million (partially offset by $3,838 million in capital stock repurchases following the xAI acquisition).\n*   **SpaceX Bridge Loan:** In March 2026, SpaceX entered into a new unsecured bridge term loan facility providing an aggregate principal amount of **$20,000 million**, maturing on September 2, 2027 (with two three-month extension options). \n\n**Future Funding Strategy:**\nBecause the AI segment requires a \"multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA,\" SpaceX plans to \"access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth and to maintain strong liquidity.\" The company also noted it may seek to refinance the SpaceX Bridge Loan through notes offerings, bank borrowings, or other financial arrangements."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 20486,
+        "completion_tokens": 2111,
+        "cached_tokens": 15424,
+        "cost_usd": 0.053044999999999995
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-24T15:39:17.135780+00:00",
+      "source": "agent",
+      "message": "I now have all the data needed. Let me perform the precise calculations for both ratios.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the data I need. Let me compile the analysis.\n\n**Amazon FY2025 (from 10-K and external sources):**\n- Operating Cash Flow (FY2025): $139,514M\n- Operating Cash Flow (FY2024): $115,877M\n- Gross Capex (FY2025): $131,819M\n- Gross Capex (FY2024): $82,999M\n- FCF (OCF - Gross Capex) FY2025: $139,514M - $131,819M = $7,695M \u2248 $7.7B\n- FCF (OCF - Gross Capex) FY2024: $115,877M - $82,999M = $32,878M \u2248 $32.9B\n- Capex/OCF ratio FY2025: $131,819M / $139,514M = 94.48% \u2248 94.5%\n\n**SpaceX (from S-1):**\n- Connectivity Segment Adjusted EBITDA Q1 2026: $2,087M\n- Connectivity Segment Adjusted EBITDA FY2025: $7,168M\n- AI capex Q1 2026: $7,723M\n- AI capex FY2025: $12,727M\n- Total capex Q1 2026: $10,107M\n- Total capex FY2025: $20,737M\n- Consolidated OCF Q1 2026: $1,047M\n- Consolidated OCF FY2025: $6,785M\n- Consolidated Adjusted EBITDA Q1 2026: $1,127M\n- Consolidated Adjusted EBITDA FY2025: $6,584M\n\n**SpaceX FCF Pressure Ratio Construction:**\n\nThe question asks to use:\n1. Connectivity Segment Adjusted EBITDA (as the \"primary internal cash source\")\n2. Annualized Q1 2026 AI capex\n\nAnnualized Q1 2026 AI capex = $7,723M \u00d7 4 = $30,892M\n\nFor the Connectivity Segment Adjusted EBITDA, I'll use both:\n- Q1 2026 annualized: $2,087M \u00d7 4 = $8,348M\n- FY2025: $7,168M\n\nRatio 1 (Q1 2026 annualized): $30,892M / $8,348M = 370.0%\nRatio 2 (FY2025): $30,892M / $7,168M = 431.0%\n\nBoth ratios are dramatically higher than Amazon's 94.5%.\n\n**Comparison:**\n- Amazon FY2025: Capex/OCF = 94.5% (capex consumes 94.5% of OCF, leaving 5.5% as FCF)\n- SpaceX (Q1 2026 annualized): AI capex / Connectivity Adj EBITDA = 370% (AI capex is 3.7x the Connectivity Adj EBITDA)\n\nThis means SpaceX's AI capex alone exceeds its Connectivity Segment Adjusted EBITDA by nearly 4x, while Amazon's total capex consumed \"only\" 94.5% of its operating cash flow.\n\n**Assessment:**\nSpaceX's internal funding position for AI infrastructure is MUCH more constrained than Amazon's was in FY2025. SpaceX cannot fund its AI capex from internal cash generation alone - it must rely heavily on external debt and equity financing.\n\n**Disclosure gaps/omissions that limit confidence:**\n\n1. **No explicit \"primary internal cash source\" label**: The filing does NOT explicitly label Connectivity as the \"primary internal cash source.\" This is the question's framing, not the filing's language. While Connectivity is clearly the dominant EBITDA generator, the filing frames the capital allocation as a historical cycle of reinvestment rather than designating a specific segment as the primary cash source.\n\n2. **No free cash flow metric**: The filing does NOT define or disclose a free cash flow metric. The question's analogy requires constructing an FCF-like ratio, but SpaceX doesn't present one.\n\n3. **Segment Adjusted EBITDA \u2260 Operating Cash Flow**: The Amazon ratio uses OCF (a GAAP cash measure), while the SpaceX ratio uses Segment Adjusted EBITDA (a non-GAAP measure that adds back D&A, SBC, restructuring, and impairments). These are not directly comparable. EBITDA overstates cash generation because it doesn't account for working capital changes, interest, taxes, or the cash portion of capex maintenance.\n\n4. **No segment-level operating cash flow**: The filing does NOT disclose operating cash flow by segment. We only have consolidated OCF ($1,047M in Q1 2026, $6,785M in FY2025), which is far less than Connectivity Segment Adjusted EBITDA. This means the actual cash generated by Connectivity is likely lower than its Adjusted EBITDA.\n\n5. **AI capex is only one component**: The question uses only AI capex, but SpaceX's total capex is much higher ($10,107M in Q1 2026, $20,737M in FY2025). If we used total capex, the ratio would be even more extreme.\n\n6. **Consolidated OCF is far below Connectivity Adj EBITDA**: In Q1 2026, consolidated OCF was only $1,047M vs. Connectivity Adj EBITDA of $2,087M. In FY2025, consolidated OCF was $6,785M vs. Connectivity Adj EBITDA of $7,168M. This suggests that the actual cash available to fund AI is much less than the Connectivity Adj EBITDA suggests, because other segments (Space, AI) consume cash and working capital changes reduce OCF.\n\n7. **Heavy reliance on external financing**: The filing discloses that AI capex is funded substantially through debt ($16B in 2025, $17.95B bridge loan in Q1 2026) and equity ($7.42B in Q1 2026), not internal cash. This is a critical difference from Amazon, which funded capex primarily from operating cash flow.\n\n8. **Annualization assumption**: Annualizing Q1 2026 capex assumes the run-rate continues, which may not be accurate. The filing notes SpaceX retains flexibility to reduce AI capex if needed.\n\n9. **Recast financials**: The consolidated financials have been retrospectively recast to include xAI and X Holdings, so historical figures don't reflect standalone SpaceX operations.\n\nLet me now calculate the exact ratios.\n\nAmazon FY2025:\n- OCF = $139,514M\n- Gross Capex = $131,819M\n- FCF = $139,514M - $131,819M = $7,695M\n- Capex/OCF = $131,819M / $139,514M = 94.48%\n\nSpaceX:\n- Annualized Q1 2026 AI capex = $7,723M \u00d7 4 = $30,892M\n- Q1 2026 Connectivity Adj EBITDA (annualized) = $2,087M \u00d7 4 = $8,348M\n- Ratio = $30,892M / $8,348M = 370.0%\n\nOr using FY2025 Connectivity Adj EBITDA:\n- Ratio = $30,892M / $7,168M = 431.0%\n\nLet me also calculate the implied \"FCF\" for SpaceX:\n- If we treat Connectivity Adj EBITDA as the \"OCF equivalent\":\n  - Annualized Q1 2026: $8,348M - $30,892M = -$22,544M (negative FCF)\n  - Using FY2025: $7,168M - $30,892M = -$23,724M (negative FCF)\n\nThis is dramatically worse than Amazon's positive $7.7B FCF.\n\nLet me also note that if we use consolidated OCF instead of Connectivity Adj EBITDA:\n- Annualized Q1 2026 consolidated OCF = $1,047M \u00d7 4 = $4,188M\n- Annualized Q1 2026 AI capex = $30,892M\n- Ratio = $30,892M / $4,188M = 737.6%\n\nOr using total capex:\n- Annualized Q1 2026 total capex = $10,107M \u00d7 4 = $40,428M\n- Annualized Q1 2026 consolidated OCF = $4,188M\n- Ratio = $40,428M / $4,188M = 965.4%\n\nThese are even more extreme.\n\nNow let me also verify my Amazon calculations.\n\nAmazon FY2025:\n- OCF = $139,514M\n- Gross Capex = $131,819M\n- Capex/OCF = 131,819 / 139,514 = 0.9448 = 94.48%\n- FCF = 139,514 - 131,819 = 7,695M \u2248 $7.7B \u2713\n\nAmazon FY2024:\n- OCF = $115,877M\n- Gross Capex = $82,999M\n- FCF = 115,877 - 82,999 = 32,878M \u2248 $32.9B \u2713\n\nGreat, these match the question's figures.\n\nNow let me do the final calculations using the calculator tool.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7d0b648b568c4537bddb3020",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "131819 / 139514 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_5496162593f94340b54144ec",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "139514 - 131819"
+          }
+        },
+        {
+          "tool_call_id": "call_3cac4f4f70ef412597455a0a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "115877 - 82999"
+          }
+        },
+        {
+          "tool_call_id": "call_eda8b0256eb14d6fb84fba00",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7723 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_d08a809117d740de84dd581c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2087 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_7cf61c4b7d5644ac88c6b86a",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(7723 * 4) / (2087 * 4) * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_0ac2885b6afe4208aabe72ac",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(7723 * 4) / 7168 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_ae95ab2d6f264acdbfbbb297",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(2087 * 4) - (7723 * 4)"
+          }
+        },
+        {
+          "tool_call_id": "call_1d2a6608bdf34e90abeedb32",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - (7723 * 4)"
+          }
+        },
+        {
+          "tool_call_id": "call_5b6c54d792f14ffb8ff9d3cd",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1047 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_b546895b3fc443979869fcd6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(7723 * 4) / (1047 * 4) * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_b6fdd49f7ce34b93a696a7a1",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(10107 * 4) / (1047 * 4) * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_7d0b648b568c4537bddb3020",
+            "content": "94.4844245022005"
+          },
+          {
+            "source_call_id": "call_5496162593f94340b54144ec",
+            "content": "7695"
+          },
+          {
+            "source_call_id": "call_3cac4f4f70ef412597455a0a",
+            "content": "32878"
+          },
+          {
+            "source_call_id": "call_eda8b0256eb14d6fb84fba00",
+            "content": "30892"
+          },
+          {
+            "source_call_id": "call_d08a809117d740de84dd581c",
+            "content": "8348"
+          },
+          {
+            "source_call_id": "call_7cf61c4b7d5644ac88c6b86a",
+            "content": "370.0527072352659"
+          },
+          {
+            "source_call_id": "call_0ac2885b6afe4208aabe72ac",
+            "content": "430.9709821428571"
+          },
+          {
+            "source_call_id": "call_ae95ab2d6f264acdbfbbb297",
+            "content": "-22544"
+          },
+          {
+            "source_call_id": "call_1d2a6608bdf34e90abeedb32",
+            "content": "-23724"
+          },
+          {
+            "source_call_id": "call_5b6c54d792f14ffb8ff9d3cd",
+            "content": "4188"
+          },
+          {
+            "source_call_id": "call_b546895b3fc443979869fcd6",
+            "content": "737.6313276026743"
+          },
+          {
+            "source_call_id": "call_b6fdd49f7ce34b93a696a7a1",
+            "content": "965.3295128939827"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24313,
+        "completion_tokens": 2351,
+        "cached_tokens": 12288,
+        "cost_usd": 0.0689325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-24T15:40:27.556829+00:00",
+      "source": "agent",
+      "message": "I now have all the data and calculations needed. Let me compile the comprehensive analysis.\n\n## Summary of Key Data\n\n**Amazon FY2025 (verified from 10-K, using gross capex convention matching the question):**\n- Operating Cash Flow: $139,514M\n- Gross Capex (purchases of P&E): $131,819M\n- FCF (OCF \u2212 Gross Capex): $7,695M \u2248 $7.7B \u2713\n- Prior-year FCF: $115,877M \u2212 $82,999M = $32,878M \u2248 $32.9B \u2713\n- Capex/OCF ratio: 94.48% \u2248 94.5% \u2713\n\n**SpaceX (from S-1):**\n- Connectivity Segment Adjusted EBITDA: Q1 2026 = $2,087M; FY2025 = $7,168M\n- AI segment capex: Q1 2026 = $7,723M; FY2025 = $12,727M\n- Consolidated OCF: Q1 2026 = $1,047M; FY2025 = $6,785M\n- Total capex: Q1 2026 = $10,107M; FY2025 = $20,737M",
+      "model_name": "glm-5.2",
+      "reasoning_content": "All calculations confirmed. Let me now compile the final answer.\n\n**Amazon FY2025 FCF Pressure Ratio:**\n- OCF = $139,514M\n- Gross Capex = $131,819M\n- FCF = $7,695M (~$7.7B) \u2713\n- Prior year FCF = $32,878M (~$32.9B) \u2713\n- Capex/OCF = 94.48% (~94.5%) \u2713\n\n**SpaceX FCF Pressure Ratio (using Connectivity Segment Adjusted EBITDA as internal cash source):**\n\nOption A: Annualized Q1 2026 (both numerator and denominator annualized)\n- Annualized Q1 2026 AI capex = $7,723M \u00d7 4 = $30,892M\n- Annualized Q1 2026 Connectivity Adj EBITDA = $2,087M \u00d7 4 = $8,348M\n- Ratio = 370.05%\n- Implied \"FCF\" = $8,348M - $30,892M = -$22,544M\n\nOption B: Annualized Q1 2026 AI capex vs FY2025 Connectivity Adj EBITDA\n- Ratio = $30,892M / $7,168M = 431.0%\n- Implied \"FCF\" = $7,168M - $30,892M = -$23,724M\n\nFor reference, if using consolidated OCF instead:\n- Annualized Q1 2026 consolidated OCF = $1,047M \u00d7 4 = $4,188M\n- AI capex/Consolidated OCF = $30,892M / $4,188M = 737.6%\n- Total capex/Consolidated OCF = $40,428M / $4,188M = 965.3%\n\n**Comparison:**\n- Amazon: 94.5% (capex consumes 94.5% of OCF, leaving 5.5% as positive FCF of $7.7B)\n- SpaceX: 370% (AI capex alone is 3.7x Connectivity Adj EBITDA, implying deeply negative \"FCF\" of -$22.5B)\n\nSpaceX's internal funding position for AI infrastructure is FAR more constrained than Amazon's. Amazon's capex consumed 94.5% of OCF but still left positive FCF. SpaceX's AI capex alone exceeds its Connectivity Adj EBITDA by ~3.7x, and total capex exceeds consolidated OCF by ~9.7x. SpaceX must rely heavily on external debt and equity financing.\n\n**Disclosure gaps/omissions:**\n\n1. The filing does NOT explicitly label Connectivity as the \"primary internal cash source\" - this is the question's framing\n2. The filing does NOT define or disclose a free cash flow metric\n3. Segment Adjusted EBITDA \u2260 Operating Cash Flow (non-GAAP vs GAAP cash measure)\n4. No segment-level operating cash flow disclosure\n5. Consolidated OCF is far below Connectivity Adj EBITDA (Q1 2026: $1,047M vs $2,087M; FY2025: $6,785M vs $7,168M)\n6. The question uses only AI capex, but total capex is much higher\n7. Heavy reliance on external financing (debt and equity) is disclosed but not quantified as a funding gap\n8. Annualization assumption may not hold\n9. Recast financials include xAI and X Holdings\n\nLet me write up the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8072a6a029034f528365589d",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## SpaceX vs. Amazon: AI Infrastructure FCF Pressure Ratio Comparison\n\n### 1. Amazon FY2025 Baseline (Verified)\n\nThe question's figures are confirmed using Amazon's FY2025 10-K, applying the **gross capex** convention (purchases of property and equipment, before proceeds from sales/incentives) rather than the net figure in Amazon's non-GAAP FCF reconciliation:\n\n| Metric | FY2024 | FY2025 |\n|---|---|---|\n| Net cash from operating activities (OCF) | $115,877M | $139,514M |\n| Gross capex (purchases of P&E) | $82,999M | $131,819M |\n| **FCF (OCF \u2212 Gross Capex)** | **$32,878M (~$32.9B)** | **$7,695M (~$7.7B)** |\n| **Capex / OCF ratio** | 71.6% | **94.48% (~94.5%)** |\n\nAmazon's capex consumed ~94.5% of operating cash flow in FY2025, compressing FCF to just $7.7B \u2014 but FCF remained **positive**.\n\n---\n\n### 2. SpaceX FCF Pressure Ratio Construction\n\nPer the question's framework, I use:\n- **Numerator:** Annualized Q1 2026 AI segment capex\n- **Denominator:** Connectivity Segment Adjusted EBITDA (the question's designated \"primary internal cash source\")\n\n**SpaceX disclosed figures (from S-1):**\n- Q1 2026 AI capex: $7,723M \u2192 Annualized: $7,723M \u00d7 4 = **$30,892M**\n- Q1 2026 Connectivity Segment Adjusted EBITDA: $2,087M \u2192 Annualized: $2,087M \u00d7 4 = **$8,348M**\n- FY2025 Connectivity Segment Adjusted EBITDA: $7,168M\n\n**Constructed ratios:**\n\n| Basis | Annualized AI Capex | Connectivity Adj. EBITDA | Ratio | Implied \"FCF\" |\n|---|---|---|---|---|\n| Q1 2026 annualized (both) | $30,892M | $8,348M | **370.05%** | \u2212$22,544M |\n| Q1 2026 AI capex vs. FY2025 Connectivity EBITDA | $30,892M | $7,168M | **430.97%** | \u2212$23,724M |\n\nFor additional context, if one substitutes **consolidated operating cash flow** (the GAAP cash measure actually comparable to Amazon's denominator) instead of Connectivity Segment Adjusted EBITDA:\n- Annualized Q1 2026 consolidated OCF: $1,047M \u00d7 4 = $4,188M\n- AI capex / Consolidated OCF = $30,892M / $4,188M = **737.6%**\n- Total capex / Consolidated OCF = $40,428M / $4,188M = **965.3%**\n\n---\n\n### 3. Comparison and Assessment\n\n| Company | Ratio | Interpretation |\n|---|---|---|\n| **Amazon FY2025** | Capex/OCF = **94.5%** | Capex consumed 94.5% of OCF; FCF remained positive at $7.7B |\n| **SpaceX (Q1'26 annualized, Connectivity EBITDA basis)** | AI Capex/Connectivity EBITDA = **370%** | AI capex alone is ~3.7\u00d7 the Connectivity segment's Adjusted EBITDA |\n| **SpaceX (consolidated OCF basis)** | Total Capex/OCF = **965%** | Total capex is ~9.7\u00d7 consolidated operating cash flow |\n\n**Assessment: SpaceX's internal funding position for AI infrastructure is dramatically MORE constrained than Amazon's was in FY2025.**\n\n- Amazon's capex, while consuming 94.5% of OCF, still left **positive** free cash flow of $7.7B. Amazon funded its AI/buildout primarily from internally generated operating cash flow.\n- SpaceX's AI capex alone (annualized) exceeds its Connectivity Segment Adjusted EBITDA by ~3.7\u00d7, producing an implied \"FCF\" of **\u2212$22.5B**. On a consolidated GAAP-cash basis, total capex exceeds operating cash flow by nearly 10\u00d7, with consolidated OCF of only ~$4.2B annualized against ~$40.4B annualized total capex.\n- The S-1 confirms SpaceX is **not** funding AI infrastructure from internal cash: FY2025 financing activities included $16.1B of AI-segment debt/financing arrangements, and Q1 2026 added a $20.0B SpaceX Bridge Loan plus $7.4B in equity proceeds. SpaceX explicitly states it will \"access a range of debt and equity financing solutions available to us as a public company to fund future investments.\"\n\nIn short: Amazon stretched its internal cash generation to the limit (94.5%) but remained self-funding on a cash basis. SpaceX's internal cash generation covers only a small fraction of its AI capex, with the gap filled by external debt and equity \u2014 a structurally more constrained and externally dependent funding position.\n\n---\n\n### 4. Disclosure Gaps and Omissions in the SpaceX S-1 That Limit Confidence\n\nSeveral material disclosure issues constrain the reliability of this comparison:\n\n1. **The S-1 does NOT explicitly label Connectivity as the \"primary internal cash source.\"** This is the question's framing, not the filing's language. The filing describes a historical capital-allocation cycle (\"We invested in our Connectivity segment as we generated Segment Adjusted EBITDA from our Space segment...\") but does not designate any single segment as the primary cash source for AI. Connectivity is the largest EBITDA contributor, but the filing does not state that its cash flow is earmarked to fund AI.\n\n2. **The S-1 does NOT define or disclose a \"free cash flow\" metric.** The Amazon comparison rests on an FCF construct; SpaceX provides no analogous non-GAAP liquidity measure. Any FCF figure for SpaceX must be derived (OCF \u2212 Capex), and the filing does not present or endorse this derivation.\n\n3. **Segment Adjusted EBITDA \u2260 Operating Cash Flow.** Amazon's ratio uses GAAP operating cash flow. SpaceX's Connectivity Segment Adjusted EBITDA is a non-GAAP measure that adds back depreciation & amortization, share-based compensation, restructuring, and impairments \u2014 none of which are cash-neutral. EBITDA systematically overstates cash generation relative to OCF, making the SpaceX ratio look less extreme than a true cash-based comparison. The consolidated OCF figures confirm this: Q1 2026 consolidated OCF was $1,047M vs. Connectivity Adjusted EBITDA of $2,087M (a ~50% gap), and FY2025 consolidated OCF was $6,785M vs. Connectivity Adjusted EBITDA of $7,168M.\n\n4. **No segment-level operating cash flow disclosure.** The filing does not break out operating cash flow by segment. We cannot isolate the actual cash generated by Connectivity (as opposed to its EBITDA), nor can we determine how much of consolidated OCF is consumed by the loss-making Space and AI segments before any cash reaches the AI capex line.\n\n5. **The question isolates AI capex, but SpaceX's total capex is far larger.** Using only AI capex ($30.9B annualized) understates total capex pressure. Total Q1 2026 capex annualized is $40.4B, which \u2014 measured against either Connectivity EBITDA or consolidated OCF \u2014 produces even more extreme ratios (484% and 965%, respectively).\n\n6. **Annualization of a single quarter is an assumption the filing does not endorse.** Q1 2026 capex may not be representative of the full year. The filing notes SpaceX \"may reduce future capital expenditures in this segment and reallocate those expenditures to other segments based on business priorities,\" implying the run-rate is discretionary, not committed.\n\n7. **The consolidated financials are retrospectively recast** to include xAI (merged February 2, 2026) and X Holdings (merged into xAI March 28, 2025) for all historical periods. No period reflects standalone SpaceX operations. The AI segment's capex and losses reflect this recast entity, complicating any trend interpretation.\n\n8. **No quantification of the internal-vs-external funding split for AI.** While the filing discloses aggregate debt and equity proceeds, it does not present a sources-and-uses table isolating how much AI capex was funded internally versus externally. This omission prevents a precise apples-to-apples comparison with Amazon's predominantly internally-funded capex.\n\n**Bottom line:** On every reasonable construction, SpaceX's AI infrastructure funding pressure ratio (370%\u2013965% depending on denominator) vastly exceeds Amazon's 94.5%, and SpaceX's position is materially more constrained and more dependent on external capital. However, the comparison's confidence is limited because (a) the S-1 does not designate Connectivity as the primary internal cash source, (b) it provides no free cash flow metric, (c) Segment Adjusted EBITDA is not a cash measure comparable to Amazon's OCF, and (d) no segment-level operating cash flow is disclosed.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Connectivity Segment Adjusted EBITDA reconciliation, segment capex table, Consolidated Statements of Cash Flows, Capital Allocation and Funding Strategy disclosures\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm\",\n      \"name\": \"Amazon.com, Inc. Form 10-K for fiscal year ended December 31, 2025 (filed February 6, 2026) \u2014 Consolidated Statements of Cash Flows and Free Cash Flow reconciliation\"\n    },\n    {\n      \"url\": \"https://finance.yahoo.com/news/amazon-200-billion-ai-spending-153341517.html\",\n      \"name\": \"Yahoo Finance \u2014 'Amazon's $200 Billion AI Spending Shocker' (confirms FY2025 FCF of $7.7B vs. $32.9B prior year; capex consumed 94.5% of OCF; $139.5B OCF; $131.8B gross capex)\"\n    },\n    {\n      \"url\": \"https://www.ainvest.com/news/nvidia-blowout-earnings-flow-question-2602\",\n      \"name\": \"AInvest \u2014 'Nvidia's Blowout Earnings: The Flow Question' (corroborates Amazon FCF collapse to $7.7B from $32.9B; 94.5% capex/OCF ratio)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8072a6a029034f528365589d",
+            "content": "## SpaceX vs. Amazon: AI Infrastructure FCF Pressure Ratio Comparison\n\n### 1. Amazon FY2025 Baseline (Verified)\n\nThe question's figures are confirmed using Amazon's FY2025 10-K, applying the **gross capex** convention (purchases of property and equipment, before proceeds from sales/incentives) rather than the net figure in Amazon's non-GAAP FCF reconciliation:\n\n| Metric | FY2024 | FY2025 |\n|---|---|---|\n| Net cash from operating activities (OCF) | $115,877M | $139,514M |\n| Gross capex (purchases of P&E) | $82,999M | $131,819M |\n| **FCF (OCF \u2212 Gross Capex)** | **$32,878M (~$32.9B)** | **$7,695M (~$7.7B)** |\n| **Capex / OCF ratio** | 71.6% | **94.48% (~94.5%)** |\n\nAmazon's capex consumed ~94.5% of operating cash flow in FY2025, compressing FCF to just $7.7B \u2014 but FCF remained **positive**.\n\n---\n\n### 2. SpaceX FCF Pressure Ratio Construction\n\nPer the question's framework, I use:\n- **Numerator:** Annualized Q1 2026 AI segment capex\n- **Denominator:** Connectivity Segment Adjusted EBITDA (the question's designated \"primary internal cash source\")\n\n**SpaceX disclosed figures (from S-1):**\n- Q1 2026 AI capex: $7,723M \u2192 Annualized: $7,723M \u00d7 4 = **$30,892M**\n- Q1 2026 Connectivity Segment Adjusted EBITDA: $2,087M \u2192 Annualized: $2,087M \u00d7 4 = **$8,348M**\n- FY2025 Connectivity Segment Adjusted EBITDA: $7,168M\n\n**Constructed ratios:**\n\n| Basis | Annualized AI Capex | Connectivity Adj. EBITDA | Ratio | Implied \"FCF\" |\n|---|---|---|---|---|\n| Q1 2026 annualized (both) | $30,892M | $8,348M | **370.05%** | \u2212$22,544M |\n| Q1 2026 AI capex vs. FY2025 Connectivity EBITDA | $30,892M | $7,168M | **430.97%** | \u2212$23,724M |\n\nFor additional context, if one substitutes **consolidated operating cash flow** (the GAAP cash measure actually comparable to Amazon's denominator) instead of Connectivity Segment Adjusted EBITDA:\n- Annualized Q1 2026 consolidated OCF: $1,047M \u00d7 4 = $4,188M\n- AI capex / Consolidated OCF = $30,892M / $4,188M = **737.6%**\n- Total capex / Consolidated OCF = $40,428M / $4,188M = **965.3%**\n\n---\n\n### 3. Comparison and Assessment\n\n| Company | Ratio | Interpretation |\n|---|---|---|\n| **Amazon FY2025** | Capex/OCF = **94.5%** | Capex consumed 94.5% of OCF; FCF remained positive at $7.7B |\n| **SpaceX (Q1'26 annualized, Connectivity EBITDA basis)** | AI Capex/Connectivity EBITDA = **370%** | AI capex alone is ~3.7\u00d7 the Connectivity segment's Adjusted EBITDA |\n| **SpaceX (consolidated OCF basis)** | Total Capex/OCF = **965%** | Total capex is ~9.7\u00d7 consolidated operating cash flow |\n\n**Assessment: SpaceX's internal funding position for AI infrastructure is dramatically MORE constrained than Amazon's was in FY2025.**\n\n- Amazon's capex, while consuming 94.5% of OCF, still left **positive** free cash flow of $7.7B. Amazon funded its AI/buildout primarily from internally generated operating cash flow.\n- SpaceX's AI capex alone (annualized) exceeds its Connectivity Segment Adjusted EBITDA by ~3.7\u00d7, producing an implied \"FCF\" of **\u2212$22.5B**. On a consolidated GAAP-cash basis, total capex exceeds operating cash flow by nearly 10\u00d7, with consolidated OCF of only ~$4.2B annualized against ~$40.4B annualized total capex.\n- The S-1 confirms SpaceX is **not** funding AI infrastructure from internal cash: FY2025 financing activities included $16.1B of AI-segment debt/financing arrangements, and Q1 2026 added a $20.0B SpaceX Bridge Loan plus $7.4B in equity proceeds. SpaceX explicitly states it will \"access a range of debt and equity financing solutions available to us as a public company to fund future investments.\"\n\nIn short: Amazon stretched its internal cash generation to the limit (94.5%) but remained self-funding on a cash basis. SpaceX's internal cash generation covers only a small fraction of its AI capex, with the gap filled by external debt and equity \u2014 a structurally more constrained and externally dependent funding position.\n\n---\n\n### 4. Disclosure Gaps and Omissions in the SpaceX S-1 That Limit Confidence\n\nSeveral material disclosure issues constrain the reliability of this comparison:\n\n1. **The S-1 does NOT explicitly label Connectivity as the \"primary internal cash source.\"** This is the question's framing, not the filing's language. The filing describes a historical capital-allocation cycle (\"We invested in our Connectivity segment as we generated Segment Adjusted EBITDA from our Space segment...\") but does not designate any single segment as the primary cash source for AI. Connectivity is the largest EBITDA contributor, but the filing does not state that its cash flow is earmarked to fund AI.\n\n2. **The S-1 does NOT define or disclose a \"free cash flow\" metric.** The Amazon comparison rests on an FCF construct; SpaceX provides no analogous non-GAAP liquidity measure. Any FCF figure for SpaceX must be derived (OCF \u2212 Capex), and the filing does not present or endorse this derivation.\n\n3. **Segment Adjusted EBITDA \u2260 Operating Cash Flow.** Amazon's ratio uses GAAP operating cash flow. SpaceX's Connectivity Segment Adjusted EBITDA is a non-GAAP measure that adds back depreciation & amortization, share-based compensation, restructuring, and impairments \u2014 none of which are cash-neutral. EBITDA systematically overstates cash generation relative to OCF, making the SpaceX ratio look less extreme than a true cash-based comparison. The consolidated OCF figures confirm this: Q1 2026 consolidated OCF was $1,047M vs. Connectivity Adjusted EBITDA of $2,087M (a ~50% gap), and FY2025 consolidated OCF was $6,785M vs. Connectivity Adjusted EBITDA of $7,168M.\n\n4. **No segment-level operating cash flow disclosure.** The filing does not break out operating cash flow by segment. We cannot isolate the actual cash generated by Connectivity (as opposed to its EBITDA), nor can we determine how much of consolidated OCF is consumed by the loss-making Space and AI segments before any cash reaches the AI capex line.\n\n5. **The question isolates AI capex, but SpaceX's total capex is far larger.** Using only AI capex ($30.9B annualized) understates total capex pressure. Total Q1 2026 capex annualized is $40.4B, which \u2014 measured against either Connectivity EBITDA or consolidated OCF \u2014 produces even more extreme ratios (484% and 965%, respectively).\n\n6. **Annualization of a single quarter is an assumption the filing does not endorse.** Q1 2026 capex may not be representative of the full year. The filing notes SpaceX \"may reduce future capital expenditures in this segment and reallocate those expenditures to other segments based on business priorities,\" implying the run-rate is discretionary, not committed.\n\n7. **The consolidated financials are retrospectively recast** to include xAI (merged February 2, 2026) and X Holdings (merged into xAI March 28, 2025) for all historical periods. No period reflects standalone SpaceX operations. The AI segment's capex and losses reflect this recast entity, complicating any trend interpretation.\n\n8. **No quantification of the internal-vs-external funding split for AI.** While the filing discloses aggregate debt and equity proceeds, it does not present a sources-and-uses table isolating how much AI capex was funded internally versus externally. This omission prevents a precise apples-to-apples comparison with Amazon's predominantly internally-funded capex.\n\n**Bottom line:** On every reasonable construction, SpaceX's AI infrastructure funding pressure ratio (370%\u2013965% depending on denominator) vastly exceeds Amazon's 94.5%, and SpaceX's position is materially more constrained and more dependent on external capital. However, the comparison's confidence is limited because (a) the S-1 does not designate Connectivity as the primary internal cash source, (b) it provides no free cash flow metric, (c) Segment Adjusted EBITDA is not a cash measure comparable to Amazon's OCF, and (d) no segment-level operating cash flow is disclosed.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Connectivity Segment Adjusted EBITDA reconciliation, segment capex table, Consolidated Statements of Cash Flows, Capital Allocation and Funding Strategy disclosures\"\n    },\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm\",\n      \"name\": \"Amazon.com, Inc. Form 10-K for fiscal year ended December 31, 2025 (filed February 6, 2026) \u2014 Consolidated Statements of Cash Flows and Free Cash Flow reconciliation\"\n    },\n    {\n      \"url\": \"https://finance.yahoo.com/news/amazon-200-billion-ai-spending-153341517.html\",\n      \"name\": \"Yahoo Finance \u2014 'Amazon's $200 Billion AI Spending Shocker' (confirms FY2025 FCF of $7.7B vs. $32.9B prior year; capex consumed 94.5% of OCF; $139.5B OCF; $131.8B gross capex)\"\n    },\n    {\n      \"url\": \"https://www.ainvest.com/news/nvidia-blowout-earnings-flow-question-2602\",\n      \"name\": \"AInvest \u2014 'Nvidia's Blowout Earnings: The Flow Question' (corroborates Amazon FCF collapse to $7.7B from $32.9B; 94.5% capex/OCF ratio)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26764,
+        "completion_tokens": 3511,
+        "cached_tokens": 20480,
+        "cost_usd": 0.07642
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 126918,
+    "total_completion_tokens": 12293,
+    "total_cached_tokens": 78784,
+    "total_cost_usd": 0.341745,
+    "total_steps": 11
+  }
+}

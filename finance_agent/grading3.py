@@ -25,6 +25,7 @@ GRADE_FILES = {
     "Mimo 2.5 Pro": ROOT / "results" / "mimo25pro_grades.json",
     "Nemotron 3 Ultra": ROOT / "results" / "nemotron3ultra_grades.json",
     "GLM 5.1": ROOT / "results" / "glm51_grades.json",
+    "GLM 5.2": ROOT / "results" / "glm52_grades.json",
 }
 
 # Fuzzy matching only kicks in after exact normalized matching fails.
@@ -375,14 +376,14 @@ print("FILES GENERATED")
 print("=" * 60)
 
 generated_files = [
-    "overall_leaderboard.csv",
-    "domain_scores.csv",
-    "workflow_scores.csv",
-    "domain_winners.csv",
-    "workflow_winners.csv",
+    "overall_leaderboard2.csv",
+    "domain_scores2.csv",
+    "workflow_scores2.csv",
+    "domain_winners2.csv",
+    "workflow_winners2.csv",
 ]
 if audit_rows:
-    generated_files.append("fuzzy_match_audit.csv")
+    generated_files.append("fuzzy_match_audit2.csv")
 
 for f in generated_files:
     print("\u2713", OUTPUT_DIR / f)

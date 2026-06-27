@@ -26,6 +26,7 @@ Design goals:
 
 import asyncio
 import json
+import random
 import argparse
 import os
 from pathlib import Path
@@ -48,6 +49,50 @@ VALID_CATEGORIES = {
     "forensic", "modeling", "comparative",
 }
 
+# Exceptions worth retrying — all transient network/protocol failures.
+RETRYABLE = (
+    httpx.ReadTimeout,
+    httpx.ConnectTimeout,
+    httpx.ConnectError,
+    httpx.RemoteProtocolError,
+)
+
+# Explicit per-phase timeouts.  read=300 covers large extraction responses;
+# the old timeout=2000 in extract() was almost certainly a typo.
+TIMEOUT = httpx.Timeout(connect=20, read=300, write=60, pool=30)
+
+
+# ---------------------------------------------------------------------------
+# Retry helper
+# ---------------------------------------------------------------------------
+
+
+
+async def _post(client: httpx.AsyncClient, payload: dict) -> httpx.Response:
+    delay = 2.0
+    for attempt in range(5):
+        try:
+            resp = await client.post(
+                ENRICHMENT_BASE_URL,
+                headers={"Authorization": f"Bearer {ENRICHMENT_API_KEY}"},
+                json=payload,
+                timeout=TIMEOUT,
+            )
+            resp.raise_for_status()
+            return resp
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code < 500 or attempt == 4:
+                raise                          # 4xx = client error, don't retry
+            reason = f"HTTP {e.response.status_code}"
+        except RETRYABLE as e:
+            if attempt == 4:
+                raise
+            reason = type(e).__name__
+
+        wait = delay + random.random()
+        print(f"[retry {attempt + 1}/5] {reason}; sleeping {wait:.1f}s")
+        await asyncio.sleep(wait)
+        delay *= 2
 
 # ---------------------------------------------------------------------------
 # Prompts
@@ -238,24 +283,18 @@ Extract all atomic facts as a JSON array of strings.
 
 async def classify_question(question: str) -> str:
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            ENRICHMENT_BASE_URL,
-            headers={"Authorization": f"Bearer {ENRICHMENT_API_KEY}"},
-            json={
-                "model": EXTRACTION_MODEL,
-                "messages": [
-                    {"role": "system", "content": CLASSIFY_SYSTEM},
-                    {"role": "user",   "content": CLASSIFY_USER.format(
-                        question=question,
-                    )},
-                ],
-                "max_tokens": 8000,
-                "temperature": 0.0,
-                "thinking": {"type": "disabled"},
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
+        resp = await _post(client, {
+            "model": EXTRACTION_MODEL,
+            "messages": [
+                {"role": "system", "content": CLASSIFY_SYSTEM},
+                {"role": "user",   "content": CLASSIFY_USER.format(
+                    question=question,
+                )},
+            ],
+            "max_tokens": 8000,
+            "temperature": 0.0,
+            "thinking": {"type": "disabled"},
+        })
         raw = resp.json()["choices"][0]["message"]["content"].strip()
 
     category = extract_json(raw)["category"]
@@ -269,28 +308,22 @@ async def classify_question(question: str) -> str:
 
 async def extract(question: str, answer: str) -> list[str]:
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            ENRICHMENT_BASE_URL,
-            headers={"Authorization": f"Bearer {ENRICHMENT_API_KEY}"},
-            json={
-                "model": EXTRACTION_MODEL,
-                "messages": [
-                    {"role": "system", "content": EXTRACTION_SYSTEM},
-                    {"role": "user",   "content": EXTRACTION_USER.format(
-                        question=question,
-                        answer=answer,
-                    )},
-                ],
-                "max_tokens": MAX_TOKENS,
-                "temperature": 0.0,
-                "thinking": {"type": "disabled"},
-            },
-            timeout=2000,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        resp = await _post(client, {
+            "model": EXTRACTION_MODEL,
+            "messages": [
+                {"role": "system", "content": EXTRACTION_SYSTEM},
+                {"role": "user",   "content": EXTRACTION_USER.format(
+                    question=question,
+                    answer=answer,
+                )},
+            ],
+            "max_tokens": MAX_TOKENS,
+            "temperature": 0.0,
+            "thinking": {"type": "disabled"},
+        })
+        data   = resp.json()
         choice = data["choices"][0]
-        raw = choice["message"]["content"].strip()
+        raw    = choice["message"]["content"].strip()
         finish_reason = choice.get("finish_reason")
 
     try:
@@ -315,10 +348,6 @@ async def extract(question: str, answer: str) -> list[str]:
         seen.add(fact)
         cleaned.append(fact)
     return cleaned
-
-
-
-
 
 
 # ---------------------------------------------------------------------------

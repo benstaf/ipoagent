@@ -74,6 +74,11 @@ async def consolidate_question(
 
     return results
 
+def is_glm_only_agreement(fact):
+    models = set(fact["agreed_by"])
+    return models == {"glm51", "glm52"}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--facts", nargs="+", required=True,
@@ -112,8 +117,11 @@ def main():
 
                 all_facts = await consolidate_question(client, question, model_facts)
 
-                core      = [f for f in all_facts if f["agreement_count"] >= args.min_agreement]
-                discarded = [f for f in all_facts if f["agreement_count"] <  args.min_agreement]
+
+                glm_only = [f for f in all_facts if is_glm_only_agreement(f)]
+
+                core      = [f for f in all_facts if (f["agreement_count"] >= args.min_agreement and not is_glm_only_agreement(f)) ]
+                discarded = [f for f in all_facts if (f["agreement_count"] <  args.min_agreement or is_glm_only_agreement(f))]
 
 
                 results.append({
@@ -122,10 +130,11 @@ def main():
                      "min_agreement":   args.min_agreement,
                      "core_facts":      core,
                      "discarded_count": len(discarded),
+                     "glm_only_count":  len(glm_only),
                      "answer_files":    answer_files,
                 })
 
-                print(f"  -> {len(core)} core facts, {len(discarded)} discarded")
+                print(f"  -> {len(core)} core facts, {len(discarded)} discarded,{len(glm_only)} glm-only")
 
             return results
 

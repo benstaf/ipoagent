@@ -1,0 +1,643 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "00e967e9-f377-45db-ab17-732c24e1d32b",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-24T16:26:41.157519+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-24T16:26:41.157519+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nUsing FY2025 capex intensity and disclosed segment economics, assess which segment appears most likely to experience future depreciation expansion and identify the assumptions required to support that conclusion.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-24T16:26:41.157519+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about SpaceX's S-1 filing, specifically about FY2025 capex intensity and segment economics to assess which segment is most likely to experience future depreciation expansion. Let me start by parsing the S-1 filing.\n\nLet me first parse the SpaceX S-1 filing to get the relevant information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_504229b28fbe4dc3bf41dc25",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_504229b28fbe4dc3bf41dc25",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3153,
+        "completion_tokens": 119,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0052325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-24T16:27:35.173215+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now let me retrieve information about FY2025 capex intensity and segment economics from the S-1 filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ca5d2dbca98044d6be05867d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the FY2025 capital expenditures (capex) by segment in {{spacex_s1}}? Please provide the segment-level capex figures for SpaceX, xAI, and X Holdings segments, including any totals. Also include any segment revenue figures for FY2025."
+          }
+        },
+        {
+          "tool_call_id": "call_038f0c9a4e59493bb399333f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the segment economics disclosed in {{spacex_s1}}? Please provide segment revenue, cost of revenue, gross profit, operating income/loss, depreciation and amortization, and capital expenditures for each segment (SpaceX, xAI, X Holdings) for FY2025."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ca5d2dbca98044d6be05867d",
+            "content": "Based on the provided MD&A and financial tables, the company reports its operations under three segments: **Space**, **Connectivity**, and **AI** (which encompasses xAI and X Holdings). \n\nHere are the FY2025 (Year Ended December 31, 2025) capital expenditures and revenue figures by segment:\n\n### FY2025 Capital Expenditures (Capex) by Segment\n*   **Space:** $3,832 million\n*   **Connectivity:** $4,178 million\n*   **AI:** $12,727 million\n*   **Total Capital Expenditures:** $20,737 million\n\n### FY2025 Revenue by Segment\n*   **Space:** $4,086 million\n*   **Connectivity:** $11,387 million\n*   **AI:** $3,201 million\n*   **Total Reportable Segments Revenue:** $18,674 million"
+          },
+          {
+            "source_call_id": "call_038f0c9a4e59493bb399333f",
+            "content": "Based on the provided financial disclosures, SpaceX operates under three reportable segments\u2014**Space**, **Connectivity**, and **AI** (which encompasses xAI's Grok and X Holdings' platform). \n\nHere are the segment economics for FY2025 (Year Ended December 31, 2025) for each segment. *(Note: Gross profit is calculated as Revenue minus Cost of revenue, as it is not explicitly broken out as a line item in the tables).*\n\n### 1. Space Segment\n*   **Segment Revenue:** $4,086 million\n*   **Cost of Revenue:** $1,352 million\n*   **Gross Profit:** $2,734 million *(calculated)*\n*   **Operating Income (Loss):** $(657) million\n*   **Depreciation and Amortization:** $757 million\n*   **Capital Expenditures:** $3,832 million\n\n### 2. Connectivity Segment\n*   **Segment Revenue:** $11,387 million\n*   **Cost of Revenue:** $5,921 million\n*   **Gross Profit:** $5,466 million *(calculated)*\n*   **Operating Income (Loss):** $4,423 million\n*   **Depreciation and Amortization:** $2,376 million\n*   **Capital Expenditures:** $4,178 million\n\n### 3. AI Segment (xAI / X Holdings)\n*   **Segment Revenue:** $3,201 million\n*   **Cost of Revenue:** $2,178 million\n*   **Gross Profit:** $1,023 million *(calculated)*\n*   **Operating Income (Loss):** $(6,355) million\n*   **Depreciation and Amortization:** $3,568 million\n*   **Capital Expenditures:** $12,727 million\n\n**Total Reportable Segments (FY2025)**\n*   **Revenue:** $18,674 million\n*   **Cost of Revenue:** $9,451 million\n*   **Gross Profit:** $9,223 million *(calculated)*\n*   **Operating Income (Loss):** $(2,589) million\n*   **Depreciation and Amortization:** $6,701 million\n*   **Capital Expenditures:** $20,737 million"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3288,
+        "completion_tokens": 157,
+        "cached_tokens": 3136,
+        "cost_usd": 0.00587
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-24T16:28:24.822676+00:00",
+      "source": "agent",
+      "message": "\nLet me calculate the capex intensity ratios and look for additional context on depreciation policies and useful lives.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have the segment-level data. Let me calculate capex intensity (capex/revenue) for each segment:\n\n1. Space Segment:\n   - Capex: $3,832M\n   - Revenue: $4,086M\n   - Capex Intensity: 3,832/4,086 = 93.79%\n\n2. Connectivity Segment:\n   - Capex: $4,178M\n   - Revenue: $11,387M\n   - Capex Intensity: 4,178/11,387 = 36.69%\n\n3. AI Segment:\n   - Capex: $12,727M\n   - Revenue: $3,201M\n   - Capex Intensity: 12,727/3,201 = 397.59%\n\nThe AI segment has by far the highest capex intensity at ~398%, meaning it's investing nearly 4x its revenue in capex. This suggests significant future depreciation expansion.\n\nLet me also look at the current D&A relative to capex to understand the depreciation cycle:\n- Space: D&A $757M / Capex $3,832M = 19.76% (D&A is much lower than capex, suggesting assets are still being deployed)\n- Connectivity: D&A $2,376M / Capex $4,178M = 56.86%\n- AI: D&A $3,568M / Capex $12,727M = 28.03%\n\nThe AI segment has the highest capex intensity and a relatively low D&A/capex ratio, suggesting significant future depreciation expansion.\n\nLet me also check the useful life assumptions for the AI segment's assets to understand the depreciation timeline.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_229f1dcc666146acb3bd16b4",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3832 / 4086 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_8798d6de699c49c7b1bd7087",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4178 / 11387 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_50be8bc86846413daa586b80",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "12727 / 3201 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_195cc56e65864722a248dfe7",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "757 / 3832 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_8199e147584f46ef80428a2c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2376 / 4178 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_824c957d52d5469890094ad9",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3568 / 12727 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_35d29ac8b43b4c09b28a61e8",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the useful lives of property, plant and equipment, particularly for AI infrastructure (data centers, GPUs, supercomputers), satellites, launch vehicles, and ground stations in {{spacex_s1}}? Please provide the depreciation policies and useful life ranges disclosed."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_229f1dcc666146acb3bd16b4",
+            "content": "93.78365149290259"
+          },
+          {
+            "source_call_id": "call_8798d6de699c49c7b1bd7087",
+            "content": "36.69096337929217"
+          },
+          {
+            "source_call_id": "call_50be8bc86846413daa586b80",
+            "content": "397.59450171821305"
+          },
+          {
+            "source_call_id": "call_195cc56e65864722a248dfe7",
+            "content": "19.754697286012526"
+          },
+          {
+            "source_call_id": "call_8199e147584f46ef80428a2c",
+            "content": "56.869315461943515"
+          },
+          {
+            "source_call_id": "call_824c957d52d5469890094ad9",
+            "content": "28.034886461852754"
+          },
+          {
+            "source_call_id": "call_35d29ac8b43b4c09b28a61e8",
+            "content": "Based on the provided financial disclosures, here are the depreciation policies and estimated useful lives for the company's property, plant, and equipment (PP&E), with a specific focus on AI infrastructure, satellites, launch vehicles, and ground stations.\n\n### **General Depreciation Policies**\n*   **Method:** PP&E is stated at cost less accumulated depreciation. Assets are depreciated primarily using the **straight-line method** over their estimated useful lives.\n*   **Exception for Reusable Vehicles:** Flight vehicles and spacecraft are depreciated based on the **expected number of average flights** rather than a time-based useful life. \n*   **Leasehold Improvements:** Depreciated over the shorter of their estimated useful lives or the related lease term.\n*   **Refurbishment & Maintenance:** Routine maintenance and repairs are expensed as incurred. Significant refurbishments, renewals, and enhancements that increase an asset's functionality, output, or expected life are capitalized and depreciated ratably over the asset's identified useful life.\n*   **Capitalized Interest:** Interest is capitalized during the construction period for significant long-term projects, such as AI infrastructure data centers and launch facilities. \n*   **Useful Life Revisions:** Management periodically reviews useful life estimates with engineering and operations teams. If the useful lives or expected remaining flights are found to be shorter or longer than originally estimated, the depreciation rate is adjusted prospectively.\n\n---\n\n### **Estimated Useful Lives by Asset Category**\nThe company discloses the following estimated useful life ranges for its PP&E categories:\n\n| Asset Classification | Estimated Useful Life |\n| :--- | :--- |\n| **Servers and networking equipment** (GPUs, AI compute) | 5 - 6 years |\n| **Satellites** | 3 - 5 years |\n| Machinery and equipment | 3 - 10 years |\n| **Flight vehicle hardware** (Launch vehicles) | 5 - 25 flights |\n| **Data center infrastructure** | 20 - 25 years |\n| **Launch sites** | 7 - 20 years |\n| Buildings and improvements | 30 years |\n| Leasehold improvements | Shorter of 7 - 20 years or the life of the lease |\n\n---\n\n### **Specifics on Requested Asset Categories**\n\n#### **1. AI Infrastructure (Data Centers, GPUs, Supercomputers)**\nAI infrastructure is split into two primary PP&E categories based on its physical components:\n*   **Servers and networking equipment (GPUs/Supercomputers):** 5 to 6 years. (The text notes the company is acquiring third-party GPUs, manufacturing its own GPUs, and constructing/leasing data centers to support AI products).\n*   **Data center infrastructure (The physical facilities):** 20 to 25 years. \n*   *Note on Construction:* The company has a massive \"Construction-in-progress\" balance primarily related to ongoing facility expansions and AI infrastructure that has not yet been placed in service. Interest is actively being capitalized on these AI data center construction projects.\n\n#### **2. Satellites**\n*   **Useful Life:** 3 to 5 years.\n*   **Specifics:** The company estimates broadband satellites have a **5-year useful life**, while first-generation mobile satellites have a **3-year useful life**. \n*   **Estimation Factors:** Useful lives are based on engineering studies, historical on-orbit performance, propellant life, utilization patterns, design enhancements across generations, and planned transitions to newer technology. \n*   **Capitalized Costs:** Satellite costs include parts, labor, allocated overhead, and capitalized launch costs incurred by the Space segment to put them into orbit. The company notes that the useful life of satellites is inherently shorter than the IT systems they host, requiring periodic replacement launches.\n\n#### **3. Launch Vehicles (Flight Vehicle Hardware)**\n*   **Useful Life:** 5 to 25 flights (depreciated based on expected average flights, not years).\n*   **Estimation Factors:** The expected number of flights is determined by: (1) the continued ability to successfully recover and refurbish hardware, (2) the economic feasibility of incremental flights (supported by declining refurbishment costs), and (3) customer acceptance for reflown hardware. \n*   **Asset Composition:** Boosters, fairings, Merlin engines, and Dragon capsules are reusable and classified as PP&E. Second stages are not reusable and are classified as inventory. Starship is currently in development, with a majority of its costs expensed to Research & Development as incurred.\n\n#### **4. Ground Stations**\n*   **Useful Life:** Not explicitly broken out as a standalone line item in the useful life table. However, the text mentions \"gateway decommissions\" alongside routine asset disposals and scrapping. Ground stations/gateways are most likely classified under **Machinery and equipment (3 to 10 years)** or potentially **Launch sites (7 to 20 years)** depending on their specific function and permanence."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4147,
+        "completion_tokens": 563,
+        "cached_tokens": 3264,
+        "cost_usd": 0.011917500000000001
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-24T16:30:06.203627+00:00",
+      "source": "agent",
+      "message": "Let me also check the construction-in-progress balance and any forward-looking capex guidance to support the analysis.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also check the construction-in-progress balance and any forward-looking capex guidance to support the analysis.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_708405d096494bf8a5a80c4a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the construction-in-progress (CIP) balance and total property, plant and equipment balance disclosed in {{spacex_s1}}? Please provide the PP&E breakdown by category (servers, satellites, flight vehicles, data centers, etc.) and any forward-looking statements about future capital expenditures or AI infrastructure investment plans."
+          }
+        },
+        {
+          "tool_call_id": "call_71232f4575a74d9ca832856e",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about Colossus supercomputer, AI data center expansion plans, GPU purchases, and future AI infrastructure investment commitments? Please include any forward-looking statements about AI capex, GPU deployment, or data center buildout plans."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_708405d096494bf8a5a80c4a",
+            "content": "# Construction-in-Progress and Total PP&E Balances\n\n## Construction-in-Progress (CIP) Balance\n\n| Period | CIP Balance |\n|---|---|\n| March 31, 2026 | **$14,045 million** |\n| December 31, 2025 | **$4,604 million** |\n| December 31, 2024 | **$3,007 million** |\n\nCIP is described as \"primarily comprised of ongoing construction and expansion of the facilities and equipment as well as AI infrastructure that has not yet been placed in service.\" The CIP balance nearly tripled from $4.6 billion at year-end 2025 to $14.0 billion by Q1 2026, reflecting the rapid acceleration of AI data center buildout.\n\n## Total Property, Plant, and Equipment (Gross, Before Accumulated Depreciation)\n\n| Period | Total PP&E (Gross) |\n|---|---|\n| March 31, 2026 | **$68,571 million** |\n| December 31, 2025 | **$55,303 million** |\n| December 31, 2024 | **$28,687 million** |\n\n## Full PP&E Breakdown by Category\n\n| Category | March 31, 2026 | December 31, 2025 | December 31, 2024 |\n|---|---|---|---|\n| Servers and networking equipment | $23,850 | $22,694 | $6,892 |\n| Satellites | 12,893 | 11,949 | 7,591 |\n| Machinery and equipment | 8,020 | 6,343 | 5,343 |\n| Data center infrastructure | 2,965 | 2,960 | 224 |\n| Launch sites | 2,479 | 2,404 | 2,121 |\n| Land, buildings and improvements | 2,018 | 1,876 | 913 |\n| Flight vehicle hardware | 1,459 | 1,689 | 1,577 |\n| Leasehold improvements | 842 | 784 | 1,019 |\n| Construction-in-progress | 14,045 | 4,604 | 3,007 |\n| **Total PP&E (gross)** | **$68,571** | **$55,303** | **$28,687** |\n| Less: Accumulated depreciation | (14,692) | (12,701) | (7,540) |\n| **PP&E, net** | **$53,879** | **$42,602** | **$21,147** |\n\n### Estimated Useful Lives (from Significant Accounting Policies)\n\n| Classification | Estimated Useful Life |\n|---|---|\n| Servers and networking equipment | 5\u20136 years |\n| Satellites | 3\u20135 years |\n| Machinery and equipment | 3\u201310 years |\n| Flight vehicle hardware | 5\u201325 flights |\n| Data center infrastructure | 20\u201325 years |\n| Launch sites | 7\u201320 years |\n| Buildings and improvements | 30 years |\n| Leasehold improvements | Shorter of 7\u201320 years or lease life |\n\n---\n\n## Capital Expenditures by Segment\n\n| Segment | Q1 2026 | Q1 2025 | FY 2025 | FY 2024 | FY 2023 |\n|---|---|---|---|---|---|\n| Space | $1,052 | $759 | $3,832 | $2,032 | $1,497 |\n| Connectivity | 1,332 | 814 | 4,178 | 3,498 | 2,455 |\n| AI | 7,723 | 2,567 | 12,727 | 5,633 | 463 |\n| **Total CapEx** | **$10,107** | **$4,140** | **$20,737** | **$11,163** | **$4,415** |\n\nThe AI segment's capital expenditures surged from $463 million in 2023 to $12.7 billion in 2025, and reached $7.7 billion in just the first quarter of 2026 alone\u2014exceeding all of FY 2024.\n\n---\n\n## Forward-Looking Statements on Future Capital Expenditures and AI Infrastructure\n\nThe document contains several explicit forward-looking statements regarding future investment plans:\n\n### 1. Substantial Increase in Capital Expenditures Expected\n> \"We have incurred significant capital expenditures and **expect to increase our capital expenditures substantially in the future** in connection with the design, development, and deployment of our satellite constellations, launch vehicles, ground stations, manufacturing facilities, and programs, including **Terafab, AI compute infrastructure, data centers, and other supporting infrastructure**.\"\n\n### 2. AI-Specific Investment Plans\n> \"We have made and **intend to continue to make substantial capital expenditures to support the growth of our AI products**, including costs related to **obtaining third-party GPUs, manufacturing our own GPUs, and constructing, leasing, maintaining, enhancing, and expanding our data centers**.\"\n\n### 3. Acceleration Option\n> \"We **may choose to increase or accelerate the pace of any of these investments at any time**, which could result in periods of reduced profitability or increased losses as we prioritize long-term growth over near-term financial performance.\"\n\n### 4. Starship-Driven Cost Reduction Enabling Orbital AI\n> \"We believe that Starship can eventually **reduce the cost to reach orbit by 99% or more** relative to the historical average launch cost per kilogram according to NASA of $18,500, establishing a **scalable path to creating the infrastructure of the future, such as orbital AI compute**.\"\n\n### 5. Orbital AI Compute Satellite Deployment\n> The company references \"potential deployment of our **orbital AI compute satellites as early as 2028**,\" including the ability to \"successfully develop, scale, and commercialize such technologies, which are subject to significant technical complexity, capital requirements, new innovations and regulatory approvals.\"\n\n### 6. IPO Proceeds Allocation\n> \"We intend to use the net proceeds from this offering to fund our growth strategy, including the **expansion of our AI compute infrastructure, enhancements to our launch infrastructure and launch vehicles, increases in the scale and capacity of our satellite constellations**, and any remaining amounts for general corporate purposes.\"\n\n### 7. Starship Capital Requirements\n> \"The development, testing, and deployment of Starship in accordance with our anticipated schedule, as well as our pursuit of orbital AI, other space-related services, and lunar and interplanetary missions, **will require the investment of significant additional capital resources**.\"\n\n---\n\n## Additional Context\n\n- **Capitalized interest**: $169 million was capitalized into CIP for the year ended December 31, 2025 (related to AI infrastructure data centers), and $7 million for the three months ended March 31, 2026. No interest was capitalized in 2024 or 2023.\n- **Depreciation expense**: $5,915 million (FY 2025), $2,977 million (FY 2024), and $2,329 million (Q1 2026).\n- **Impairment charges**: $38 million in FY 2025 (damaged flight vehicle in Space segment; abandoned production line and damaged satellite hardware in Connectivity segment) and $24 million in Q1 2025 (damaged flight vehicles in Space segment). Additional restructuring-related impairments of $36 million (2024) and $54 million (2023) related to leasehold improvements and office equipment in the AI segment.\n- **Related-party PP&E additions**: $506 million (2025) and $191 million (2024) of Megapack products purchased from Tesla, plus $131 million of Cybertrucks, all recorded in PP&E."
+          },
+          {
+            "source_call_id": "call_71232f4575a74d9ca832856e",
+            "content": "Based on the provided S-1 preamble excerpts, the company discloses a comprehensive, highly vertically integrated strategy for its AI infrastructure, centering on the COLOSSUS supercomputer, massive capital expenditures, and future expansion into orbital AI. \n\nHere is a detailed breakdown of the disclosures regarding the Colossus supercomputer, data center expansion, GPU purchases, and future investment commitments:\n\n### 1. The COLOSSUS Supercomputer and Current GPU Deployment\nThe company highlights its existing gigawatt-scale AI training clusters as a primary competitive advantage, emphasizing rapid deployment and cost efficiency:\n*   **Current Capacity:** COLOSSUS and COLOSSUS II collectively provide approximately **1.0 gigawatt of compute power**, with additional power capacity available for operations. COLOSSUS II is located in Memphis, Tennessee.\n*   **Rapid Deployment:** The first cluster of COLOSSUS was brought online in **122 days** by repurposing an existing factory. The first cluster of COLOSSUS II was deployed even faster, in **91 days**. (The company notes the industry benchmark for bringing a 100MW greenfield data center online is approximately two years).\n*   **GPU Deployment Milestones:** \n    *   **COLOSSUS:** First cluster deployed approximately 100,000 H100 processors (~130 megawatts).\n    *   **COLOSSUS II:** First cluster deployed approximately 110,000 GB200 processors (~210 megawatts) in 91 days. The second cluster added 110,000 GB300 processors and 220 megawatts in just 64 days. The company states COLOSSUS II was one of the world's first data centers to deploy GB200s and GB300s at significant scale.\n\n### 2. AI Data Center Expansion and Buildout Plans\nThe company outlines aggressive terrestrial expansion plans for COLOSSUS II, alongside a visionary long-term plan for orbital data centers:\n*   **COLOSSUS II Expansion:** The next phase of expansion at COLOSSUS II is designed to train the next-generation Grok 5 AI model. Once fully operational, this phase will bring online **at least 220,000 additional GB300 processors** and represent an **additional 400+ megawatts of compute capacity**.\n*   **Power and Cooling Infrastructure:** COLOSSUS II is capable of operating entirely off a self-built, behind-the-meter gigawatt-scale natural gas power plant, supplemented by the world\u2019s largest Megapack (battery storage) deployment. The facilities use brownfield retrofits, advanced direct-to-chip liquid cooling, high-density rack layouts, and advanced water reclamation. The company pledges to cover the costs of all new power delivery infrastructure upgrades so expenses are not passed on to local households.\n*   **Orbital AI Compute (Forward-Looking):** The company plans to eventually move power-intensive AI workloads into orbit to leverage near-constant solar energy, bypassing terrestrial energy constraints. They believe their Starship launch vehicle will enable the deployment and operation of orbital data centers that could eventually achieve lower costs than terrestrial data centers.\n\n### 3. GPU Purchases and Chip Manufacturing (Terafab)\nTo secure the massive compute required and alleviate future chip shortages, the company is vertically integrating into hardware manufacturing:\n*   **Third-Party GPUs:** The company incurs substantial costs related to obtaining third-party GPUs.\n*   **Terafab Initiative:** Together with Tesla (and Intel, which joined in April 2026), the company is building a manufacturing facility capable of producing **1 terawatt per year of compute hardware**. This \"shovels-to-tokens\" approach extends their vertical integration into chip design and manufacturing to optimize performance and reduce overall compute costs.\n\n### 4. AI Infrastructure Investment Commitments & Capex (Forward-Looking)\nThe S-1 details massive financial commitments and warns that prioritizing these long-term investments may impact near-term profitability:\n*   **Historical Capex Surge:** AI capital expenditures increased from $463 million in 2023 to $5.6 billion in 2024, and surged to **$12.7 billion in 2025**. These investments were primarily driven by the rapid expansion of terrestrial data centers.\n*   **Future Capex Expectations:** The company expects to *increase capital expenditures substantially* in the future for the design, development, and deployment of satellite constellations, launch vehicles, Terafab, AI compute infrastructure, and data centers. This includes manufacturing their own GPUs and constructing, leasing, maintaining, and expanding data centers.\n*   **Recent Financial Commitments:**\n    *   An **$8.5 billion deferred services fee** under a compute agreement (payable in cash or Class A common stock).\n    *   A **five-year equipment lease agreement with Valor** for AI infrastructure hardware (\"Valor transaction III\") for total undiscounted lease payments of **$6.58 billion**.\n    *   An asset purchase agreement to buy mobile gas turbines and related packages for approximately **$2 billion** to help provide power to the data centers.\n    *   A cloud services agreement with Anthropic PBC for access to compute capacity, with monthly fees ramping through May 2029.\n*   **Near-Term Profitability Warning:** The company explicitly states it may choose to increase or accelerate the pace of these investments at any time, which \"could result in periods of reduced profitability or increased losses as we prioritize long-term growth over near-term financial performance.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5803,
+        "completion_tokens": 188,
+        "cached_tokens": 4096,
+        "cost_usd": 0.0112675
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-24T16:31:44.595033+00:00",
+      "source": "agent",
+      "message": "Let me verify the segment D&A figures and check for any additional context on the AI segment's depreciation trajectory.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive picture. Let me synthesize the analysis:\n\n**FY2025 Capex Intensity by Segment:**\n- Space: $3,832M / $4,086M = 93.78%\n- Connectivity: $4,178M / $11,387M = 36.69%\n- AI: $12,727M / $3,201M = 397.59%\n\n**Current D&A vs. Capex (D&A/Capex ratio):**\n- Space: $757M / $3,832M = 19.75%\n- Connectivity: $2,376M / $4,178M = 56.87%\n- AI: $3,568M / $12,727M = 28.03%\n\n**Key observations:**\n\n1. The AI segment has by far the highest capex intensity at ~398%, meaning it's investing nearly 4x its revenue in capex. This is dramatically higher than the other segments.\n\n2. The AI segment's D&A/Capex ratio is only 28%, suggesting that current depreciation is far below the run-rate of capex investment. As these assets are placed in service, depreciation will expand significantly.\n\n3. The CIP balance nearly tripled from $4.6B at YE2025 to $14.0B at Q1 2026, primarily AI infrastructure not yet placed in service. This is a leading indicator of future depreciation.\n\n4. The AI segment's capex trajectory is explosive: $463M (2023) \u2192 $5.6B (2024) \u2192 $12.7B (2025) \u2192 $7.7B in Q1 2026 alone.\n\n5. The useful lives of AI infrastructure:\n   - Servers and networking equipment (GPUs): 5-6 years\n   - Data center infrastructure: 20-25 years\n\n6. The AI segment is operating at a significant loss: $(6,355)M operating loss on $3,201M revenue.\n\n**Assumptions required to support the conclusion that AI segment will experience the most future depreciation expansion:**\n\n1. **Capex continues at or above FY2025 levels** - The S-1 explicitly states the company \"expects to increase capital expenditures substantially in the future\" for AI infrastructure.\n\n2. **CIP converts to in-service PP&E** - The $14B CIP balance (Q1 2026) will be placed in service and begin depreciating.\n\n3. **Useful lives remain at disclosed ranges** - Servers/networking equipment at 5-6 years, data center infrastructure at 20-25 years. If useful lives are shortened (e.g., due to GPU obsolescence), depreciation would expand even faster.\n\n4. **No material impairments** - If assets are impaired before full depreciation, the depreciation run-rate would be lower (though impairment charges would still hit the income statement).\n\n5. **Revenue growth does not outpace capex growth** - If AI revenue scales faster than capex, the capex intensity would decline, but absolute depreciation would still expand.\n\n6. **Straight-line depreciation continues** - The company uses straight-line for AI infrastructure (not flight-based like launch vehicles).\n\n7. **No asset retirements/disposals** - If assets are retired early, depreciation would be reduced.\n\n8. **Capitalized interest continues** - The company is capitalizing interest on AI data center construction, which adds to the depreciable base.\n\nLet me also calculate the implied annual depreciation if the current CIP and recent capex were placed in service:\n\nIf we assume the AI segment's $12.7B FY2025 capex is depreciated over 5-6 years (servers/networking equipment), that implies ~$2.1-2.5B of annual depreciation from FY2025 capex alone. Plus the $14B CIP at Q1 2026 would add another ~$2.3-2.8B annually once placed in service.\n\nActually, let me think about this more carefully. The AI segment's current D&A is $3,568M. If we add the depreciation from FY2025 capex ($12.7B / 5.5 years = ~$2.3B annually) and the CIP balance ($14B / 5.5 years = ~$2.5B annually), the AI segment's depreciation could roughly double or triple over the next few years.\n\nLet me also note that the AI segment's capex is heavily weighted toward servers and networking equipment (5-6 year life), which is shorter than data center infrastructure (20-25 years). This means a larger portion of AI capex will depreciate faster.\n\nLooking at the PP&E breakdown:\n- Servers and networking equipment: $22,694M (YE2025) - this is the largest category\n- Data center infrastructure: $2,960M (YE2025)\n\nSo the vast majority of AI PP&E is in the shorter-lived category (5-6 years).\n\nLet me also calculate the implied depreciation expansion. If we assume:\n- AI segment capex of $12.7B in FY2025, with ~80% going to servers/networking (5-6 year life) and ~20% to data center infrastructure (20-25 year life)\n- Annual depreciation from FY2025 capex: ($12.7B * 0.8 / 5.5) + ($12.7B * 0.2 / 22.5) = $1.85B + $0.11B = ~$1.96B annually\n\nPlus the $14B CIP at Q1 2026 (assuming similar mix):\n- Annual depreciation: ($14B * 0.8 / 5.5) + ($14B * 0.2 / 22.5) = $2.04B + $0.12B = ~$2.16B annually\n\nSo the AI segment's depreciation could expand by ~$4B annually over the next few years as these assets are placed in service, more than doubling the current $3.6B D&A.\n\nNow let me prepare the final answer.\n\nActually, let me also verify the segment D&A figures by retrieving them again to make sure I have the right numbers.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e122939bf51b481d9107b509",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what is the segment-level depreciation and amortization for FY2025, FY2024, and FY2023 for the Space, Connectivity, and AI segments? Please provide the exact figures from the segment reporting tables."
+          }
+        },
+        {
+          "tool_call_id": "call_3b6eb64b35c34770b0cccf32",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what does the company disclose about the relationship between capital expenditures and future depreciation expense? Are there any risk factors or disclosures about how AI infrastructure investments will impact future depreciation, operating expenses, or profitability?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e122939bf51b481d9107b509",
+            "content": "# Segment-Level Depreciation and Amortization (FY2023\u2013FY2025)\n\nBased on the segment reporting tables, the depreciation and amortization figures (in millions) are as follows:\n\n| Segment | FY2025 | FY2024 | FY2023 |\n|---|---|---|---|\n| **Space** | $757 | $637 | $571 |\n| **Connectivity** | $2,376 | $1,508 | $884 |\n| **AI** | $3,568 | $1,679 | $1,180 |\n| **Total Reportable Segments** | $6,701 | $3,824 | $2,635 |\n\n### Key Observations:\n- **Total D&A grew ~154%** from FY2023 ($2,635M) to FY2025 ($6,701M), reflecting the company's rapidly expanding asset base.\n- **AI segment D&A saw the most dramatic increase**, rising from $1,180M in FY2023 to $3,568M in FY2025 (~3x), driven by GPU hardware depreciation and data center infrastructure expansions.\n- **Connectivity segment D&A nearly tripled** from $884M (FY2023) to $2,376M (FY2025), consistent with the growing Starlink satellite constellation placed into orbit.\n- **Space segment D&A grew more modestly** (~33% over two years), from $571M to $757M, aligning with incremental launch infrastructure investments."
+          },
+          {
+            "source_call_id": "call_3b6eb64b35c34770b0cccf32",
+            "content": "# Capital Expenditures and Future Depreciation: Key Disclosures\n\n## The Direct Relationship: Rising CapEx Driving Accelerating Depreciation\n\nThe company's disclosures reveal a clear and dramatic trajectory where capital expenditures\u2014particularly in AI\u2014are fueling a rapidly growing depreciation base:\n\n### Capital Expenditure Growth (Total and AI Segment)\n\n| Period | Total CapEx | AI Segment CapEx | AI as % of Total |\n|--------|------------|-----------------|-----------------|\n| 2023 | $4,415M | $463M | ~10% |\n| 2024 | $11,163M | $5,633M | ~50% |\n| 2025 | $20,737M | $12,727M | ~61% |\n| Q1 2026 | $10,107M | $7,723M | ~76% |\n\n### Corresponding Depreciation Expense Growth\n\n| Period | Total D&A | AI Segment D&A |\n|--------|----------|---------------|\n| 2023 | $2,635M | $1,180M |\n| 2024 | $3,824M | $1,679M |\n| 2025 | $5,915M | (not separately disclosed in these chunks) |\n| Q1 2025 | $1,237M | \u2014 |\n| Q1 2026 | $2,329M (per PP&E note) / $2,442M (per segment table) | $1,493M |\n\nThe depreciation expense nearly **doubled** from 2024 to 2025 ($2,977M to $5,915M), and Q1 2026 depreciation ($2,329M) already approximates **88% of full-year 2024 depreciation**\u2014a direct consequence of the massive AI capital expenditures being placed in service.\n\n### The Growing Asset Base\n\nThe Property, Plant, and Equipment note (Note 5) reveals the scale of assets being deployed:\n\n- **Total PP&E (gross)** grew from $55,303M (Dec 2025) to $68,571M (Mar 2026)\u2014a $13.3B increase in a single quarter\n- **Servers and networking equipment** alone total $23,850M, representing the largest asset category\n- **Construction-in-progress** surged from $4,604M (Dec 2025) to $14,045M (Mar 2026), indicating that approximately $14B of additional AI infrastructure is under construction and **not yet being depreciated**\u2014representing a substantial future depreciation pipeline\n- Accumulated depreciation stands at only $14,692M against $68,571M gross PP&E, meaning the vast majority of the asset base is relatively new and early in its depreciation cycle\n\n---\n\n## Risk Factors and Disclosures About AI Infrastructure Impact\n\n### 1. Multi-Year Investment Horizon Before Profitability\n\nThe Risk Factors section explicitly warns:\n\n> *\"We plan to allocate substantial capital to build our AI compute infrastructure, and we expect a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA. Our AI segment has incurred significant operating losses since inception, and we may not achieve profitability in this segment, or, if achieved, sustain it, and there can be no assurance that the returns on our AI investments will be adequate to justify the capital deployed.\"*\n\n### 2. Deliberate Prioritization of Long-Term Growth Over Near-Term Profitability\n\n> *\"We may choose to increase or accelerate the pace of any of these investments at any time, which could result in periods of reduced profitability or increased losses as we prioritize long-term growth over near-term financial performance.\"*\n\n### 3. Increasing Operating Expenses Expected\n\n> *\"We also expect our capital expenditures and operating expenses to increase in the future, including our general and administrative expenses as a result of increased costs associated with operating as a public company and as we continue to invest for our future growth, including substantial capital expenditures to design, develop, expand, and maintain our technologies and infrastructure to support our operations.\"*\n\n### 4. Scaling Law Uncertainty\n\nThe company introduces a unique risk that the fundamental economic premise of its AI investment could falter:\n\n> *\"The continued improvement of AI model capabilities has historically depended in part on scaling laws, the empirical observation that model performance improves with increased compute, data, and model size, but there is uncertainty as to how long these scaling relationships will continue to hold.\"*\n\nThis is significant because if scaling laws diminish, the massive capital expenditures (and resulting depreciation) may not generate commensurate revenue or returns.\n\n### 5. Capitalized Interest Adding to the Asset Base\n\nThe company capitalizes interest during construction of AI data centers\u2014$169M in 2025 and $7M in Q1 2026\u2014which is included in Construction-in-Progress and will eventually be depreciated once assets are placed in service, further increasing future depreciation expense.\n\n### 6. Satellite Useful Life Sensitivity\n\nThe critical accounting estimates disclosure quantifies the material sensitivity of operating income to depreciation assumptions:\n\n> *\"If the average useful life of our satellite assets had been changed by one year, it would have an approximately $480 million and $170 million impact on our operating income for the year ended December 31, 2025 and three months ended March 31, 2026, respectively.\"*\n\n### 7. Shorter Satellite Lifespans Truncating IT Infrastructure Life\n\nA distinctive risk for the company's space-based AI infrastructure:\n\n> *\"The useful life of our satellites is inherently shorter than that of the information technology systems and infrastructure they host. As a result, we must periodically launch replacement satellites as existing satellites reach the end of their useful lives and are decommissioned, which may truncate the effective lifespan of those underlying information technology systems and infrastructure.\"*\n\nThis means depreciation expense could accelerate if satellite end-of-life forces earlier retirement of hosted computing assets.\n\n### 8. Space Weather and Asset Damage Risks\n\n> *\"Space weather events, such as geomagnetic storms, solar flares, and other forms of radiation activity, have in the past disrupted and could in the future disrupt satellite propulsion, power systems, and communications equipment, potentially leading to reduced performance or permanent damage... Failures or performance degradation resulting from these risks could delay deployments, reduce available capacity, increase operating costs, require significant capital expenditures to replace affected assets.\"*\n\nThe company has already recorded impairment charges for damaged assets\u2014$38M in 2025 and $24M in Q1 2025\u2014primarily for damaged flight vehicles in the Space segment.\n\n### 9. Orbital AI Market Uncertainty\n\n> *\"We may be required to devote financial, technical, human or other resources in excess of our current expectations, and there can be no assurance that these investments will generate adequate revenue.\"*\n\n### 10. AI Segment Losses Quantified\n\nThe actual financial impact of these investments is stark:\n\n| Period | AI Revenue | AI Loss from Operations | AI Segment Adjusted EBITDA |\n|--------|-----------|------------------------|---------------------------|\n| 2023 | $2,961M | $(3,973)M | \u2014 |\n| 2024 | $2,620M | $(1,561)M | \u2014 |\n| 2025 | $3,201M | $(6,355)M | $(1,237)M |\n| Q1 2026 | $818M | $(2,469)M | $(609)M |\n\n---\n\n## Summary Assessment\n\nThe company's disclosures paint a picture of **extraordinary capital intensity** with a clear and direct linkage to future depreciation and operating expenses:\n\n1. **The depreciation pipeline is enormous**: $14B in construction-in-progress (primarily AI infrastructure) has not yet begun depreciating, and the company is adding to it at a rate of approximately $7-8B per quarter in the AI segment alone.\n\n2. **Depreciation is already accelerating dramatically**: Total depreciation nearly doubled year-over-year from 2024 to 2025, and Q1 2026 annualized run-rate (~$9.3B) would represent another ~57% increase over 2025.\n\n3. **The company explicitly acknowledges the profitability risk**: Multiple risk factors warn that returns may not justify the capital deployed, that a multi-year horizon exists before positive AI Segment Adjusted EBITDA, and that scaling laws underpinning the investment thesis may not hold.\n\n4. **Useful life estimates are material and uncertain**: A one-year change in satellite useful life assumptions moves operating income by $480M annually, and the interaction between satellite lifespans and hosted IT infrastructure creates additional depreciation acceleration risk.\n\n5. **The company is deliberately accepting near-term losses**: Management explicitly states it may prioritize long-term growth over near-term financial performance, resulting in \"periods of reduced profitability or increased losses.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8819,
+        "completion_tokens": 1465,
+        "cached_tokens": 5760,
+        "cost_usd": 0.0294975
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-24T16:32:07.966724+00:00",
+      "source": "agent",
+      "message": "I now have a comprehensive picture. Let me calculate a few additional metrics to support the analysis.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have a comprehensive picture. Let me also calculate the implied depreciation expansion if the AI segment's recent capex and CIP are placed in service.\n\nLet me also calculate the AI segment's capex intensity trend:\n- 2023: $463M / $2,961M = 15.6%\n- 2024: $5,633M / $2,620M = 215.0%\n- 2025: $12,727M / $3,201M = 397.6%\n\nThe AI segment's capex intensity has exploded from 15.6% in 2023 to 397.6% in 2025.\n\nLet me also calculate the implied annual depreciation from FY2025 AI capex:\n- If we assume the AI capex is split between servers/networking (5-6 year life) and data center infrastructure (20-25 year life)\n- Looking at the PP&E breakdown, servers and networking equipment is $22,694M vs. data center infrastructure $2,960M at YE2025, so roughly 88% servers / 12% data center\n- Annual depreciation from FY2025 AI capex ($12,727M):\n  - Servers portion: $12,727M * 0.88 / 5.5 = $2,036M\n  - Data center portion: $12,727M * 0.12 / 22.5 = $68M\n  - Total: ~$2,104M annually\n\nPlus the $14B CIP at Q1 2026 (assuming similar mix):\n- Servers portion: $14,045M * 0.88 / 5.5 = $2,247M\n- Data center portion: $14,045M * 0.12 / 22.5 = $75M\n- Total: ~$2,322M annually\n\nSo the AI segment's depreciation could expand by ~$4.4B annually over the next few years as these assets are placed in service, more than doubling the current $3.6B D&A.\n\nActually, let me be more careful. The CIP balance is the total CIP, not just AI. But the disclosure says CIP is \"primarily comprised of ongoing construction and expansion of the facilities and equipment as well as AI infrastructure that has not yet been placed in service.\" So most of the CIP is AI-related.\n\nLet me also note that the AI segment's D&A grew from $1,180M (2023) to $1,679M (2024) to $3,568M (2025), and Q1 2026 alone was $1,493M (annualized ~$5,972M). So the AI segment's D&A is already on a steep upward trajectory.\n\nNow let me prepare the final answer.\n\nKey conclusions:\n1. The AI segment has by far the highest capex intensity at ~398% in FY2025, vs. 94% for Space and 37% for Connectivity.\n2. The AI segment's D&A/Capex ratio is only 28%, well below the Connectivity segment's 57%, suggesting significant future depreciation expansion as recent capex is placed in service.\n3. The $14B CIP balance at Q1 2026 (up from $4.6B at YE2025) is primarily AI infrastructure not yet being depreciated.\n4. The AI segment's capex trajectory is explosive: $463M (2023) \u2192 $5.6B (2024) \u2192 $12.7B (2025) \u2192 $7.7B in Q1 2026 alone.\n5. The AI segment's D&A is already accelerating: $1,180M (2023) \u2192 $1,679M (2024) \u2192 $3,568M (2025) \u2192 $1,493M in Q1 2026 (annualized ~$5,972M).\n6. The useful lives of AI infrastructure (5-6 years for servers/networking, 20-25 years for data centers) are relatively short, meaning depreciation will ramp quickly.\n\nAssumptions required to support the conclusion:\n1. Capex continues at or above FY2025 levels (the S-1 explicitly states this expectation).\n2. CIP converts to in-service PP&E (assets are completed and placed in service).\n3. Useful lives remain at disclosed ranges (5-6 years for servers/networking, 20-25 years for data centers).\n4. No material impairments or early retirements.\n5. Straight-line depreciation continues.\n6. Capitalized interest continues to add to the depreciable base.\n7. Revenue growth does not outpace capex growth (so capex intensity remains elevated).\n8. The mix of AI capex remains weighted toward shorter-lived servers/networking equipment.\n\nLet me also note the key risk factors that could change this conclusion:\n- If scaling laws diminish, the company may slow AI capex.\n- If useful lives are extended (e.g., GPUs last longer than expected), depreciation would be lower.\n- If assets are impaired or retired early, depreciation would be lower (though impairment charges would still hit the income statement).\n- If the company shifts to leasing (like the Valor transaction), some capex may move off-balance-sheet.\n\nNow let me prepare the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_81784748208246a6b7aa6236",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "463 / 2961 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_ba4a42b4cd334094b3ca514c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "5633 / 2620 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_800f73d7c6cf419c93cf6d7e",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1493 * 4"
+          }
+        },
+        {
+          "tool_call_id": "call_4306d3c776d54ceab43e164b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(12727 * 0.88 / 5.5) + (12727 * 0.12 / 22.5)"
+          }
+        },
+        {
+          "tool_call_id": "call_01d63ede0ba84b25810d9d15",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(14045 * 0.88 / 5.5) + (14045 * 0.12 / 22.5)"
+          }
+        },
+        {
+          "tool_call_id": "call_84c9b8a88a264333b3c9b842",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "22694 / (22694 + 2960) * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_81784748208246a6b7aa6236",
+            "content": "15.636609253630528"
+          },
+          {
+            "source_call_id": "call_ba4a42b4cd334094b3ca514c",
+            "content": "215.0"
+          },
+          {
+            "source_call_id": "call_800f73d7c6cf419c93cf6d7e",
+            "content": "5972"
+          },
+          {
+            "source_call_id": "call_4306d3c776d54ceab43e164b",
+            "content": "2104.197333333333"
+          },
+          {
+            "source_call_id": "call_01d63ede0ba84b25810d9d15",
+            "content": "2322.106666666667"
+          },
+          {
+            "source_call_id": "call_84c9b8a88a264333b3c9b842",
+            "content": "88.46183830981523"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12480,
+        "completion_tokens": 1308,
+        "cached_tokens": 8768,
+        "cost_usd": 0.033319999999999995
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-24T16:32:58.637545+00:00",
+      "source": "agent",
+      "message": "I now have all the data needed to provide a comprehensive analysis. Let me submit the final answer.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the data I need. Let me prepare the final answer.\n\nSummary of key metrics:\n\n**FY2025 Capex Intensity (Capex/Revenue):**\n- Space: $3,832M / $4,086M = 93.78%\n- Connectivity: $4,178M / $11,387M = 36.69%\n- AI: $12,727M / $3,201M = 397.59%\n\n**D&A/Capex Ratio (FY2025):**\n- Space: $757M / $3,832M = 19.75%\n- Connectivity: $2,376M / $4,178M = 56.87%\n- AI: $3,568M / $12,727M = 28.03%\n\n**AI Segment Capex Intensity Trend:**\n- 2023: 15.64%\n- 2024: 215.00%\n- 2025: 397.59%\n\n**AI Segment D&A Trend:**\n- 2023: $1,180M\n- 2024: $1,679M\n- 2025: $3,568M\n- Q1 2026: $1,493M (annualized ~$5,972M)\n\n**CIP Balance:**\n- YE2024: $3,007M\n- YE2025: $4,604M\n- Q1 2026: $14,045M\n\n**Implied Annual Depreciation from Recent AI Capex:**\n- FY2025 AI capex ($12,727M) at 88% servers/12% data center mix: ~$2,104M annually\n- Q1 2026 CIP ($14,045M) at same mix: ~$2,322M annually\n- Combined: ~$4,426M annually (vs. current AI D&A of $3,568M)\n\n**PP&E Mix (YE2025):**\n- Servers and networking equipment: $22,694M (88.46% of servers + data center)\n- Data center infrastructure: $2,960M (11.54%)\n\nNow let me write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_03d994e9500e400da223de7b",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Assessment: AI Segment Most Likely to Experience Future Depreciation Expansion\n\n### Conclusion\nBased on FY2025 capex intensity and disclosed segment economics, the **AI segment** (encompassing xAI's Grok and X Holdings' platform) is by far the most likely to experience future depreciation expansion. The conclusion rests on the AI segment's extreme capex intensity, a low current D&A-to-capex ratio, a large and growing construction-in-progress (CIP) pipeline, and short useful lives for the dominant asset category (servers/networking equipment).\n\n---\n\n### 1. FY2025 Capex Intensity by Segment (Capex \u00f7 Revenue)\n\n| Segment | FY2025 Capex | FY2025 Revenue | Capex Intensity |\n|---|---|---|---|\n| Space | $3,832M | $4,086M | **93.78%** |\n| Connectivity | $4,178M | $11,387M | **36.69%** |\n| **AI** | **$12,727M** | **$3,201M** | **397.59%** |\n| Total | $20,737M | $18,674M | 111.05% |\n\nThe AI segment is investing roughly **4\u00d7 its annual revenue** in capex \u2014 an order of magnitude above the other segments. This is the single most important indicator of future depreciation expansion, because depreciation is a function of the gross depreciable asset base, which is being built at an extraordinary rate in AI.\n\n### 2. Current D&A-to-Capex Ratio (Depreciation \"Catch-Up\" Potential)\n\n| Segment | FY2025 D&A | FY2025 Capex | D&A / Capex |\n|---|---|---|---|\n| Space | $757M | $3,832M | 19.75% |\n| Connectivity | $2,376M | $4,178M | 56.87% |\n| **AI** | **$3,568M** | **$12,727M** | **28.03%** |\n\nA low D&A/Capex ratio signals that current depreciation has not yet caught up to the pace of investment \u2014 i.e., a large share of recent capex is either still in CIP or only recently placed in service. The AI segment's 28% ratio, combined with its absolute capex scale, implies the largest \"depreciation gap\" of the three segments.\n\n### 3. Trajectory Evidence (Capex and D&A Growth)\n\n**AI Segment Capex Intensity Trend:**\n- FY2023: $463M / $2,961M = **15.64%**\n- FY2024: $5,633M / $2,620M = **215.00%**\n- FY2025: $12,727M / $3,201M = **397.59%**\n- Q1 2026 alone: $7,723M (annualized ~$30.9B)\n\n**AI Segment D&A Trend:**\n- FY2023: $1,180M\n- FY2024: $1,679M\n- FY2025: $3,568M\n- Q1 2026: $1,493M (annualized ~$5,972M \u2014 already ~67% above FY2025)\n\nThe AI segment's D&A is already on a steep upward trajectory, but it is lagging the capex ramp, confirming the depreciation expansion thesis.\n\n### 4. The CIP Pipeline \u2014 A Leading Indicator of Future Depreciation\n\n| Period | Construction-in-Progress |\n|---|---|\n| Dec 31, 2024 | $3,007M |\n| Dec 31, 2025 | $4,604M |\n| Mar 31, 2026 | **$14,045M** |\n\nCIP is described as \"primarily comprised of ongoing construction and expansion of the facilities and equipment as well as AI infrastructure that has not yet been placed in service.\" The CIP balance **tripled in a single quarter** (Q1 2026), and none of it is currently being depreciated. Once placed in service, this $14B+ pipeline will flow directly into the depreciation base.\n\n### 5. Useful-Life Mix Favors Faster Depreciation in AI\n\nThe disclosed useful lives are:\n\n| Asset Category | Useful Life |\n|---|---|\n| Servers and networking equipment (GPUs/AI compute) | 5\u20136 years |\n| Data center infrastructure | 20\u201325 years |\n| Satellites | 3\u20135 years |\n| Flight vehicle hardware | 5\u201325 flights |\n| Machinery and equipment | 3\u201310 years |\n\nAt YE2025, the AI-relevant PP&E categories were:\n- Servers and networking equipment: **$22,694M**\n- Data center infrastructure: $2,960M\n\nServers/networking equipment represents **~88.5%** of these two AI-relevant categories and carries the **shortest useful life (5\u20136 years)**. This means the bulk of AI capex will depreciate rapidly once placed in service.\n\n### 6. Quantifying the Implied Depreciation Expansion\n\nApplying the disclosed useful lives and the observed ~88%/12% mix between servers/networking and data center infrastructure:\n\n- **FY2025 AI capex ($12,727M)** \u2192 implied annual depreciation \u2248 ($12,727M \u00d7 0.88 / 5.5) + ($12,727M \u00d7 0.12 / 22.5) \u2248 **$2,104M/year**\n- **Q1 2026 CIP ($14,045M)** \u2192 implied annual depreciation \u2248 ($14,045M \u00d7 0.88 / 5.5) + ($14,045M \u00d7 0.12 / 22.5) \u2248 **$2,322M/year**\n\nCombined, these two pools alone imply roughly **$4.4B of incremental annual depreciation** once fully placed in service \u2014 versus the AI segment's current FY2025 D&A of $3,568M. This suggests the AI segment's depreciation could more than double over the next several years, even before considering additional capex.\n\n### 7. Corroborating Disclosures\n\nThe S-1 explicitly supports the depreciation-expansion thesis for AI:\n- \"We have incurred significant capital expenditures and **expect to increase our capital expenditures substantially in the future** in connection with... Terafab, AI compute infrastructure, data centers, and other supporting infrastructure.\"\n- \"We... **intend to continue to make substantial capital expenditures to support the growth of our AI products**, including costs related to obtaining third-party GPUs, manufacturing our own GPUs, and constructing, leasing, maintaining, enhancing, and expanding our data centers.\"\n- \"We plan to allocate substantial capital to build our AI compute infrastructure, and we expect a **multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA**.\"\n- Capitalized interest of $169M (FY2025) and $7M (Q1 2026) on AI data center construction further enlarges the future depreciable base.\n\n---\n\n### Assumptions Required to Support the Conclusion\n\nThe conclusion that the AI segment will experience the most future depreciation expansion depends on the following assumptions, several of which are explicitly forward-looking and uncertain:\n\n1. **Capex continues at or above FY2025 levels.** The S-1 explicitly states this expectation, but it is a forward-looking statement. If scaling laws diminish (a risk the company itself flags) or if AI revenue fails to materialize, capex could be curtailed.\n\n2. **CIP converts to in-service PP&E on the expected timeline.** The $14B+ CIP balance must be completed and placed in service to begin depreciating. Construction delays, power-constraint issues, or supply-chain bottlenecks (e.g., GPU availability) could defer placement in service.\n\n3. **Useful lives remain at disclosed ranges (5\u20136 years for servers/networking; 20\u201325 years for data centers).** The company notes it \"periodically reviews useful life estimates\" and adjusts prospectively. If GPU useful lives are extended (e.g., due to software optimization or longer hardware viability), depreciation would be lower; if shortened (e.g., due to rapid obsolescence), depreciation would accelerate. The S-1 separately warns that satellite end-of-life may \"truncate the effective lifespan of those underlying information technology systems and infrastructure,\" which could accelerate depreciation for any orbital AI assets.\n\n4. **No material impairments or early retirements.** Impairments would accelerate expense recognition (hitting the income statement immediately rather than over the useful life) but would reduce the future depreciation run-rate. The company has already recorded impairments ($38M in FY2025; $24M in Q1 2025), so this is a real risk.\n\n5. **Straight-line depreciation continues for AI infrastructure.** The company uses straight-line for PP&E generally (flight vehicles are the exception, depreciated by expected flights). A change in method would alter the timing.\n\n6. **The asset mix remains weighted toward shorter-lived servers/networking equipment.** If future AI capex shifts toward longer-lived data center infrastructure (20\u201325 years) or away from GPUs, the depreciation ramp would be slower.\n\n7. **Capitalized interest continues to add to the depreciable base.** The company is capitalizing interest on AI data center construction; this practice increases the gross depreciable base.\n\n8. **Revenue growth does not outpace capex growth sufficiently to normalize capex intensity.** Even if AI revenue scales, absolute depreciation will expand as long as the gross asset base grows. However, if revenue scales dramatically faster than capex, the *relative* depreciation burden would decline.\n\n9. **Lease vs. own mix does not shift materially off-balance-sheet.** The company has entered into a $6.58B five-year equipment lease with Valor (\"Valor transaction III\") for AI infrastructure hardware. A shift toward leasing (vs. owning) would move some depreciation off the company's books and into lease expense, altering the depreciation-expansion profile.\n\n10. **No major dispositions or asset sales.** Sale-leaseback or asset-sale transactions would remove assets from the depreciation base.\n\n---\n\n### Why the Other Segments Are Less Likely to Lead Depreciation Expansion\n\n- **Connectivity (Starlink):** Capex intensity is moderate (36.69%), and the D&A/Capex ratio (56.87%) is the highest of the three segments, indicating depreciation is already more closely tracking capex. Satellites have short lives (3\u20135 years), so depreciation will continue to grow, but the absolute scale of incremental capex (~$4.2B in FY2025) is far below AI's $12.7B. The S-1 quantifies satellite useful-life sensitivity: a one-year change in satellite useful life moves operating income by ~$480M (FY2025), which is material but smaller than the AI depreciation pipeline.\n\n- **Space (Launch):** Capex intensity is high (93.78%), but absolute capex ($3.8B) is the smallest of the three segments. Flight vehicles are depreciated by expected flights (5\u201325 flights) rather than time, and Starship costs are largely expensed to R&D as incurred (not capitalized), limiting the depreciation base. The Space segment's D&A grew only ~33% over two years (FY2023\u2013FY2025), versus AI's ~3\u00d7 growth.\n\n---\n\n### Bottom Line\n\nThe **AI segment** is the clear candidate for future depreciation expansion. It combines (i) the highest capex intensity by a wide margin (~398% in FY2025), (ii) a low current D&A/Capex ratio (~28%) indicating depreciation has not yet caught up to investment, (iii) a $14B+ CIP pipeline not yet being depreciated, (iv) a dominant asset category (servers/networking equipment) with the shortest useful life (5\u20136 years), and (v) explicit forward-looking statements that capex will increase substantially. The conclusion is supported by the filing's own disclosures, but it depends critically on the assumptions above \u2014 particularly continued capex at scale, timely placement of CIP into service, and stable useful-life estimates.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment Reporting, MD&A, Property Plant and Equipment Note, Significant Accounting Policies, and Risk Factors\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_03d994e9500e400da223de7b",
+            "content": "## Assessment: AI Segment Most Likely to Experience Future Depreciation Expansion\n\n### Conclusion\nBased on FY2025 capex intensity and disclosed segment economics, the **AI segment** (encompassing xAI's Grok and X Holdings' platform) is by far the most likely to experience future depreciation expansion. The conclusion rests on the AI segment's extreme capex intensity, a low current D&A-to-capex ratio, a large and growing construction-in-progress (CIP) pipeline, and short useful lives for the dominant asset category (servers/networking equipment).\n\n---\n\n### 1. FY2025 Capex Intensity by Segment (Capex \u00f7 Revenue)\n\n| Segment | FY2025 Capex | FY2025 Revenue | Capex Intensity |\n|---|---|---|---|\n| Space | $3,832M | $4,086M | **93.78%** |\n| Connectivity | $4,178M | $11,387M | **36.69%** |\n| **AI** | **$12,727M** | **$3,201M** | **397.59%** |\n| Total | $20,737M | $18,674M | 111.05% |\n\nThe AI segment is investing roughly **4\u00d7 its annual revenue** in capex \u2014 an order of magnitude above the other segments. This is the single most important indicator of future depreciation expansion, because depreciation is a function of the gross depreciable asset base, which is being built at an extraordinary rate in AI.\n\n### 2. Current D&A-to-Capex Ratio (Depreciation \"Catch-Up\" Potential)\n\n| Segment | FY2025 D&A | FY2025 Capex | D&A / Capex |\n|---|---|---|---|\n| Space | $757M | $3,832M | 19.75% |\n| Connectivity | $2,376M | $4,178M | 56.87% |\n| **AI** | **$3,568M** | **$12,727M** | **28.03%** |\n\nA low D&A/Capex ratio signals that current depreciation has not yet caught up to the pace of investment \u2014 i.e., a large share of recent capex is either still in CIP or only recently placed in service. The AI segment's 28% ratio, combined with its absolute capex scale, implies the largest \"depreciation gap\" of the three segments.\n\n### 3. Trajectory Evidence (Capex and D&A Growth)\n\n**AI Segment Capex Intensity Trend:**\n- FY2023: $463M / $2,961M = **15.64%**\n- FY2024: $5,633M / $2,620M = **215.00%**\n- FY2025: $12,727M / $3,201M = **397.59%**\n- Q1 2026 alone: $7,723M (annualized ~$30.9B)\n\n**AI Segment D&A Trend:**\n- FY2023: $1,180M\n- FY2024: $1,679M\n- FY2025: $3,568M\n- Q1 2026: $1,493M (annualized ~$5,972M \u2014 already ~67% above FY2025)\n\nThe AI segment's D&A is already on a steep upward trajectory, but it is lagging the capex ramp, confirming the depreciation expansion thesis.\n\n### 4. The CIP Pipeline \u2014 A Leading Indicator of Future Depreciation\n\n| Period | Construction-in-Progress |\n|---|---|\n| Dec 31, 2024 | $3,007M |\n| Dec 31, 2025 | $4,604M |\n| Mar 31, 2026 | **$14,045M** |\n\nCIP is described as \"primarily comprised of ongoing construction and expansion of the facilities and equipment as well as AI infrastructure that has not yet been placed in service.\" The CIP balance **tripled in a single quarter** (Q1 2026), and none of it is currently being depreciated. Once placed in service, this $14B+ pipeline will flow directly into the depreciation base.\n\n### 5. Useful-Life Mix Favors Faster Depreciation in AI\n\nThe disclosed useful lives are:\n\n| Asset Category | Useful Life |\n|---|---|\n| Servers and networking equipment (GPUs/AI compute) | 5\u20136 years |\n| Data center infrastructure | 20\u201325 years |\n| Satellites | 3\u20135 years |\n| Flight vehicle hardware | 5\u201325 flights |\n| Machinery and equipment | 3\u201310 years |\n\nAt YE2025, the AI-relevant PP&E categories were:\n- Servers and networking equipment: **$22,694M**\n- Data center infrastructure: $2,960M\n\nServers/networking equipment represents **~88.5%** of these two AI-relevant categories and carries the **shortest useful life (5\u20136 years)**. This means the bulk of AI capex will depreciate rapidly once placed in service.\n\n### 6. Quantifying the Implied Depreciation Expansion\n\nApplying the disclosed useful lives and the observed ~88%/12% mix between servers/networking and data center infrastructure:\n\n- **FY2025 AI capex ($12,727M)** \u2192 implied annual depreciation \u2248 ($12,727M \u00d7 0.88 / 5.5) + ($12,727M \u00d7 0.12 / 22.5) \u2248 **$2,104M/year**\n- **Q1 2026 CIP ($14,045M)** \u2192 implied annual depreciation \u2248 ($14,045M \u00d7 0.88 / 5.5) + ($14,045M \u00d7 0.12 / 22.5) \u2248 **$2,322M/year**\n\nCombined, these two pools alone imply roughly **$4.4B of incremental annual depreciation** once fully placed in service \u2014 versus the AI segment's current FY2025 D&A of $3,568M. This suggests the AI segment's depreciation could more than double over the next several years, even before considering additional capex.\n\n### 7. Corroborating Disclosures\n\nThe S-1 explicitly supports the depreciation-expansion thesis for AI:\n- \"We have incurred significant capital expenditures and **expect to increase our capital expenditures substantially in the future** in connection with... Terafab, AI compute infrastructure, data centers, and other supporting infrastructure.\"\n- \"We... **intend to continue to make substantial capital expenditures to support the growth of our AI products**, including costs related to obtaining third-party GPUs, manufacturing our own GPUs, and constructing, leasing, maintaining, enhancing, and expanding our data centers.\"\n- \"We plan to allocate substantial capital to build our AI compute infrastructure, and we expect a **multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA**.\"\n- Capitalized interest of $169M (FY2025) and $7M (Q1 2026) on AI data center construction further enlarges the future depreciable base.\n\n---\n\n### Assumptions Required to Support the Conclusion\n\nThe conclusion that the AI segment will experience the most future depreciation expansion depends on the following assumptions, several of which are explicitly forward-looking and uncertain:\n\n1. **Capex continues at or above FY2025 levels.** The S-1 explicitly states this expectation, but it is a forward-looking statement. If scaling laws diminish (a risk the company itself flags) or if AI revenue fails to materialize, capex could be curtailed.\n\n2. **CIP converts to in-service PP&E on the expected timeline.** The $14B+ CIP balance must be completed and placed in service to begin depreciating. Construction delays, power-constraint issues, or supply-chain bottlenecks (e.g., GPU availability) could defer placement in service.\n\n3. **Useful lives remain at disclosed ranges (5\u20136 years for servers/networking; 20\u201325 years for data centers).** The company notes it \"periodically reviews useful life estimates\" and adjusts prospectively. If GPU useful lives are extended (e.g., due to software optimization or longer hardware viability), depreciation would be lower; if shortened (e.g., due to rapid obsolescence), depreciation would accelerate. The S-1 separately warns that satellite end-of-life may \"truncate the effective lifespan of those underlying information technology systems and infrastructure,\" which could accelerate depreciation for any orbital AI assets.\n\n4. **No material impairments or early retirements.** Impairments would accelerate expense recognition (hitting the income statement immediately rather than over the useful life) but would reduce the future depreciation run-rate. The company has already recorded impairments ($38M in FY2025; $24M in Q1 2025), so this is a real risk.\n\n5. **Straight-line depreciation continues for AI infrastructure.** The company uses straight-line for PP&E generally (flight vehicles are the exception, depreciated by expected flights). A change in method would alter the timing.\n\n6. **The asset mix remains weighted toward shorter-lived servers/networking equipment.** If future AI capex shifts toward longer-lived data center infrastructure (20\u201325 years) or away from GPUs, the depreciation ramp would be slower.\n\n7. **Capitalized interest continues to add to the depreciable base.** The company is capitalizing interest on AI data center construction; this practice increases the gross depreciable base.\n\n8. **Revenue growth does not outpace capex growth sufficiently to normalize capex intensity.** Even if AI revenue scales, absolute depreciation will expand as long as the gross asset base grows. However, if revenue scales dramatically faster than capex, the *relative* depreciation burden would decline.\n\n9. **Lease vs. own mix does not shift materially off-balance-sheet.** The company has entered into a $6.58B five-year equipment lease with Valor (\"Valor transaction III\") for AI infrastructure hardware. A shift toward leasing (vs. owning) would move some depreciation off the company's books and into lease expense, altering the depreciation-expansion profile.\n\n10. **No major dispositions or asset sales.** Sale-leaseback or asset-sale transactions would remove assets from the depreciation base.\n\n---\n\n### Why the Other Segments Are Less Likely to Lead Depreciation Expansion\n\n- **Connectivity (Starlink):** Capex intensity is moderate (36.69%), and the D&A/Capex ratio (56.87%) is the highest of the three segments, indicating depreciation is already more closely tracking capex. Satellites have short lives (3\u20135 years), so depreciation will continue to grow, but the absolute scale of incremental capex (~$4.2B in FY2025) is far below AI's $12.7B. The S-1 quantifies satellite useful-life sensitivity: a one-year change in satellite useful life moves operating income by ~$480M (FY2025), which is material but smaller than the AI depreciation pipeline.\n\n- **Space (Launch):** Capex intensity is high (93.78%), but absolute capex ($3.8B) is the smallest of the three segments. Flight vehicles are depreciated by expected flights (5\u201325 flights) rather than time, and Starship costs are largely expensed to R&D as incurred (not capitalized), limiting the depreciation base. The Space segment's D&A grew only ~33% over two years (FY2023\u2013FY2025), versus AI's ~3\u00d7 growth.\n\n---\n\n### Bottom Line\n\nThe **AI segment** is the clear candidate for future depreciation expansion. It combines (i) the highest capex intensity by a wide margin (~398% in FY2025), (ii) a low current D&A/Capex ratio (~28%) indicating depreciation has not yet caught up to investment, (iii) a $14B+ CIP pipeline not yet being depreciated, (iv) a dominant asset category (servers/networking equipment) with the shortest useful life (5\u20136 years), and (v) explicit forward-looking statements that capex will increase substantially. The conclusion is supported by the filing's own disclosures, but it depends critically on the assumptions above \u2014 particularly continued capex at scale, timely placement of CIP into service, and stable useful-life estimates.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment Reporting, MD&A, Property Plant and Equipment Note, Significant Accounting Policies, and Risk Factors\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13849,
+        "completion_tokens": 3243,
+        "cached_tokens": 12416,
+        "cost_usd": 0.0515325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 51539,
+    "total_completion_tokens": 7043,
+    "total_cached_tokens": 40512,
+    "total_cost_usd": 0.1486375,
+    "total_steps": 9
+  }
+}

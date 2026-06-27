@@ -9,7 +9,7 @@ except the constants URL, API_KEY, MODEL, MAX_TOKENS_CLUSTER and
 the helpers extract_json / canonicalize_cluster, which are passed in
 or imported directly.
 """
-
+import json
 import asyncio
 import re
 from collections import defaultdict
@@ -165,28 +165,56 @@ async def incremental_consolidate_qual(
         )
         new_facts_block = "\n".join(f"- {f}" for f in item["facts"])
 
-        resp = await client.post(
-            url,
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": INCREMENTAL_SYSTEM},
-                    {"role": "user", "content": INCREMENTAL_USER.format(
-                        question=question,
-                        canonical_block=canonical_block,
-                        model_name=item["model"],
-                        new_facts_block=new_facts_block,
-                    )},
-                ],
-                "max_tokens": max_tokens,
-                "temperature": 0.0,
-                "thinking": {"type": "disabled"},
-            },
-            timeout=1800,
-        )
-        resp.raise_for_status()
-        raw = resp.json()["choices"][0]["message"]["content"].strip()
+
+        MAX_RETRIES = 3
+        RETRY_BASE_DELAY = 2.0
+
+        resp = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                resp = await client.post(
+                    url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": INCREMENTAL_SYSTEM},
+                            {"role": "user", "content": INCREMENTAL_USER.format(
+                                question=question,
+                                canonical_block=canonical_block,
+                                model_name=item["model"],
+                                new_facts_block=new_facts_block,
+                            )},
+                        ],
+                        "max_tokens": max_tokens,
+                        "temperature": 0.0,
+                        "thinking": {"type": "disabled"},
+                    },
+                    timeout=1800,
+                )
+                resp.raise_for_status()
+                break
+            except Exception as e:
+                print(f"    [incremental_consolidate_qual] attempt {attempt + 1}/{MAX_RETRIES} failed: {e}")
+                if attempt == MAX_RETRIES - 1:
+                    raise
+                await asyncio.sleep(RETRY_BASE_DELAY ** attempt)
+
+        payload = resp.json()
+        if "choices" not in payload:
+            raise ValueError(
+                f"incremental_consolidate_qual: API returned no 'choices'. "
+                f"Payload: {json.dumps(payload)[:2000]}"
+            )
+        raw = payload["choices"][0]["message"]["content"].strip()
         canonical = extract_json_fn(raw)
+
+# ADD THIS:
+        if not isinstance(canonical, list) or any("models" not in c for c in canonical):
+            print(f"\n[DEBUG] Bad canonical shape for model={item['model']}")
+            print(f"[DEBUG] raw response: {raw[:800]}")
+            print(f"[DEBUG] parsed: {canonical}")
+            raise ValueError(f"Canonical item missing 'models' key — see debug above")
+
 
     return canonical

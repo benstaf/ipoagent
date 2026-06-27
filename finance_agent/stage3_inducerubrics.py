@@ -110,18 +110,25 @@ def main():
     if isinstance(raw_data, dict):
         raw_data = [raw_data]
 
+
+
     all_results = []
+    failures = []
 
     async def run_all():
       async with httpx.AsyncClient() as client:
-        for data in raw_data:
-            result = await process_one(          # ← add await
-                data=data,
-                client=client,
-                min_agreement_override=args.min_agreement,
-            )
-            all_results.append(result)
-
+        for i, data in enumerate(raw_data):
+            try:
+                result = await process_one(
+                    data=data,
+                    client=client,
+                    min_agreement_override=args.min_agreement,
+                )
+                all_results.append(result)
+            except Exception as e:
+                question = data.get("question", f"<item {i}>")
+                print(f"  ✗ FAILED: {question[:60]!r}: {e}")
+                failures.append({"index": i, "question": question, "error": str(e)})
 
     asyncio.run(run_all())
 
@@ -130,6 +137,14 @@ def main():
         json.dump(output, f, indent=2, ensure_ascii=False)
 
     print(f"\n→ {args.out}")
+    print(f"\n{len(all_results)} succeeded, {len(failures)} failed.")
+
+    if failures:
+        failures_path = args.out.replace(".json", "_failures.json")
+        with open(failures_path, "w", encoding="utf-8") as f:
+            json.dump(failures, f, indent=2, ensure_ascii=False)
+        print(f"→ {failures_path}")
+
 
 
 if __name__ == "__main__":

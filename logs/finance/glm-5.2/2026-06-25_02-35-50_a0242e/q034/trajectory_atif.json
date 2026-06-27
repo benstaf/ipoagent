@@ -1,0 +1,756 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "5bddf640-a7b6-4d0d-bf78-53fe2210da59",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-25T02:36:00.443028+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-25T02:36:00.443028+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nConnectivity revenue includes both consumer broadband and enterprise/government applications. Based on disclosed metrics and definitions, what revenue streams can be reasonably inferred within Connectivity and which remain unquantified? What modeling limitations follow from this disclosure structure?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-25T02:36:00.443028+00:00",
+      "source": "agent",
+      "message": "\nI'll analyze the SpaceX S-1 filing to understand the Connectivity revenue segment, its disclosed metrics, and what can be inferred vs. what remains unquantified.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about SpaceX's Connectivity revenue segment, specifically about what revenue streams can be reasonably inferred within Connectivity and which remain unquantified, and what modeling limitations follow from this disclosure structure.\n\nLet me start by retrieving information from the SpaceX S-1 filing. I'll need to look at the revenue disclosures, segment reporting, and any metrics/definitions related to Connectivity revenue.\n\nLet me first parse the S-1 filing and then retrieve relevant information.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_658bc4a83f5b4a659ded5fb3",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_658bc4a83f5b4a659ded5fb3",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3165,
+        "completion_tokens": 181,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0058825
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-25T02:38:31.213851+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now let me retrieve information about Connectivity revenue from the S-1 filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d1fdee61a9504f3cb4b6e147",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the SpaceX S-1 filing disclose about Connectivity revenue? Include all definitions, descriptions, components, and metrics related to Connectivity revenue. Look for both consumer broadband (Starlink) and enterprise/government applications. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_ccf9de36fbfc41c9b1d25b56",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the revenue segments disclosed in the SpaceX S-1 filing? Provide details on each segment including Launch, Space Systems, Connectivity, and any other segments. Include segment definitions and revenue figures. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d1fdee61a9504f3cb4b6e147",
+            "content": "Based on the provided SpaceX S-1 filing excerpts, here is a comprehensive breakdown of the disclosures regarding Connectivity revenue, including definitions, descriptions, components, metrics, and financial performance.\n\n### 1. Overview and Definitions\nThe **Connectivity segment** operates a worldwide high-speed, low-latency broadband network powered by thousands of Starlink satellites in Low-Earth Orbit (LEO). It delivers connectivity to millions of consumer, enterprise, and government customers across 156 markets (164 countries, territories, and other markets) as of March 31, 2026. \n\nThe Connectivity business is divided into three main components, plus a mobile-specific offering:\n*   **Starlink Consumer Broadband:** The world\u2019s largest and most advanced space-based internet broadband service, providing fiber-like download speeds globally.\n*   **Enterprise Solutions:** High-speed, low-latency internet services offered to a wide array of enterprises across industries including construction, agriculture, retail, telecom, hospitality, aviation, maritime, and land mobility. \n*   **Government Solutions:** High-speed, resilient connectivity for government customers via Starshield, a secure satellite network designed specifically for government use.\n*   **Starlink Mobile:** Satellite-to-mobile services enabling consumers, businesses, and public-sector customers to use existing phones in more places. *Note: Revenue from Starlink Mobile service offerings is included within the \"Enterprise & Government\" revenue line item.*\n\n### 2. Revenue Generation Models\nThe Connectivity segment generates revenue primarily through (i) broadband and mobile connectivity services and (ii) the sale of the Starlink Kit (inclusive of the terminal). \n\n**Consumer Broadband Revenue:**\n*   Generated primarily through monthly subscription fees based on geographic market and download speed, plus typically a one-time upfront terminal cost (Starlink Kit).\n*   Broadband contracts are generally month-to-month, and revenue recognized for recurring consumer customers is equal to the amount billed in that month.\n\n**Enterprise Revenue:**\n*   Generated through contracts structured as a combination of subscriptions, data consumption, and capacity, or on a percentage-of-completion basis, depending on customer needs.\n*   Starlink Kit revenue for enterprise customers is recognized upon delivery or installation.\n\n**Government Revenue (Starshield):**\n*   Generated via long-term contracts for Starshield.\n*   Revenue is recognized over time for multi-year contracts using the cost-to-cost input method (recording revenue based on costs incurred to date relative to total estimated cost).\n\n**Starlink Mobile Revenue:**\n*   SpaceX charges Mobile Network Operators (MNOs) either a fixed fee or a per-mobile user fee-based amount, which is typically passed through to the customer via the carrier. \n*   Mobile connectivity agreements are generally multi-year contractual obligations ranging from one to five years, though the customer can generally terminate at any time.\n\n### 3. Revenue Recognition Policies\n*   **Multiple Performance Obligations:** Substantially all contracts with Starlink customers contain multiple performance obligations: (i) broadband services and (ii) the Starlink Kit. The transaction price is allocated to each obligation based on its standalone selling price. Starlink Mobile services have a single performance obligation.\n*   **Service Recognition:** Performance obligations for broadband and mobile services are satisfied over time as the customer simultaneously receives and consumes the benefits. \n*   **Pricing Structures:** Service revenue is generated via (i) fixed-price services requiring advance or recurring monthly payments, or (ii) variable-priced services based on actual data consumption. \n*   **Deferred Revenue:** Advanced payments for broadband and mobile services are included in deferred revenue and recognized either ratably over the subscription term or based on actual data consumption. Deferred revenue primarily relates to Space agreements and Connectivity enterprise/government contracts. Total deferred revenue was $10,179 million as of Dec 31, 2024 (with $4,080M recognized as revenue in 2025), growing to $12,116 million as of Dec 31, 2025.\n\n### 4. Key Operating and Performance Metrics\n**Subscriber Metrics:**\n*   **Starlink Subscribers:** Approximately 10.3 million as of March 31, 2026, up approximately 105% from 5.0 million a year prior. Subscribers are reported on a per-Service Line basis, meaning individual end-users are likely meaningfully higher.\n*   **Starlink Mobile:** Approximately 7.4 million monthly unique devices across approximately 30 countries as of March 31, 2026.\n*   **ARPU (Average Revenue Per User):** Starlink Subscriber ARPU declined 11.2% in 2025 and 22.9% in Q1 2026, primarily due to international expansion and the addition of lower-priced service plans.\n\n**Network and Technology Metrics (as of March 31, 2026):**\n*   **Satellite Constellation:** Approximately 9,600 Starlink broadband and mobile satellites in LEO (~75% of all active maneuverable satellites in orbit). This includes approximately 650 V1 Mobile satellites.\n*   **Service Quality:** Median latency of ~25 milliseconds and median download speeds of 225 Mbps during peak hours for residential users.\n*   **Future Capacity:** V3 satellites (expected 2H 2026) will offer 1 Tbps of downlink capacity per satellite. A single Starship launch can deploy up to 60 V3 satellites, a potential twenty-fold increase in downlink capacity relative to a Falcon 9 launch.\n\n### 5. Cost of Revenue Components\nThe Connectivity segment\u2019s cost of revenue includes:\n*   Depreciation (inclusive of launch, satellite, and ground infrastructure costs)\n*   Starlink Kit costs\n*   Shipping and handling costs\n*   Ground operating expenses\n*   Employee compensation costs (salaries, benefits, share-based compensation for engineering and operations teams)\n*   Payment processor fees\n*   Warranty expense\n*   Inventory excess and obsolescence\n*   Customs and duties\n\n### 6. Financial Performance and Growth Drivers\n**Total Connectivity Revenue Growth:**\n*   **2024:** Revenue increased by $3,730 million compared to 2023, driven by growth in Starlink consumer subscribers and Connectivity enterprise/government sales.\n*   **2025:** Revenue increased by $3,788 million (49.8%) compared to 2024. This was driven by a $2,377 million increase from consumer subscribers (99.9% subscriber growth, offset by 11.2% ARPU decline) and a $1,411 million increase from enterprise and government customers. \n*   **Q1 2026:** Revenue increased by $782 million (31.6%) compared to Q1 2025. Driven by $656 million from consumer subscribers (104.7% subscriber growth, offset by 22.9% ARPU decline) and $126 million from enterprise and government. \n\n**Enterprise & Government Revenue Breakdown (2025 vs 2024):**\n*   Enterprise connectivity business grew by $1,218 million (inclusive of $632 million growth in the mobile connectivity business).\n*   Government connectivity business grew by $193 million.\n\n**Enterprise & Government Revenue Breakdown (Q1 2026 vs Q1 2025):**\n*   Aviation, maritime, and other enterprise business grew by $209 million.\n*   Mobile connectivity business grew by $85 million.\n*   Government connectivity business decreased by $175 million.\n\n**Profitability:**\n*   **Connectivity Income from Operations:** Increased to $4,423 million in 2025 (up $2,417 million from 2024) and $1,188 million in Q1 2026 (up $155 million from Q1 2025). Profitability was offset by higher depreciation of capitalized launch/satellite costs, marketing, and international expansion costs.\n*   **Connectivity Segment Adjusted EBITDA:** Increased to $7,168 million in 2025 (up from $3,849 million in 2024) and $2,087 million in Q1 2026 (up from $1,618 million in Q1 2025).\n\n### 7. Total Addressable Market (TAM)\nSpaceX estimates a total Connectivity market opportunity of **$1.6 trillion**, reflecting primarily consumer use cases. This is broken down into:\n*   **Starlink Broadband:** ~$870 billion opportunity (driven by an estimated 1.8 billion global households in 2025 and 3.3 billion potential end users in currently served markets).\n*   **Starlink Mobile:** ~$740 billion opportunity.\n*   Additional opportunities exist in enterprise and government applications as connectivity evolves into a critical infrastructure layer for autonomous systems, transportation, and smart devices."
+          },
+          {
+            "source_call_id": "call_ccf9de36fbfc41c9b1d25b56",
+            "content": "# SpaceX S-1 Revenue Segments\n\nSpaceX discloses **three reportable operating segments** \u2014 **Space**, **Connectivity**, and **AI** \u2014 with further disaggregation of revenue by type within each segment. Below is a detailed breakdown of each segment, its definition, sub-categories, and revenue figures.\n\n---\n\n## 1. Space Segment\n\n### Definition\nThe Space segment designs, manufactures, and launches reusable rockets (Falcon 9, Falcon Heavy, Dragon spacecraft, and the in-development Starship) to provide high-cadence, reliable, and affordable access to space at unprecedented scale. Revenue is derived from fixed-price contracts related to the development and provision of launch services for both commercial customers and governmental agency space programs. The segment flies to LEO, MEO, GEO, lunar, and interplanetary trajectories, as well as the International Space Station.\n\nSpace segment revenue **only reflects customer launches and customer activities**. For launches of SpaceX's own Starlink satellites, no inter-segment revenue is recognized; those launch costs are capitalized within the Connectivity segment as property, plant, and equipment.\n\n### Sub-Categories and Revenue Recognition\n\n| Sub-Category | Recognition Method | Contract Duration | Description |\n|---|---|---|---|\n| **Launch Services** | Point in time (upon launch or deployment of customer's payload to intended orbit) | 1\u20135 years | Fixed-price contracts for commercial and government launch missions. Revenue and costs are deferred until launch/deployment due to interchangeability of flight hardware and minimal unique engineering costs. |\n| **Launch & Development** | Over time (cost-to-cost input method) | 1\u201314 years | Fixed-price contracts for development of spacecraft and provision of launch and mission services for government agency space programs (utilizing Falcon 9, Falcon Heavy, Starship, and Dragon). Performance creates an asset with no alternative use and the Company has an enforceable right to payment. |\n\n### Revenue Figures\n\n| Space Sub-Category | FY 2023 | FY 2024 | FY 2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| Launch Services | $1,964M | $2,584M | $2,576M | $566M | $330M |\n| Launch & Development | $1,593M | $1,212M | $1,510M | $299M | $289M |\n| **Space Total** | **$3,557M** | **$3,796M** | **$4,086M** | **$865M** | **$619M** |\n\n### Mix as % of Space Segment Revenue\n\n| | Q1 2026 | FY 2025 | FY 2024 | FY 2023 |\n|---|---|---|---|---|\n| Launch Services | 53.3% | 63.0% | 68.2% | 55.2% |\n| Launch & Development | 46.7% | 37.0% | 31.8% | 44.8% |\n\nSpaceX expects Launch & Development to represent a larger portion of Space revenue over time as it continues to serve long-term government contracts. Space revenue growth is expected to remain lower than total company revenue growth as internal businesses (Connectivity and, in the future, AI) absorb most of the growth in launch capacity.\n\n### Segment Profitability (FY 2025)\n- Loss from operations: **$(657) million**\n- Segment Adjusted EBITDA: **$653 million**\n- R&D expense funded for Starship program: **$3,004 million**\n\n### Segment Profitability (Q1 2026)\n- Loss from operations: **$(662) million**\n- Segment Adjusted EBITDA: **$(351) million**\n- R&D expense for Starship: **$930 million**\n\n---\n\n## 2. Connectivity Segment\n\n### Definition\nThe Connectivity segment operates a worldwide high-speed, low-latency broadband data and communications network powered by over 9,600 Starlink broadband and mobile satellites in Low-Earth Orbit, delivering connectivity to millions of consumer, enterprise, and government customers across 164 countries, territories, and other markets. The segment generates revenue from (i) broadband and mobile connectivity services provided through Starlink and (ii) the sale of the Starlink Kit (inclusive of the terminal). **All of the company's products revenue is attributable to the Connectivity segment.**\n\nService revenue is recognized over time as the customer simultaneously receives and consumes the benefits. Revenue is generated from fixed-price services (advance or recurring monthly payments) or variable-priced services based on actual data consumption. Advanced payments are recognized either ratably over the subscription term or based on usage.\n\n### Sub-Categories\n\n| Sub-Category | Description |\n|---|---|\n| **Consumer** | Starlink Consumer Broadband \u2014 the world's largest and most advanced space-based internet broadband service, providing fiber-like download speeds (median of 225 Mbps during peak hours for residential users as of March 31, 2026) with technological capability to provide service everywhere on Earth, including the poles. |\n| **Enterprise & Government** | Enterprise Solutions, Government contracts, and **Starlink Mobile** service offerings (satellite-to-mobile texting and voice services to mobile users). Per footnote (1): *\"Enterprise & Government revenue includes revenue from Starlink Mobile service offerings.\"* |\n\n### Revenue Figures\n\n| Connectivity Sub-Category | FY 2023 | FY 2024 | FY 2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| Consumer | $2,817M | $4,830M | $7,208M | $1,492M | $2,148M |\n| Enterprise & Government | $1,052M | $2,769M | $4,179M | $983M | $1,109M |\n| **Connectivity Total** | **$3,869M** | **$7,599M** | **$11,387M** | **$2,475M** | **$3,257M** |\n\n### Segment Profitability (FY 2025)\n- Income from operations: **$4,423 million**\n- Segment Adjusted EBITDA: **$7,168 million**\n- Year-over-year growth: Revenue +49.8%, Income from operations +120.4%, Segment Adjusted EBITDA +86.2%\n\n### Segment Profitability (Q1 2026)\n- Income from operations: **$1,188 million**\n- Segment Adjusted EBITDA: **$2,087 million**\n\n---\n\n## 3. AI Segment\n\n### Definition\nThe AI segment operates a vertically integrated AI platform spanning:\n- **Grok** \u2014 a truth-seeking frontier large language model (LLM)\n- **AI solutions for consumer and enterprise customers** \u2014 including Grok Business and Grok Enterprise, sold on license-, consumption-, or outcome-based pricing models\n- **X** \u2014 a real-time information, entertainment, and free speech platform\n- **AI computational infrastructure** \u2014 AI hosting and compute capacity\n\nSpaceX plans to prioritize growth and investment in this segment to capture significant opportunities in AI applications and compute infrastructure, and expects to allocate a significant amount of launch capacity to the AI segment in the future.\n\n### Sub-Categories\n\n| Sub-Category | Description |\n|---|---|\n| **Advertising** | Revenue from advertising sales on the X platform. |\n| **AI Solutions & Infrastructure** | Revenue from X subscriptions, data licensing, Grok AI solutions (consumer and enterprise), and AI computational infrastructure services. |\n\n### Revenue Figures\n\n| AI Sub-Category | FY 2023 | FY 2024 | FY 2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| Advertising | $2,323M | $1,728M | $1,844M | $443M | $343M |\n| AI Solutions & Infrastructure | $638M | $892M | $1,357M | $284M | $475M |\n| **AI Total** | **$2,961M** | **$2,620M** | **$3,201M** | **$727M** | **$818M** |\n\n### Segment Profitability (FY 2025)\n- Revenue: **$3,201 million**\n- Loss from operations: **$(2,469) million** (referenced in Q1 2026 context; full-year figure implied)\n- Segment Adjusted EBITDA: **$(609) million** (Q1 2026 figure)\n\n### Segment Profitability (Q1 2026)\n- Revenue: **$818 million**\n- Loss from operations: **$(2,469) million**\n- Segment Adjusted EBITDA: **$(609) million**\n\n---\n\n## Total Consolidated Revenue\n\n| | FY 2023 | FY 2024 | FY 2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| **Total Revenues** | **$10,387M** | **$14,015M** | **$18,674M** | **$4,067M** | **$4,694M** |\n\n### Year-over-Year Revenue Growth Drivers\n\n**FY 2025 vs. FY 2024** \u2014 Revenue increased by **$4,659 million (+33.2%)**:\n- Connectivity segment: +$3,788 million (Starlink subscriber base growth + enterprise/government sales)\n- Space segment: +$290 million (increases in Launch and Development)\n\n**FY 2024 vs. FY 2023** \u2014 Revenue increased by **$3,628 million (+34.9%)**:\n- Connectivity segment: +$3,730 million (Starlink consumer subscriber growth + enterprise/government sales)\n- Space segment: +$239 million (increase in Falcon 9 launches, partially offset by decrease in Launch & Development due to timing of government contracts)\n- AI segment: \u2212$341 million (decrease in advertising sales, partially offset by increase in X subscriptions and data licensing)\n\n---\n\n## Deferred Revenue\n\nDeferred revenue is recorded when cash payments are received or due in advance of the Company's performance. It **primarily relates to Space agreements and Connectivity enterprise and government contracts**.\n\n| Metric | Amount |\n|---|---|\n| Total deferred revenue as of December 31, 2024 | **$10,179 million** |\n| Portion recognized as revenue during FY 2025 | **$4,080 million** |\n| Total deferred revenue as of December 31, 2025 | **$12,116 million** |\n\n---\n\n## Capital Expenditures by Segment\n\n| Segment | FY 2025 | Q1 2026 |\n|---|---|---|\n| Space | $3,832M | $1,052M |\n| Connectivity | $4,178M | $1,332M |\n| AI | *(not disclosed in chunk)* | $7,723M |\n\n---\n\n## Summary of Segment Definitions (from Notes to Consolidated Financial Statements)\n\n> Space Exploration Technologies Corp. and its wholly owned subsidiaries, collectively referred to as the \"Company\" or \"SpaceX,\" operate three segments \u2013 **(i) the Space segment** designs, manufactures, and launches reusable rockets to provide high cadence, reliable, and affordable access to space at unprecedented scale, **(ii) the Connectivity segment** operates a worldwide high-speed, low-latency broadband network powered by thousands of Starlink satellites in Low-Earth Orbit, delivering connectivity to millions of consumer, enterprise, and government customers through our Starlink offering, and **(iii) the AI segment** operates a vertically integrated AI platform spanning a frontier LLM Grok, AI solutions for consumer and enterprise customers, X \u2014 a real-time information, entertainment, and free speech platform \u2014 and AI computational infrastructure."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3361,
+        "completion_tokens": 131,
+        "cached_tokens": 3136,
+        "cost_usd": 0.0057925
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-25T02:40:23.156090+00:00",
+      "source": "agent",
+      "message": "\nLet me retrieve more specific information about the disaggregation of revenue within Connectivity and any specific metrics that are disclosed vs. not disclosed.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I have a comprehensive understanding of the Connectivity segment now. Let me also retrieve more specific information about the disaggregation of revenue and any specific metrics that might help me understand what's quantified vs. unquantified.\n\nLet me look for more details on:\n1. The specific revenue breakdowns within Enterprise & Government\n2. The Starlink Mobile revenue specifically\n3. The Starshield (government) revenue\n4. The aviation/maritime revenue\n5. Any specific metrics that are disclosed vs. not disclosed",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4342f4408b1a4f1a880342a7",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What specific revenue breakdowns are disclosed within Connectivity Enterprise & Government revenue? Look for Starlink Mobile revenue, Starshield government revenue, aviation revenue, maritime revenue, and any other sub-components. Provide specific dollar amounts and growth figures. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_f88a23c48a5c4df0b5bd7f55",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What subscriber metrics, ARPU, and operating metrics are disclosed for the Connectivity segment? Include Starlink subscribers, Starlink Mobile devices, ARPU trends, satellite counts, and any other KPIs. Also identify what metrics are NOT disclosed. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4342f4408b1a4f1a880342a7",
+            "content": "Based on the provided MD&A excerpts, here are the specific revenue breakdowns and growth figures disclosed for the Connectivity Enterprise & Government revenue category. \n\nThe document notes that \"Enterprise & Government revenue includes revenue from Starlink Mobile service offerings\" and that government revenue is generated via long-term contracts for Starshield. However, the text does not break out aviation and maritime revenues individually; instead, it groups them together with other enterprise sub-components. \n\nHere are the specific dollar amounts and growth figures for the disclosed periods:\n\n**Q1 2026 vs. Q1 2025 (Three Months Ended March 31, 2026)**\n*   **Total Enterprise & Government Revenue:** Increased by **$126 million**.\n*   **Aviation, Maritime, and Other Enterprise Business:** Growth of **$209 million**. *(Note: The Adjusted EBITDA narrative for this same quarter also references growth in \"aviation, maritime, mobility, and other enterprise business\".)*\n*   **Mobile Connectivity Business (Starlink Mobile):** Growth of **$85 million**.\n*   **Government Connectivity Business (Starshield):** Decrease of **$175 million**.\n\n**Full Year 2025 vs. Full Year 2024 (Year Ended December 31, 2025)**\n*   **Total Enterprise & Government Revenue:** Increased by **$1,411 million**.\n*   **Enterprise Connectivity Business:** Growth of **$1,218 million**. This figure is explicitly stated as being inclusive of growth in the mobile connectivity business.\n*   **Mobile Connectivity Business (Starlink Mobile):** Growth of **$632 million** (a sub-component of the enterprise connectivity business growth above).\n*   **Government Connectivity Business (Starshield):** Growth of **$193 million**.\n\n**Full Year 2024 vs. Full Year 2023 (Year Ended December 31, 2024)**\n*   **Total Enterprise & Government Revenue:** Increased by **$1,717 million**.\n*   **Enterprise Connectivity Business:** Growth of **$466 million**.\n*   **Government Connectivity Business (Starshield):** Growth of **$1,250 million**."
+          },
+          {
+            "source_call_id": "call_f88a23c48a5c4df0b5bd7f55",
+            "content": "# Connectivity Segment: Disclosed Metrics and KPIs\n\n## 1. Subscriber Metrics\n\n### Starlink Subscribers (Broadband)\n| Period | Subscribers (millions) | YoY Growth |\n|---|---|---|\n| Q1 2026 | 10.3 | 105% |\n| Q1 2025 | 5.0 | 91% |\n| FY 2025 | 8.9 | \u2014 |\n| FY 2024 | 4.4 | \u2014 |\n| FY 2023 | 2.3 | \u2014 |\n\n**Definition:** A Starlink Subscriber is a unique **Service Line** directly assigned to a Starlink.com account registered to a person or entity that does **not** have a direct, negotiated agreement with the Starlink sales team. A Service Line is an individual instance of Starlink broadband internet service provisioned under a subscription plan, generally associated with a specific terminal or group of terminals.\n\n- **Includes:** Personal plans (Residential, Roam) and Business plans (Local Priority, Global Priority).\n- **Excludes:** Managed enterprise and government customers with contracts in aviation, maritime, land mobility, fixed sites, and government entities.\n- An individual, household, or business may maintain multiple Service Lines (e.g., a Residential line and a separate Roam line count as two subscribers). Conversely, multiple end users may share a single Service Line, meaning the number of individual end users is \"likely meaningfully higher than 10.3 million.\"\n\n### Starlink Mobile (Satellite-to-Mobile) Devices\n- **~7.4 million monthly unique devices** as of March 31, 2026, across **~30 countries**.\n- Services include light data, SMS texting, and over-the-top voice services (e.g., WhatsApp, FaceTime).\n- Partnerships with **~30 MNOs** on six continents, covering an area home to **~1.9 billion people**.\n- Revenue model: MNOs charged either a fixed fee or a per-mobile user fee-based amount, typically passed through to the end customer via the carrier.\n\n---\n\n## 2. ARPU Metrics\n\n### Starlink Subscriber ARPU (Broadband)\n| Period | ARPU ($/month) | YoY Change |\n|---|---|---|\n| Q1 2026 | $66 | \u221222.9% |\n| Q1 2025 | $86 | \u2014 |\n| FY 2025 | $81 | \u221211.2% |\n| FY 2024 | $91 | \u22128.1% |\n| FY 2023 | $99 | \u2014 |\n\n**Definition:** Service revenue generated from Starlink Subscribers during the period \u00f7 (average number of Starlink Subscribers during the period \u00d7 number of months in the period).\n\n**Trend & Outlook:**\n- ARPU has declined every year since 2023, driven primarily by **international expansion** and the **addition of lower-priced service plans**.\n- The company explicitly states its strategy is focused on **driving sustainable revenue growth and expanding margins through operational efficiencies and technological advancements, rather than prioritizing increases in ARPU**.\n- ARPU is **expected to continue declining** over the next few years as:\n  - The portion of the subscriber base outside North America grows.\n  - Lower-priced service plans are added.\n  - Monthly service plan fees for broadband offerings are adjusted.\n- These declines are expected to be **offset by increased scale** and technological advancement in launch, satellite, and user terminal operations.\n\n### Starlink Mobile ARPU (Assumptions, Not Actuals)\nThe company discloses **region-specific ARPU assumptions** (not actual reported figures) for market sizing purposes:\n\n| Market Tier | Weighted Avg. Monthly Mobile ARPU |\n|---|---|\n| High-income markets | $18 |\n| Upper-middle income markets | $5 |\n| Lower-middle income markets | $2 |\n| Low-income markets | $2 |\n| **Global weighted average** | **$8** |\n\nBased on these assumptions, the estimated Starlink Mobile market opportunity is **$740 billion**.\n\n---\n\n## 3. Satellite & Network Operating Metrics\n\n### Satellite Constellation\n- **~9,600 Starlink broadband and mobile satellites** in LEO as of March 31, 2026.\n- This represents **~75% of all active maneuverable satellites in orbit**.\n- **V1 Mobile constellation:** ~650 V1 Mobile satellites dedicated to satellite-to-mobile capabilities (began deploying January 2024).\n- **V3 next-generation satellites:** Designed to offer **1 Tbps of downlink capacity per satellite**; deployment expected to commence in H2 2026 using Starship. A single Starship launch can deploy up to **60 V3 satellites**, representing a potential **twenty-fold increase** in downlink capacity deployed relative to a Falcon 9 launch.\n\n### Broadband Performance\n- **Median latency:** ~25 milliseconds as of March 31, 2026.\n- **Median download speed:** 225 Mbps during peak hours for residential users as of March 31, 2026.\n- Technological capability to provide service everywhere on Earth, including the poles.\n\n### Geographic Coverage\n- **164 countries, territories, and other markets** for broadband.\n- Collectively home to **more than 3.3 billion people**.\n- Starlink Mobile available across **~30 countries**.\n\n---\n\n## 4. Segment Financial Metrics\n\n### Segment Income from Operations\n| Period | Income from Operations ($M) |\n|---|---|\n| Q1 2026 | $1,188 |\n| Q1 2025 | $1,033 |\n| FY 2025 | $4,423 |\n| FY 2024 | $2,006 |\n| FY 2023 | $469 |\n\n### Segment Adjusted EBITDA\n| Period | Adjusted EBITDA ($M) |\n|---|---|\n| Q1 2026 | $2,087 |\n| Q1 2025 | $1,618 |\n| FY 2025 | $7,168 |\n| FY 2024 | $3,849 |\n| FY 2023 | $1,602 |\n\n---\n\n## 5. Revenue Breakdown (from MD&A Narrative)\n\n### Q1 2026 vs. Q1 2025\n- Total revenue increased **$782 million (31.6%)**.\n- **Consumer subscriber revenue:** +$656 million (driven by 104.7% subscriber growth, offset by 22.9% ARPU decline).\n- **Enterprise & government revenue:** +$126 million:\n  - Aviation, maritime, and other enterprise: +$209 million\n  - Mobile connectivity: +$85 million\n  - Government connectivity: \u2212$175 million\n\n### FY 2025 vs. FY 2024\n- Total revenue increased **$3,788 million (49.8%)**.\n- **Consumer subscriber revenue:** +$2,377 million (99.9% subscriber growth, offset by 11.2% ARPU decline).\n- **Enterprise & government revenue:** +$1,411 million:\n  - Enterprise connectivity: +$1,218 million (including mobile connectivity +$632 million)\n  - Government connectivity: +$193 million\n\n### FY 2024 vs. FY 2023\n- Total revenue increased **$3,730 million (96.4%)**.\n- **Consumer subscriber revenue:** +$2,013 million (96.5% subscriber growth, offset by 8.1% ARPU decline).\n- **Enterprise & government revenue:** +$1,717 million:\n  - Enterprise connectivity: +$466 million\n  - Government connectivity: +$1,250 million\n\n---\n\n## 6. Cost & Expense Drivers (Q1 2026 vs. Q1 2025)\n\n### Cost of Revenue: +$437 million (36.0%)\n| Driver | Amount ($M) |\n|---|---|\n| Higher depreciation (capitalized launch & satellite costs) | $276 |\n| Ground operating costs | $50 |\n| Customer support and installation costs | $42 |\n| Payment processor fees | $19 |\n| Freight costs | $15 |\n| Warranty costs | $12 |\n\n### R&D: +$82 million (66.7%)\n| Driver | Amount ($M) |\n|---|---|\n| Next-generation satellite production development | $62 |\n| Starlink Kits development | $8 |\n| Ground equipment development | (additional) |\n\n---\n\n## 7. Enterprise Customer Retention\n- Since 2023, **no Starlink Enterprise customer contributing more than $750,000 of annual revenue has voluntarily discontinued service**, despite the ability to cancel at any time.\n\n---\n\n## 8. Revenue Model Summary\n| Customer Type | Revenue Model |\n|---|---|\n| Consumer | Monthly subscription fees (based on geography and speed) + one-time Starlink Kit sale; revenue recognized ratably over service period |\n| Enterprise | Combination of subscriptions, data consumption, and capacity contracts; recognized over time or on percentage-of-completion basis |\n| Government | Long-term contracts for Starshield (secure, dedicated satellite network for U.S. Government and national security) |\n| MNOs (Mobile) | Fixed fee or per-mobile user fee-based amount, typically passed through to customer via carrier |\n\n---\n\n## Metrics NOT Disclosed\n\nThe following metrics are **not disclosed** for the Connectivity segment:\n\n### Subscriber-Level Metrics\n- **Churn rate** (gross or net)\n- **Customer acquisition cost (CAC)**\n- **Subscriber lifetime value (LTV)**\n- **Net subscriber additions** (only period-end counts and YoY growth percentages are provided)\n- **ARPU by service plan type** (Residential vs. Roam vs. Business Priority \u2014 not broken out)\n- **ARPU by geography** (actual figures \u2014 only mobile ARPU *assumptions* are provided for market sizing)\n- **Average revenue per subscriber by cohort or tenure**\n- **Contribution margin per subscriber**\n- **Data consumption per subscriber**\n- **Average bandwidth usage per subscriber**\n\n### Hardware/Kit Metrics\n- **Starlink Kit shipment volumes** (number of terminals shipped/delivered)\n- **Starlink Kit average selling price (ASP)**\n- **Kit sales revenue** (not separated from service revenue as a KPI)\n- **Kit cost of goods sold or gross margin**\n- **Terminal manufacturing cost**\n\n### Network/Capacity Metrics\n- **Network capacity utilization** (total available capacity vs. used capacity)\n- **Total network throughput** (aggregate data delivered)\n- **Ground station/gateway count**\n- **Number of gateways or points of presence**\n- **Satellite manufacturing cost per unit**\n- **Launch cost per satellite deployed**\n- **Actual satellite power consumption or utilization**\n\n### Enterprise/Government Metrics\n- **Number of enterprise customers** (total count not disclosed)\n- **Number of government customers** (total count not disclosed)\n- **Enterprise/government revenue as a discrete line item** (only discussed narratively within MD&A)\n- **Starlink Mobile revenue** (not broken out separately from total Connectivity revenue)\n- **Starshield revenue** (not separately disclosed)\n- **Average contract value** for enterprise or government customers\n- **Revenue retention rate** (net or gross dollar retention)\n\n### Financial Metrics\n- **Segment gross margin** (not explicitly disclosed as a percentage)\n- **Segment operating margin** (can be derived from income from operations \u00f7 revenue, but revenue is not given as a discrete line item in the segment table)\n- **Capital expenditures** allocated to the Connectivity segment\n- **Depreciation expense** as a standalone line (only discussed as a driver within cost of revenue narrative)\n- **Stock-based compensation** allocated to the Connectivity segment\n\n### Operational Metrics\n- **Number of countries with active Starlink Mobile service** vs. total countries served (only ~30 countries mentioned for mobile, 164 for broadband)\n- **Number of retail stores** carrying Starlink (described as \"thousands\" but not quantified)\n- **Marketing spend** for the Connectivity segment (not separately disclosed)\n- **Employee headcount** allocated to the Connectivity segment"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7879,
+        "completion_tokens": 259,
+        "cached_tokens": 3072,
+        "cost_usd": 0.018447500000000002
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-25T02:41:30.961020+00:00",
+      "source": "agent",
+      "message": "Let me retrieve additional information about the products vs. service revenue split and geographic revenue breakdown.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have a comprehensive understanding of the Connectivity segment. Let me also check for any additional information about the Starlink Kit revenue and the products revenue line item, as well as the geographic revenue breakdown.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_bda0a8ddea7149ff988c703a",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the breakdown of Connectivity revenue between service revenue and products revenue (Starlink Kit sales)? Is there a geographic revenue breakdown disclosed? Also, what is the deferred revenue specifically related to Connectivity? {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_ee0c978ad0c245159cdb7eaf",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the definition of Starlink Subscriber, Service Line, and ARPU in the SpaceX S-1? What are the specific exclusions from the Starlink Subscriber count? How does the company define Enterprise and Government customers? {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_bda0a8ddea7149ff988c703a",
+            "content": "# Connectivity Revenue Breakdown and Deferred Revenue Analysis\n\n## 1. Service vs. Products Revenue Breakdown\n\nThe filing explicitly states: **\"All of products revenue is attributable to the Connectivity segment.\"** This means the company-wide products/services disaggregation can be used to derive the Connectivity split:\n\n**Three Months Ended March 31, 2026:**\n| Component | Amount ($M) |\n|---|---|\n| Products (Starlink Kit sales) | $380 |\n| Services (broadband, mobile, enterprise/government) | $2,877 |\n| **Total Connectivity** | **$3,257** |\n\n**Three Months Ended March 31, 2025:**\n| Component | Amount ($M) |\n|---|---|\n| Products (Starlink Kit sales) | $352 |\n| Services (broadband, mobile, enterprise/government) | $2,123 |\n| **Total Connectivity** | **$2,475** |\n\n*(Services figures derived as: Total Connectivity revenue minus Products revenue, since all products revenue flows through Connectivity.)*\n\nFor the full year 2025, total Connectivity revenue was **$11,387 million** (vs. $7,599 million in 2024 and $3,869 million in 2023), though the annual products/services split is not separately tabulated in the excerpts provided.\n\nWithin the Services category, the filing further disaggregates Connectivity revenue by customer type:\n\n| Connectivity Sub-segment | FY 2025 ($M) | FY 2024 ($M) | FY 2023 ($M) |\n|---|---|---|---|\n| Consumer | 7,208 | 4,830 | 2,817 |\n| Enterprise & Government (incl. Starlink Mobile) | 4,179 | 2,769 | 1,052 |\n| **Total Connectivity** | **11,387** | **7,599** | **3,869** |\n\n---\n\n## 2. Geographic Revenue Breakdown\n\n**No specific geographic revenue breakdown is disclosed** in the provided excerpts. The filing references that Connectivity services are delivered \"throughout 156 markets\" and discusses ARPU declines \"primarily due to international expansion and the addition of lower priced service plans,\" but it does not present a quantitative revenue disaggregation by geography (e.g., domestic vs. international, or by region). The only geographic color provided is qualitative:\n\n- Starlink Subscriber ARPU declined **11.2%** in FY 2025 and **22.9%** in Q1 2026, attributed to international expansion into lower-priced markets.\n- Starlink Mobile partnerships span \"approximately 30 MNOs on six continents, covering an area that is home to approximately 1.9 billion people.\"\n\n---\n\n## 3. Deferred Revenue Related to Connectivity\n\nThe filing does **not** disclose a standalone dollar figure for deferred revenue attributable solely to Connectivity. Instead, it states that deferred revenue **\"primarily relates to Space agreements and Connectivity enterprise and government contracts\"** \u2014 bundling the two segments together without separate quantification.\n\nThe aggregate deferred revenue balances disclosed are:\n\n| Date | Total Deferred Revenue ($M) | Amount Recognized as Revenue |\n|---|---|---|\n| December 31, 2024 | $10,179 | $4,080 recognized during FY 2025 |\n| December 31, 2025 | $12,116 | $1,165 recognized during Q1 2026 |\n| March 31, 2026 | $13,236 | \u2014 |\n\nThe filing clarifies that the Connectivity-related portion of deferred revenue arises specifically from **Connectivity enterprise and government contracts** (not consumer broadband), because:\n\n- Consumer broadband contracts are \"generally month-to-month\" with revenue recognized equal to the amount billed each month, limiting advance-payment deferrals.\n- Mobile connectivity agreements are \"generally multi-year contractual obligations that range from one to five years,\" generating more significant deferred revenue.\n- Starshield (government) contracts use the cost-to-cost input method over multi-year periods, contributing to deferred revenue.\n- Starlink Kit (product) revenue is recognized at a point in time upon delivery/installation, so it does **not** generate deferred revenue.\n\nThe broader backlog of **$27,621 million** as of March 31, 2026 (of which $13,236 million was recognized as deferred revenue) provides additional context, with approximately 36% expected to be recognized within one year, 46% between one and three years, and 18% thereafter \u2014 but again, no Connectivity-specific carve-out is provided within these figures."
+          },
+          {
+            "source_call_id": "call_ee0c978ad0c245159cdb7eaf",
+            "content": "Based on the provided S-1 text, here are the definitions and details regarding Starlink's operational metrics and customer categories:\n\n**1. Starlink Subscriber**\nA \"Starlink Subscriber\" is defined as a unique Service Line that is directly assigned to a Starlink.com account registered to a person or entity that *does not* have a direct, negotiated agreement with the Starlink sales team. The count includes both Personal subscription plans (e.g., Residential and Roam) and Business subscription plans (e.g., Local Priority and Global Priority). \n\n**2. Service Line**\nA \"Service Line\" is defined as an individual instance of Starlink broadband internet service provisioned under a subscription plan. It is generally associated with a specific Starlink terminal or group of terminals and is billed according to Starlink\u2019s service plans and terms of service. The number of Service Lines is distinct from the number of unique devices, account holders, end users, or physical persons, as multiple people may share a single Service Line. Conversely, a single account holder may maintain multiple Service Lines (e.g., a Residential line and a separate Roam line), which would be counted as two separate Starlink Subscribers.\n\n**3. ARPU (Starlink Subscriber ARPU)**\nThe company calculates ARPU as the service revenue generated from Starlink Subscribers during a given period, divided by:\n*   (i) The average number of Starlink Subscribers during the period, and\n*   (ii) The number of months in the period.\n\n**4. Specific Exclusions from the Starlink Subscriber Count**\nThe Starlink Subscriber count specifically **excludes managed enterprise and government customers** with contracts in domains including aviation, maritime, land mobility, fixed sites, and government entities. (Additionally, by definition, any entity that has a direct, negotiated agreement with the Starlink sales team is excluded from this metric).\n\n**5. Definition of Enterprise and Government Customers**\nWhile not defined in a single glossary bullet point, the S-1 outlines Enterprise and Government customers functionally and by exclusion from the standard \"Starlink Subscriber\" base:\n*   **Enterprise Customers:** These are entities that have direct, negotiated agreements with the Starlink sales team. They are offered high-speed, low-latency internet services across industries including construction, agriculture, retail, telecom, hospitality, aviation, maritime, and land mobility. This includes a broad fixed-site customer base (such as retail and financial services) that requires high availability for critical operations. Enterprise contracts are based on a combination of subscriptions, data consumption, capacity, or other custom pricing models.\n*   **Government Customers:** These are entities provided with high-speed, resilient connectivity for public services, social impact, humanitarian efforts, and disaster response in remote and challenging environments. It also includes the use of \"Starshield,\" which is a secure, dedicated satellite network designed specifically for United States Government customers and national security."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11150,
+        "completion_tokens": 176,
+        "cached_tokens": 3328,
+        "cost_usd": 0.025474999999999998
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-25T02:42:35.679476+00:00",
+      "source": "agent",
+      "message": "Let me verify the products/services split for the full year periods and check for any additional disclosures.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have a comprehensive understanding of the Connectivity segment. Let me also check for any additional information about the Starlink Kit revenue and the products revenue line item, as well as the geographic revenue breakdown.\n\nLet me also verify the products/services split for the full year periods.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_ba3beb39a935429facae407c",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total products revenue and total services revenue for SpaceX for fiscal years 2023, 2024, and 2025? Provide the exact dollar amounts from the revenue disaggregation table. Also confirm that all products revenue is attributable to the Connectivity segment. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_1b85ef63335146b2ba2d7a0f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the Starlink Kit and how is it sold? What is the relationship between Starlink Kit sales and Connectivity revenue? Are there any disclosures about kit pricing, kit margins, or kit volumes? {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ba3beb39a935429facae407c",
+            "content": "# SpaceX Revenue Disaggregation by Products and Services\n\nBased on the revenue disaggregation table located in the revenue recognition note, the following amounts are reported for the fiscal years ended December 31 (in millions):\n\n| | 2025 | 2024 | 2023 |\n|---|---|---|---|\n| **Products** | $1,510 | $1,470 | $1,093 |\n| **Services** | $17,164 | $12,545 | $9,294 |\n| **Total revenues** | $18,674 | $14,015 | $10,387 |\n\n## Confirmation of Connectivity Attribution\n\nYes \u2014 the note explicitly states: **\"All of products revenue is attributable to the Connectivity segment.\"** This applies across all three fiscal years presented (2023, 2024, and 2025). Products revenue (which consists of Starlink hardware kits sold to consumers, enterprise, and government customers) is entirely housed within the Connectivity segment, while services revenue spans all three reportable segments (Space, Connectivity, and AI)."
+          },
+          {
+            "source_call_id": "call_1b85ef63335146b2ba2d7a0f",
+            "content": "Based on the provided financial disclosures, here is the information regarding the Starlink Kit:\n\n**What is the Starlink Kit and how is it sold?**\n*   **Definition:** The Starlink Kit refers to a set of hardware products needed to connect to the Starlink network, typically including a Starlink User Terminal (or terminal). \n*   **Sales Model:** The kit is sold to consumers, enterprise, and government customers. For consumers, it is typically sold as a one-time hardware purchase alongside a monthly subscription fee for broadband services. \n*   **Revenue Recognition:** Revenue for the Starlink Kit is recognized at a point in time\u2014specifically, upon delivery to the customer, or upon installation for certain enterprise customers. The revenue is reported net of sales returns, credits, and chargebacks. Shipping and handling charges are included in the transaction price but are treated as fulfillment activities rather than a separate performance obligation.\n*   **Warranty:** The company offers a standard product warranty for one to two years on Starlink Kits, though it notes that warranty expenses and related liabilities are immaterial to the consolidated financial statements.\n\n**What is the relationship between Starlink Kit sales and Connectivity revenue?**\n*   The Connectivity segment generates its revenue from two primary streams: (i) broadband and mobile connectivity services and (ii) the sale of the Starlink Kit. \n*   Substantially all Starlink customer contracts contain multiple performance obligations (the service and the kit). The company accounts for these as distinct obligations and allocates the transaction price to each based on their standalone selling prices. \n*   While service revenue is recognized ratably over the subscription term, the kit revenue is recognized upfront at the point of delivery or installation.\n\n**Are there any disclosures about kit pricing, kit margins, or kit volumes?**\n*   **Pricing:** The text does not disclose specific dollar amounts or average selling prices for the kits. It only states that the standalone selling price is determined based on the price at which the kit is sold separately to similar customers in similar locations.\n*   **Margins:** No explicit gross margin percentages or dollar amounts for kit margins are disclosed. However, the filings note that \"Starlink Kit costs\" are a component of the Connectivity segment's cost of revenue. The company expects these costs to decrease as a percentage of revenue over time as it drives efficiencies in next-generation Starlink Kits. Additionally, the text mentions that a $39 million decrease in impairment charges in 2025 was related to the discontinuation of a Starlink Kit production line.\n*   **Volumes:** Specific unit volumes (e.g., number of kits sold) are not disclosed. However, the MD&A references \"higher kit deliveries\" driving a $907 million increase in volume spend on Starlink Kits in 2024. It also notes R&D expense increases in 2025 ($22 million) and Q1 2026 ($8 million) specifically tied to the next-generation production development of Starlink Kits."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12893,
+        "completion_tokens": 200,
+        "cached_tokens": 7872,
+        "cost_usd": 0.024392499999999998
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-25T02:43:48.967593+00:00",
+      "source": "agent",
+      "message": "Let me verify some calculations and check for any additional disclosures about the Q1 periods.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have a comprehensive understanding of the Connectivity segment. Let me also verify the products/services split for the full year periods and check for any additional disclosures.\n\nLet me also check the Q1 2026 products/services split to confirm the figures I have.\n\nActually, I have enough information now. Let me synthesize my findings.\n\nKey findings:\n\n**Disclosed Revenue Streams within Connectivity:**\n\n1. **Two-line disaggregation (formal):**\n   - Consumer: $2,817M (2023), $4,830M (2024), $7,208M (2025), $1,492M (Q1 2025), $2,148M (Q1 2026)\n   - Enterprise & Government (includes Starlink Mobile): $1,052M (2023), $2,769M (2024), $4,179M (2025), $983M (Q1 2025), $1,109M (Q1 2026)\n\n2. **Products vs. Services split (company-wide, but all products = Connectivity):**\n   - Products (Starlink Kit): $1,093M (2023), $1,470M (2024), $1,510M (2025), $352M (Q1 2025), $380M (Q1 2026)\n   - Services: derived as Total Connectivity - Products\n\n3. **Narrative growth drivers within Enterprise & Government (only deltas, not absolute levels):**\n   - Enterprise connectivity (incl. mobile): growth of $1,218M in 2025, $466M in 2024\n   - Mobile connectivity (Starlink Mobile): growth of $632M in 2025, $85M in Q1 2026\n   - Government connectivity (Starshield): growth of $193M in 2025, $1,250M in 2024, -$175M in Q1 2026\n   - Aviation, maritime, and other enterprise: growth of $209M in Q1 2026\n\n**What can be reasonably inferred:**\n\n1. **Starlink Mobile revenue (absolute level):** Can be partially inferred. We know the growth was $632M in 2025 and $85M in Q1 2026. But we don't have a starting base. However, we know V1 Mobile satellites began deploying January 2024, so 2023 mobile revenue was likely minimal or zero. If we assume 2023 mobile revenue was ~$0, then 2024 mobile revenue was ~$632M (or less, since the $632M is the 2025 growth, not the 2024 level). Actually, let me re-read: \"Enterprise connectivity business grew by $1,218 million (inclusive of $632 million growth in the mobile connectivity business).\" So mobile grew $632M in 2025. We don't know the 2024 base. But we can infer that mobile revenue in 2025 was at least $632M (if 2024 base was $0). Actually, since V1 Mobile began deploying January 2024, mobile revenue in 2023 was likely $0. So 2024 mobile revenue was some amount X, and 2025 mobile revenue was X + $632M. We can't determine X precisely.\n\nActually, wait - let me re-read. The Q1 2026 narrative says \"Mobile connectivity business grew by $85 million.\" This is Q1 2026 vs Q1 2025. So if we knew Q1 2025 mobile revenue, we could derive Q1 2026. But we don't.\n\n2. **Starshield (government) revenue (absolute level):** Can be partially inferred. We know growth was $1,250M in 2024, $193M in 2025, and -$175M in Q1 2026. If we assume 2023 government revenue was some base, we could chain together. But we don't have the 2023 base. However, we know total Enterprise & Government was $1,052M in 2023. If we assume mobile was ~$0 in 2023 (since V1 Mobile began deploying January 2024), then 2023 government + enterprise (non-mobile) = $1,052M. We can't split this further.\n\nActually, let me think about this more carefully. The 2024 narrative says:\n- Enterprise connectivity: +$466M\n- Government connectivity: +$1,250M\n- Total Enterprise & Government: +$1,717M (which is $466M + $1,250M = $1,716M, close enough with rounding)\n\nSo in 2024:\n- Enterprise connectivity (incl. mobile) = 2023 enterprise + $466M\n- Government connectivity = 2023 government + $1,250M\n- 2023 enterprise + 2023 government = $1,052M\n\nIf we assume 2023 mobile = $0 (reasonable since V1 Mobile began deploying January 2024), then:\n- 2023 enterprise (non-mobile) + 2023 government = $1,052M\n- 2024 enterprise (non-mobile + mobile) = 2023 enterprise (non-mobile) + $466M\n- 2024 government = 2023 government + $1,250M\n- 2024 total = $1,052M + $1,717M = $2,769M \u2713\n\nBut we still can't split 2023 enterprise vs. government without more info.\n\nFor 2025:\n- Enterprise connectivity (incl. mobile) = 2024 enterprise + $1,218M\n- Government connectivity = 2024 government + $193M\n- 2025 total = $2,769M + $1,411M = $4,180M \u2713 (close to $4,179M with rounding)\n\nFor Q1 2026:\n- Aviation, maritime, and other enterprise: +$209M\n- Mobile connectivity: +$85M\n- Government connectivity: -$175M\n- Total: +$126M (which is $209M + $85M - $175M = $119M, close to $126M with rounding or other items)\n\nWait, that doesn't add up exactly. $209M + $85M - $175M = $119M, but the total growth was $126M. There might be a $7M residual from \"other\" items or rounding. Actually, the narrative might be grouping things differently. Let me re-read: \"Aviation, maritime, and other enterprise business grew by $209 million. Mobile connectivity business grew by $85 million. Government connectivity business decreased by $175 million.\" So the three components sum to $119M, but total growth was $126M. The $7M difference could be from other enterprise sub-components not explicitly mentioned, or rounding.\n\nHmm, actually, looking more carefully, the Q1 2026 breakdown seems to separate \"aviation, maritime, and other enterprise\" from \"mobile connectivity\" - whereas the FY2025 breakdown groups mobile within \"enterprise connectivity.\" So the categorization shifts between periods, making it harder to chain together.\n\n3. **Starlink Kit (products) revenue:** Can be inferred at the company-wide level since all products revenue = Connectivity. So:\n   - 2023: $1,093M\n   - 2024: $1,470M\n   - 2025: $1,510M\n   - Q1 2025: $352M\n   - Q1 2026: $380M\n\nBut we can't split kit revenue between consumer vs. enterprise/government.\n\n4. **Consumer service revenue:** Can be inferred as Consumer total - Consumer kit portion. But we don't know the consumer kit portion. However, we can derive total Connectivity service revenue = Total Connectivity - Products. Then consumer service revenue = Consumer total - consumer kit. But we don't know consumer kit separately.\n\nActually, let me think about this differently. The formal disaggregation is:\n- Consumer (includes both consumer service + consumer kit)\n- Enterprise & Government (includes both E&G service + E&G kit + mobile service)\n\nAnd separately:\n- Products (all kit, consumer + E&G) = $1,510M (2025)\n- Services (all service, consumer + E&G + mobile) = $17,164M - but this includes Space and AI services too\n\nWait, no. The products/services split is company-wide. All products = Connectivity. But services span all three segments. So:\n- Connectivity products = $1,510M (2025)\n- Connectivity services = Connectivity total - Connectivity products = $11,387M - $1,510M = $9,877M (2025)\n\nBut we can't split Connectivity services into consumer service vs. E&G service vs. mobile service, because the Consumer/E&G split includes both service and kit revenue mixed together.\n\nActually, wait. Let me reconsider. The Consumer line ($7,208M in 2025) - does it include kit revenue? The filing says \"All of products revenue is attributable to the Connectivity segment.\" And the Connectivity segment generates revenue from \"(i) broadband and mobile connectivity services and (ii) the sale of the Starlink Kit.\" So the Consumer line likely includes both consumer service and consumer kit. Similarly, E&G includes E&G service, E&G kit, and mobile service.\n\nSo we have:\n- Consumer (service + kit) = $7,208M\n- E&G (service + kit + mobile) = $4,179M\n- Total = $11,387M\n\nAnd separately:\n- Total kit (consumer + E&G) = $1,510M\n- Total service (consumer + E&G + mobile) = $9,877M\n\nWe can derive total service and total kit, but we can't split kit between consumer and E&G, and we can't split service between consumer, E&G, and mobile.\n\n**What remains unquantified:**\n\n1. **Absolute revenue levels for sub-components of Enterprise & Government:**\n   - Starlink Mobile revenue (absolute level) - only growth deltas disclosed\n   - Starshield/government revenue (absolute level) - only growth deltas disclosed\n   - Aviation revenue (absolute level) - only mentioned as part of growth narrative\n   - Maritime revenue (absolute level) - only mentioned as part of growth narrative\n   - Land mobility revenue - not separately quantified\n   - Fixed-site enterprise revenue - not separately quantified\n\n2. **Starlink Kit revenue split:**\n   - Consumer kit vs. E&G kit - not disclosed\n   - Kit ASP, volumes, margins - not disclosed\n\n3. **Geographic revenue breakdown:**\n   - No quantitative geographic split (domestic vs. international, or by region)\n\n4. **Subscriber-level economics:**\n   - Churn, CAC, LTV - not disclosed\n   - ARPU by plan type or geography (actuals) - not disclosed\n   - Net subscriber additions - not disclosed (only period-end counts)\n\n5. **Enterprise/government customer metrics:**\n   - Number of enterprise customers - not disclosed\n   - Number of government customers - not disclosed\n   - Average contract value - not disclosed\n   - Revenue retention rates - not disclosed\n\n6. **Deferred revenue attributable to Connectivity:**\n   - Not separately quantified (bundled with Space)\n\n7. **Segment gross margin:**\n   - Not explicitly disclosed as a percentage\n\n**Modeling limitations:**\n\n1. **Cannot build a bottom-up consumer revenue model:** While we have subscriber counts and ARPU, the ARPU is blended across plan types and geographies. We can't model Residential vs. Roam vs. Business Priority separately. We also can't model geographic mix shifts precisely (only qualitatively).\n\n2. **Cannot decompose Enterprise & Government revenue:** The narrative growth deltas don't chain together cleanly across periods (categorization shifts between FY2025 and Q1 2026). We can't determine absolute revenue levels for mobile, Starshield, aviation, maritime, etc.\n\n3. **Cannot separate hardware from service economics:** Kit revenue and kit margins are not separately disclosed by customer type. This makes it difficult to model the hardware subsidy strategy and its impact on unit economics.\n\n4. **Cannot model geographic expansion economics:** No geographic revenue split means we can't model the trade-off between subscriber growth and ARPU dilution from international expansion at a granular level.\n\n5. **Cannot assess customer retention and lifetime value:** No churn, CAC, or LTV metrics means we can't model subscriber cohort economics or project sustainable growth rates.\n\n6. **Cannot isolate Starshield/government contract economics:** Government revenue is bundled within E&G, and only growth deltas are disclosed. Given the lumpy nature of government contracts (e.g., -$175M in Q1 2026), this creates significant forecasting uncertainty.\n\n7. **Cannot model mobile business unit economics separately:** Mobile revenue is bundled within E&G, and only growth deltas are disclosed. The 7.4M monthly unique devices metric is disclosed, but without a corresponding mobile revenue figure, we can't calculate mobile ARPU.\n\n8. **Deferred revenue and backlog cannot be allocated to Connectivity:** This limits visibility into future revenue recognition timing for the Connectivity segment specifically.\n\n9. **Inconsistent sub-categorization across periods:** The FY2025 narrative groups mobile within \"enterprise connectivity,\" while Q1 2026 separates \"aviation, maritime, and other enterprise\" from \"mobile connectivity.\" This inconsistency prevents clean period-over-period chaining of sub-component revenue.\n\nLet me now also verify the Q1 2026 products/services split and check if there's any additional information I'm missing.\n\nActually, I think I have enough information. Let me also do a quick calculation to verify the Connectivity services revenue for 2025.\n\nConnectivity total 2025 = $11,387M\nProducts (all = Connectivity) 2025 = $1,510M\nConnectivity services 2025 = $11,387M - $1,510M = $9,877M\n\nLet me verify this with the calculator.\n\nAlso, let me check: can we infer Starlink Mobile revenue for 2025? We know:\n- Mobile grew $632M in 2025 (vs 2024)\n- V1 Mobile began deploying January 2024\n- So 2023 mobile revenue was likely ~$0 (or very small)\n\nIf 2023 mobile = $0, then 2024 mobile = some amount X, and 2025 mobile = X + $632M.\nBut we don't know X. However, we can bound it:\n- 2024 enterprise connectivity (incl. mobile) grew $466M vs 2023\n- If 2023 mobile = $0, then 2024 mobile \u2264 $466M (since enterprise non-mobile also grew)\n- So 2025 mobile \u2264 $466M + $632M = $1,098M\n\nBut this is a very rough bound. We can't determine the exact mobile revenue.\n\nActually, wait. Let me reconsider. The 2024 narrative says \"Enterprise connectivity business grew by $466 million\" and \"Government connectivity business grew by $1,250 million.\" It doesn't separately mention mobile in 2024. But the 2025 narrative says \"Enterprise connectivity business grew by $1,218 million (inclusive of $632 million growth in the mobile connectivity business).\" So in 2025, mobile growth ($632M) is a subset of enterprise connectivity growth ($1,218M). This means enterprise non-mobile grew $1,218M - $632M = $586M in 2025.\n\nFor 2024, we don't know how much of the $466M enterprise growth was mobile vs. non-mobile. But since V1 Mobile began deploying January 2024, mobile revenue in 2024 was likely small but growing.\n\nThis is getting complex. Let me just summarize the key inferences and limitations.\n\nLet me also calculate the Connectivity services revenue for each year to include in my answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_fb7c0c6fee324b099c21cea6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "11387 - 1510"
+          }
+        },
+        {
+          "tool_call_id": "call_7cee87f5a05c45cea59b7707",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7599 - 1470"
+          }
+        },
+        {
+          "tool_call_id": "call_db936fd3ce7b4e9a94d1ea2e",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3869 - 1093"
+          }
+        },
+        {
+          "tool_call_id": "call_955fe7fe2b5f4054a54f8899",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3257 - 380"
+          }
+        },
+        {
+          "tool_call_id": "call_fcc1e7bd68754f849e222c4f",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2475 - 352"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_fb7c0c6fee324b099c21cea6",
+            "content": "9877"
+          },
+          {
+            "source_call_id": "call_7cee87f5a05c45cea59b7707",
+            "content": "6129"
+          },
+          {
+            "source_call_id": "call_db936fd3ce7b4e9a94d1ea2e",
+            "content": "2776"
+          },
+          {
+            "source_call_id": "call_955fe7fe2b5f4054a54f8899",
+            "content": "2877"
+          },
+          {
+            "source_call_id": "call_fcc1e7bd68754f849e222c4f",
+            "content": "2123"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13931,
+        "completion_tokens": 3543,
+        "cached_tokens": 12864,
+        "cost_usd": 0.054177499999999996
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-25T02:46:07.684096+00:00",
+      "source": "agent",
+      "message": "Let me verify the Q1 products/services split and check for any additional context on the Enterprise & Government sub-components.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Good, my calculations confirm:\n- 2025 Connectivity services = $11,387M - $1,510M = $9,877M\n- 2024 Connectivity services = $7,599M - $1,470M = $6,129M\n- 2023 Connectivity services = $3,869M - $1,093M = $2,776M\n- Q1 2026 Connectivity services = $3,257M - $380M = $2,877M\n- Q1 2025 Connectivity services = $2,475M - $352M = $2,123M\n\nNow let me also check if there's any way to infer the mobile revenue base. Let me think about this:\n\nFor 2024:\n- Enterprise connectivity (incl. mobile) grew $466M vs 2023\n- Government connectivity grew $1,250M vs 2023\n- Total E&G grew $1,717M vs 2023 (which is $466M + $1,250M = $1,716M, close to $1,717M with rounding)\n- 2023 E&G total = $1,052M\n- 2024 E&G total = $1,052M + $1,717M = $2,769M \u2713\n\nFor 2025:\n- Enterprise connectivity (incl. mobile) grew $1,218M vs 2024\n  - Of which mobile grew $632M\n  - So enterprise non-mobile grew $586M\n- Government connectivity grew $193M vs 2024\n- Total E&G grew $1,411M vs 2024 (which is $1,218M + $193M = $1,411M \u2713)\n- 2025 E&G total = $2,769M + $1,411M = $4,180M \u2713 (close to $4,179M with rounding)\n\nFor Q1 2026:\n- Aviation, maritime, and other enterprise grew $209M\n- Mobile connectivity grew $85M\n- Government connectivity decreased $175M\n- Total E&G grew $126M (which is $209M + $85M - $175M = $119M, but actual is $126M - there's a $7M discrepancy, possibly from rounding or other items not mentioned)\n\nWait, actually, let me reconsider. The Q1 2026 categorization is different from FY2025. In FY2025, the categories were:\n1. Enterprise connectivity (incl. mobile)\n2. Government connectivity\n\nIn Q1 2026, the categories were:\n1. Aviation, maritime, and other enterprise\n2. Mobile connectivity\n3. Government connectivity\n\nSo in Q1 2026, mobile is separated from \"aviation, maritime, and other enterprise.\" This is a different categorization. The \"aviation, maritime, and other enterprise\" in Q1 2026 corresponds to \"enterprise non-mobile\" in FY2025.\n\nSo the Q1 2026 breakdown is:\n- Enterprise non-mobile (aviation, maritime, other): +$209M\n- Mobile: +$85M\n- Government: -$175M\n- Total: +$119M (but actual is +$126M, so there's a $7M residual)\n\nThe $7M residual could be from:\n- Rounding in the individual components\n- Other enterprise sub-components not explicitly mentioned\n- Or the components don't perfectly sum to the total\n\nThis inconsistency in categorization across periods is itself a modeling limitation.\n\nNow, can we infer absolute mobile revenue? Let's try:\n\nIf we assume 2023 mobile revenue = $0 (reasonable since V1 Mobile began deploying January 2024):\n- 2024 mobile revenue = X (unknown, but part of the $466M enterprise growth)\n- 2025 mobile revenue = X + $632M\n- Q1 2025 mobile revenue = Y (unknown)\n- Q1 2026 mobile revenue = Y + $85M\n\nWe can't determine X or Y from the disclosed information. So mobile revenue remains unquantified in absolute terms.\n\nSimilarly for government (Starshield):\n- 2023 government revenue = G (unknown)\n- 2024 government revenue = G + $1,250M\n- 2025 government revenue = G + $1,250M + $193M = G + $1,443M\n- Q1 2025 government revenue = H (unknown)\n- Q1 2026 government revenue = H - $175M\n\nWe can't determine G or H. So government revenue remains unquantified in absolute terms.\n\nHowever, we can bound these. We know:\n- 2023 E&G total = $1,052M = 2023 enterprise (non-mobile) + 2023 mobile + 2023 government\n- If 2023 mobile = $0, then 2023 enterprise (non-mobile) + 2023 government = $1,052M\n- So 2023 government \u2264 $1,052M (if enterprise non-mobile = $0, which is unlikely)\n- And 2023 government \u2265 $0\n\nThis gives us a very wide range. We can't narrow it down further.\n\nActually, wait. Let me reconsider whether we can infer anything about the 2023 split. The 2024 narrative says government grew $1,250M. If government was a small base in 2023 (say, $50-100M), then 2024 government would be ~$1,300-1,350M. But this is speculation.\n\nLet me also think about what we CAN infer:\n\n1. **Total Connectivity services revenue** (derived): $9,877M (2025), $6,129M (2024), $2,776M (2023), $2,877M (Q1 2026), $2,123M (Q1 2025)\n\n2. **Total Connectivity products (kit) revenue** (directly disclosed, since all products = Connectivity): $1,510M (2025), $1,470M (2024), $1,093M (2023), $380M (Q1 2026), $352M (Q1 2025)\n\n3. **Consumer revenue** (directly disclosed): $7,208M (2025), $4,830M (2024), $2,817M (2023), $2,148M (Q1 2026), $1,492M (Q1 2025)\n\n4. **Enterprise & Government revenue** (directly disclosed): $4,179M (2025), $2,769M (2024), $1,052M (2023), $1,109M (Q1 2026), $983M (Q1 2025)\n\n5. **Growth deltas within E&G** (directly disclosed, but only deltas, not absolute levels):\n   - Mobile: +$632M (2025), +$85M (Q1 2026)\n   - Government (Starshield): +$1,250M (2024), +$193M (2025), -$175M (Q1 2026)\n   - Enterprise non-mobile: +$466M (2024, includes mobile), +$586M (2025, derived as $1,218M - $632M), +$209M (Q1 2026, \"aviation, maritime, and other enterprise\")\n\n6. **Subscriber-based consumer service revenue** (can be approximated): ARPU \u00d7 average subscribers \u00d7 months. For 2025: $81 \u00d7 8.9M avg \u00d7 12 = ~$8,655M. But this is \"service revenue from Starlink Subscribers,\" which excludes managed enterprise/government. And the Consumer line includes kit revenue. So consumer service revenue \u2248 $8,655M (from ARPU calculation), and consumer kit revenue \u2248 $7,208M - $8,655M = negative, which doesn't make sense.\n\nWait, let me reconsider. The ARPU definition says: \"Service revenue generated from Starlink Subscribers during the period \u00f7 (average number of Starlink Subscribers during the period \u00d7 number of months in the period).\"\n\nSo ARPU = Consumer service revenue (from Starlink Subscribers only) / (avg subscribers \u00d7 months)\n\nFor 2025: $81 = Consumer service revenue / (8.9M \u00d7 12)\nConsumer service revenue = $81 \u00d7 8.9M \u00d7 12 = $8,655M\n\nBut the Consumer line total is $7,208M, which includes both service and kit. If consumer service revenue alone is $8,655M, that's more than the total Consumer line of $7,208M. This doesn't make sense.\n\nLet me re-read the ARPU definition more carefully. \"Service revenue generated from Starlink Subscribers during the period.\" Starlink Subscribers exclude managed enterprise and government customers. So this is consumer service revenue only.\n\nBut wait - the Consumer line in the revenue table is $7,208M for 2025. If consumer service revenue is $8,655M (from ARPU calculation), that's more than the total Consumer line. This suggests either:\n1. My average subscriber count is wrong (maybe it's not 8.9M)\n2. The ARPU calculation gives a different number\n3. The Consumer line includes something else\n\nActually, let me reconsider. The 8.9M is the year-end subscriber count for FY2025. The average during the year would be different. If subscribers grew from 4.4M (end of 2024) to 8.9M (end of 2025), the average might be around (4.4 + 8.9) / 2 = 6.65M. But growth might not be linear.\n\nLet me recalculate: If ARPU = $81 and we use average subscribers of 6.65M:\nConsumer service revenue = $81 \u00d7 6.65M \u00d7 12 = $6,464M\n\nThen consumer kit revenue = $7,208M - $6,464M = $744M\n\nAnd total kit revenue = $1,510M, so E&G kit revenue = $1,510M - $744M = $766M\n\nBut this is all based on an assumed average subscriber count, which isn't disclosed. The filing only gives period-end counts.\n\nActually, let me re-read the ARPU disclosure. It says ARPU declined 11.2% in 2025. If 2024 ARPU was $91 and 2025 ARPU was $81, that's a decline of ($91-$81)/$91 = 11.0%, close to 11.2% (rounding). And 2023 ARPU was $99, 2024 was $91, decline of ($99-$91)/$99 = 8.1%. \u2713\n\nSo the ARPU figures are:\n- 2023: $99\n- 2024: $91\n- 2025: $81\n- Q1 2025: $86\n- Q1 2026: $66\n\nAnd subscriber counts (period-end):\n- 2023: 2.3M\n- 2024: 4.4M\n- 2025: 8.9M\n- Q1 2025: 5.0M\n- Q1 2026: 10.3M\n\nThe ARPU is calculated using average subscribers during the period, not period-end. So we can't directly derive consumer service revenue without knowing the average subscriber count.\n\nHowever, we can infer that consumer service revenue = ARPU \u00d7 average subscribers \u00d7 months. If we assume linear growth, average subscribers \u2248 (beginning + ending) / 2.\n\nFor 2025: avg \u2248 (4.4 + 8.9) / 2 = 6.65M\nConsumer service revenue \u2248 $81 \u00d7 6.65M \u00d7 12 = $6,464M\n\nFor 2024: avg \u2248 (2.3 + 4.4) / 2 = 3.35M\nConsumer service revenue \u2248 $91 \u00d7 3.35M \u00d7 12 = $3,658M\n\nFor 2023: avg \u2248 (1.0 + 2.3) / 2 = 1.65M (assuming 1.0M at start of 2023, but this is a guess)\nConsumer service revenue \u2248 $99 \u00d7 1.65M \u00d7 12 = $1,960M\n\nBut these are rough estimates based on assumed linear growth. The actual average could be different.\n\nActually, I realize I should be more careful. The filing says \"average number of Starlink Subscribers during the period.\" This is the average, not the period-end. Without knowing the exact average, we can only approximate.\n\nBut here's the key insight: we CAN use the ARPU and subscriber metrics to approximate consumer service revenue, and then derive consumer kit revenue as Consumer total - consumer service revenue. This is a reasonable inference, though imprecise.\n\nLet me also note that the Consumer line in the revenue table likely includes both consumer service and consumer kit revenue. The ARPU metric only captures service revenue from Starlink Subscribers (which excludes managed enterprise/government). So:\n\nConsumer line = Consumer service (from Starlink Subscribers) + Consumer kit\nARPU \u00d7 avg subscribers \u00d7 months \u2248 Consumer service (from Starlink Subscribers)\nConsumer kit \u2248 Consumer line - (ARPU \u00d7 avg subscribers \u00d7 months)\n\nThis is a reasonable inference, but it depends on the average subscriber count, which isn't directly disclosed.\n\nOK, I think I have enough information to write a comprehensive answer. Let me also check if there's any information about the Q1 2026 products/services split that I should verify.\n\nActually, I already have the Q1 2026 products = $380M and Q1 2025 products = $352M from the earlier retrieval. Let me verify these.\n\nActually, I realize I should also check whether the products/services split is disclosed for Q1 periods. Let me retrieve that.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b799e4ab92054da48df0b610",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the products revenue and services revenue for Q1 2026 and Q1 2025? Provide the exact dollar amounts from the revenue disaggregation table for the three months ended March 31, 2026 and March 31, 2025. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_61997fb9dc44432bbb1973ec",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In the SpaceX S-1 MD&A, how is the Enterprise & Government revenue growth explained for FY2024 vs FY2023, FY2025 vs FY2024, and Q1 2026 vs Q1 2025? Provide the exact narrative text describing the growth drivers and sub-components. Also note any inconsistencies in how sub-components are categorized across periods. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b799e4ab92054da48df0b610",
+            "content": "Based on the revenue disaggregation table for the three months ended March 31, 2026 and 2025:\n\n**Q1 2026:**\n* Products revenue: $380 million\n* Services revenue: $4,314 million\n\n**Q1 2025:**\n* Products revenue: $352 million\n* Services revenue: $3,715 million\n\n*(Note: All of the products revenue is attributable to the Connectivity segment, and total revenues for these periods were $4,694 million in Q1 2026 and $4,067 million in Q1 2025.)*"
+          },
+          {
+            "source_call_id": "call_61997fb9dc44432bbb1973ec",
+            "content": "Based on the provided MD&A excerpts, here is the exact narrative text explaining the Enterprise & Government revenue growth for each period, followed by the categorization inconsistencies across the periods.\n\n### FY2024 vs FY2023\n**Exact Narrative Text:**\n\"In addition, Connectivity revenue had an increase of $1,717 million from our enterprise and government customers, primarily driven by the growth in our enterprise connectivity business of $466 million and growth in our government connectivity business of $1,250 million.\"\n\n### FY2025 vs FY2024\n**Exact Narrative Text:**\n\"In addition, Connectivity revenue had an increase of $1,411 million from our enterprise and government customers, primarily driven by the growth in our enterprise connectivity business of $1,218 million inclusive of growth in our mobile connectivity business of $632 million, and growth in our government connectivity business of $193 million.\"\n\n### Q1 2026 vs Q1 2025\n**Exact Narrative Text:**\n\"In addition, enterprise and government revenue had an increase of $126 million primarily driven by the growth in our aviation, maritime, and other enterprise business of $209 million, our mobile connectivity business of $85 million, partially offset by a decrease of $175 million in our government connectivity business.\"\n\n---\n\n### Inconsistencies in Sub-Component Categorization\nThere are notable inconsistencies in how the sub-components of Enterprise & Government revenue are grouped and labeled across the three periods:\n\n1. **FY2024 vs FY2023:** The narrative splits the revenue into two broad, distinct sub-components: the \"enterprise connectivity business\" and the \"government connectivity business.\"\n2. **FY2025 vs FY2024:** A third sub-component, the \"mobile connectivity business,\" is introduced. However, it is nested *within* the \"enterprise connectivity business\" (stating the enterprise growth is \"inclusive of\" the mobile growth). \n3. **Q1 2026 vs Q1 2025:** The categorization shifts again. The \"mobile connectivity business\" is broken out as a standalone sub-component parallel to\u2014rather than nested within\u2014a newly labeled \"aviation, maritime, and other enterprise business\" category. This period also marks the only time one of the sub-components (government connectivity) is reported as a decrease rather than growth."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 17500,
+        "completion_tokens": 3261,
+        "cached_tokens": 13888,
+        "cost_usd": 0.059
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-25T02:46:45.992809+00:00",
+      "source": "agent",
+      "message": "Let me do a few more calculations to verify the derived figures and check the ARPU-based inference.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the information I need. Let me also verify the Q1 2026 and Q1 2025 Connectivity services revenue:\n\nQ1 2026: Total Connectivity = $3,257M, Products = $380M, Services = $3,257M - $380M = $2,877M\nQ1 2025: Total Connectivity = $2,475M, Products = $352M, Services = $2,475M - $352M = $2,123M\n\nThese match my earlier calculations. Good.\n\nNow let me also think about whether we can infer the absolute mobile revenue. Let me try to chain together the growth deltas:\n\nFor mobile:\n- V1 Mobile began deploying January 2024\n- 2024: mobile revenue = X (part of the $466M enterprise growth, but we don't know how much)\n- 2025: mobile revenue = X + $632M (mobile grew $632M in 2025)\n- Q1 2025: mobile revenue = Y (unknown)\n- Q1 2026: mobile revenue = Y + $85M (mobile grew $85M in Q1 2026)\n\nWe can't determine X or Y. So mobile revenue remains unquantified in absolute terms.\n\nFor government (Starshield):\n- 2023: government revenue = G (unknown)\n- 2024: government revenue = G + $1,250M\n- 2025: government revenue = G + $1,250M + $193M = G + $1,443M\n- Q1 2025: government revenue = H (unknown)\n- Q1 2026: government revenue = H - $175M\n\nWe can't determine G or H. So government revenue remains unquantified in absolute terms.\n\nHowever, we can bound these. We know:\n- 2023 E&G total = $1,052M = 2023 enterprise (non-mobile) + 2023 mobile + 2023 government\n- If 2023 mobile = $0, then 2023 enterprise (non-mobile) + 2023 government = $1,052M\n- So 2023 government \u2264 $1,052M (if enterprise non-mobile = $0, which is unlikely)\n- And 2023 government \u2265 $0\n\nThis gives us a very wide range. We can't narrow it down further.\n\nActually, wait. Let me reconsider whether we can infer anything about the 2023 split. The 2024 narrative says government grew $1,250M. If government was a small base in 2023 (say, $50-100M), then 2024 government would be ~$1,300-1,350M. But this is speculation.\n\nLet me also think about what we CAN infer:\n\n1. **Total Connectivity services revenue** (derived): $9,877M (2025), $6,129M (2024), $2,776M (2023), $2,877M (Q1 2026), $2,123M (Q1 2025)\n\n2. **Total Connectivity products (kit) revenue** (directly disclosed, since all products = Connectivity): $1,510M (2025), $1,470M (2024), $1,093M (2023), $380M (Q1 2026), $352M (Q1 2025)\n\n3. **Consumer revenue** (directly disclosed): $7,208M (2025), $4,830M (2024), $2,817M (2023), $2,148M (Q1 2026), $1,492M (Q1 2025)\n\n4. **Enterprise & Government revenue** (directly disclosed): $4,179M (2025), $2,769M (2024), $1,052M (2023), $1,109M (Q1 2026), $983M (Q1 2025)\n\n5. **Growth deltas within E&G** (directly disclosed, but only deltas, not absolute levels):\n   - Mobile: +$632M (2025), +$85M (Q1 2026)\n   - Government (Starshield): +$1,250M (2024), +$193M (2025), -$175M (Q1 2026)\n   - Enterprise non-mobile: +$466M (2024, includes mobile), +$586M (2025, derived as $1,218M - $632M), +$209M (Q1 2026, \"aviation, maritime, and other enterprise\")\n\n6. **Subscriber-based consumer service revenue** (can be approximated): ARPU \u00d7 average subscribers \u00d7 months. For 2025: $81 \u00d7 8.9M avg \u00d7 12 = ~$8,655M. But this is \"service revenue from Starlink Subscribers,\" which excludes managed enterprise/government. And the Consumer line includes kit revenue. So consumer service revenue \u2248 $8,655M (from ARPU calculation), and consumer kit revenue \u2248 $7,208M - $8,655M = negative, which doesn't make sense.\n\nWait, let me reconsider. The ARPU definition says: \"Service revenue generated from Starlink Subscribers during the period \u00f7 (average number of Starlink Subscribers during the period \u00d7 number of months in the period).\"\n\nSo ARPU = Consumer service revenue (from Starlink Subscribers only) / (avg subscribers \u00d7 months)\n\nFor 2025: $81 = Consumer service revenue / (8.9M \u00d7 12)\nConsumer service revenue = $81 \u00d7 8.9M \u00d7 12 = $8,655M\n\nBut the Consumer line total is $7,208M, which includes both service and kit. If consumer service revenue alone is $8,655M, that's more than the total Consumer line of $7,208M. This doesn't make sense.\n\nLet me re-read the ARPU definition more carefully. \"Service revenue generated from Starlink Subscribers during the period.\" Starlink Subscribers exclude managed enterprise and government customers. So this is consumer service revenue only.\n\nBut wait - the Consumer line in the revenue table is $7,208M for 2025. If consumer service revenue is $8,655M (from ARPU calculation), that's more than the total Consumer line. This suggests either:\n1. My average subscriber count is wrong (maybe it's not 8.9M)\n2. The ARPU calculation gives a different number\n3. The Consumer line includes something else\n\nActually, let me reconsider. The 8.9M is the year-end subscriber count for FY2025. The average during the year would be different. If subscribers grew from 4.4M (end of 2024) to 8.9M (end of 2025), the average might be around (4.4 + 8.9) / 2 = 6.65M. But growth might not be linear.\n\nLet me recalculate: If ARPU = $81 and we use average subscribers of 6.65M:\nConsumer service revenue = $81 \u00d7 6.65M \u00d7 12 = $6,464M\n\nThen consumer kit revenue = $7,208M - $6,464M = $744M\n\nAnd total kit revenue = $1,510M, so E&G kit revenue = $1,510M - $744M = $766M\n\nBut this is all based on an assumed average subscriber count, which isn't disclosed. The filing only gives period-end counts.\n\nActually, let me re-read the ARPU disclosure. It says ARPU declined 11.2% in 2025. If 2024 ARPU was $91 and 2025 ARPU was $81, that's a decline of ($91-$81)/$91 = 11.0%, close to 11.2% (rounding). And 2023 ARPU was $99, 2024 was $91, decline of ($99-$91)/$99 = 8.1%. \u2713\n\nSo the ARPU figures are:\n- 2023: $99\n- 2024: $91\n- 2025: $81\n- Q1 2025: $86\n- Q1 2026: $66\n\nAnd subscriber counts (period-end):\n- 2023: 2.3M\n- 2024: 4.4M\n- 2025: 8.9M\n- Q1 2025: 5.0M\n- Q1 2026: 10.3M\n\nThe ARPU is calculated using average subscribers during the period, not period-end. So we can't directly derive consumer service revenue without knowing the average subscriber count.\n\nHowever, we can infer that consumer service revenue = ARPU \u00d7 average subscribers \u00d7 months. If we assume linear growth, average subscribers \u2248 (beginning + ending) / 2.\n\nFor 2025: avg \u2248 (4.4 + 8.9) / 2 = 6.65M\nConsumer service revenue \u2248 $81 \u00d7 6.65M \u00d7 12 = $6,464M\n\nFor 2024: avg \u2248 (2.3 + 4.4) / 2 = 3.35M\nConsumer service revenue \u2248 $91 \u00d7 3.35M \u00d7 12 = $3,658M\n\nFor 2023: avg \u2248 (1.0 + 2.3) / 2 = 1.65M (assuming 1.0M at start of 2023, but this is a guess)\nConsumer service revenue \u2248 $99 \u00d7 1.65M \u00d7 12 = $1,960M\n\nBut these are rough estimates based on assumed linear growth. The actual average could be different.\n\nActually, I realize I should be more careful. The filing says \"average number of Starlink Subscribers during the period.\" This is the average, not the period-end. Without knowing the exact average, we can only approximate.\n\nBut here's the key insight: we CAN use the ARPU and subscriber metrics to approximate consumer service revenue, and then derive consumer kit revenue as Consumer total - consumer service revenue. This is a reasonable inference, though imprecise.\n\nLet me also note that the Consumer line in the revenue table likely includes both consumer service and consumer kit revenue. The ARPU metric only captures service revenue from Starlink Subscribers (which excludes managed enterprise/government). So:\n\nConsumer line = Consumer service (from Starlink Subscribers) + Consumer kit\nARPU \u00d7 avg subscribers \u00d7 months \u2248 Consumer service (from Starlink Subscribers)\nConsumer kit \u2248 Consumer line - (ARPU \u00d7 avg subscribers \u00d7 months)\n\nThis is a reasonable inference, but it depends on the average subscriber count, which isn't directly disclosed.\n\nOK, I think I have enough information to write a comprehensive answer. Let me also check if there's any information about the Q1 2026 products/services split that I should verify.\n\nActually, I already have the Q1 2026 products = $380M and Q1 2025 products = $352M from the earlier retrieval. Let me verify these.\n\nActually, I realize I should also check whether the products/services split is disclosed for Q1 periods. Let me retrieve that.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_543690bd049f465eaa2acb60",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "81 * ((4.4 + 8.9) / 2) * 12"
+          }
+        },
+        {
+          "tool_call_id": "call_8cda057c8ee246fb9b873da4",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "91 * ((2.3 + 4.4) / 2) * 12"
+          }
+        },
+        {
+          "tool_call_id": "call_b903101ef8f040f3a33b3c53",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "86 * ((4.4 + 5.0) / 2) * 3"
+          }
+        },
+        {
+          "tool_call_id": "call_b940cbdf680644619243f7a3",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "66 * ((5.0 + 10.3) / 2) * 3"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_543690bd049f465eaa2acb60",
+            "content": "6463.799999999999"
+          },
+          {
+            "source_call_id": "call_8cda057c8ee246fb9b873da4",
+            "content": "3658.2000000000003"
+          },
+          {
+            "source_call_id": "call_b903101ef8f040f3a33b3c53",
+            "content": "1212.6"
+          },
+          {
+            "source_call_id": "call_b940cbdf680644619243f7a3",
+            "content": "1514.7"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21365,
+        "completion_tokens": 2586,
+        "cached_tokens": 17472,
+        "cost_usd": 0.0574325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-25T02:47:35.624160+00:00",
+      "source": "agent",
+      "message": "Now I have comprehensive information. Let me compile the final analysis.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Interesting. Let me compare these ARPU-based estimates with the disclosed Consumer revenue:\n\nFor 2025:\n- ARPU-based consumer service revenue estimate: $6,464M (using avg subscribers \u2248 6.65M)\n- Consumer line total: $7,208M\n- Implied consumer kit: $7,208M - $6,464M = $744M\n- Total kit: $1,510M\n- Implied E&G kit: $1,510M - $744M = $766M\n\nFor 2024:\n- ARPU-based consumer service revenue estimate: $3,658M (using avg subscribers \u2248 3.35M)\n- Consumer line total: $4,830M\n- Implied consumer kit: $4,830M - $3,658M = $1,172M\n- Total kit: $1,470M\n- Implied E&G kit: $1,470M - $1,172M = $298M\n\nFor Q1 2025:\n- ARPU-based consumer service revenue estimate: $1,213M (using avg subscribers \u2248 4.7M)\n- Consumer line total: $1,492M\n- Implied consumer kit: $1,492M - $1,213M = $279M\n- Total kit: $352M\n- Implied E&G kit: $352M - $279M = $73M\n\nFor Q1 2026:\n- ARPU-based consumer service revenue estimate: $1,515M (using avg subscribers \u2248 7.65M)\n- Consumer line total: $2,148M\n- Implied consumer kit: $2,148M - $1,515M = $633M\n- Total kit: $380M\n- Implied E&G kit: $380M - $633M = -$253M (NEGATIVE - doesn't make sense!)\n\nHmm, the Q1 2026 calculation gives a negative E&G kit, which doesn't make sense. This suggests that my assumption of linear subscriber growth (and thus the average subscriber count) is wrong. The actual average subscriber count for Q1 2026 must be lower than 7.65M, or the ARPU-based estimate is overstating consumer service revenue.\n\nWait, actually, let me reconsider. The Q1 2026 ARPU is $66, which is a 22.9% decline from Q1 2025's $86. This is a steep decline. If the average subscriber count was higher than 7.65M (say, closer to 8.5M), then:\nConsumer service revenue = $66 \u00d7 8.5M \u00d7 3 = $1,683M\nImplied consumer kit = $2,148M - $1,683M = $465M\nBut total kit is only $380M, so E&G kit = $380M - $465M = -$85M (still negative)\n\nIf average subscribers was 9.5M:\nConsumer service revenue = $66 \u00d7 9.5M \u00d7 3 = $1,881M\nImplied consumer kit = $2,148M - $1,881M = $267M\nE&G kit = $380M - $267M = $113M (positive, but this assumes very high average)\n\nHmm, this is getting complicated. The issue is that the ARPU-based estimate is sensitive to the assumed average subscriber count, which isn't disclosed. The period-end count is 10.3M, but the average during Q1 2026 could be anywhere from ~7M to ~10M depending on the growth trajectory.\n\nActually, wait. Let me reconsider. The ARPU is defined as service revenue / (avg subscribers \u00d7 months). So if we know ARPU and we know the actual service revenue, we can derive the average subscribers. But we don't know the actual consumer service revenue separately from consumer kit.\n\nThe key issue is that the Consumer line ($2,148M for Q1 2026) includes both service and kit revenue, and we can't separate them without knowing either the kit portion or the average subscriber count.\n\nHowever, we CAN say that:\n- Consumer service revenue \u2264 Consumer line = $2,148M (since kit \u2265 $0)\n- Consumer service revenue = ARPU \u00d7 avg subscribers \u00d7 months = $66 \u00d7 avg \u00d7 3 = $198 \u00d7 avg\n- So $198 \u00d7 avg \u2264 $2,148M, meaning avg \u2264 10.8M\n- And consumer kit = $2,148M - $198 \u00d7 avg \u2265 $0, so avg \u2264 10.8M\n\nAlso:\n- Consumer kit \u2264 Total kit = $380M\n- So $2,148M - $198 \u00d7 avg \u2264 $380M, meaning $198 \u00d7 avg \u2265 $1,768M, so avg \u2265 8.93M\n\nSo for Q1 2026, the average subscriber count is between 8.93M and 10.8M. This is a reasonable range given that the period-end count is 10.3M.\n\nThis means:\n- Consumer service revenue is between $198 \u00d7 8.93M = $1,768M and $198 \u00d7 10.8M = $2,138M\n- Consumer kit is between $2,148M - $2,138M = $10M and $2,148M - $1,768M = $380M\n- E&G kit is between $380M - $380M = $0M and $380M - $10M = $370M\n\nSo we can bound these, but can't determine them precisely.\n\nThis is actually a useful insight for my answer. The ARPU and subscriber metrics allow us to BOUND the consumer service vs. kit split, but not determine it precisely, because the average subscriber count isn't disclosed.\n\nLet me also check: can we use the ARPU and subscriber metrics to verify the Consumer line? \n\nFor 2025:\n- If avg subscribers = 6.65M (linear growth assumption), consumer service = $6,464M\n- Consumer line = $7,208M\n- Implied consumer kit = $744M\n- Total kit = $1,510M\n- Implied E&G kit = $766M\n- This seems reasonable (consumer kit < E&G kit, which makes sense if enterprise customers buy more kits)\n\nFor 2024:\n- If avg subscribers = 3.35M, consumer service = $3,658M\n- Consumer line = $4,830M\n- Implied consumer kit = $1,172M\n- Total kit = $1,470M\n- Implied E&G kit = $298M\n- This also seems reasonable\n\nFor Q1 2025:\n- If avg subscribers = 4.7M, consumer service = $1,213M\n- Consumer line = $1,492M\n- Implied consumer kit = $279M\n- Total kit = $352M\n- Implied E&G kit = $73M\n- This seems reasonable\n\nFor Q1 2026:\n- If avg subscribers = 7.65M, consumer service = $1,515M\n- Consumer line = $2,148M\n- Implied consumer kit = $633M\n- Total kit = $380M\n- Implied E&G kit = -$253M (NEGATIVE - doesn't work)\n- This suggests avg subscribers must be higher than 7.65M\n\nSo the linear growth assumption works for 2024, 2025, and Q1 2025, but not for Q1 2026. This could be because:\n1. Subscriber growth was back-loaded in Q1 2026 (more growth toward the end of the quarter)\n2. The ARPU decline was steeper than linear\n3. There's some other factor\n\nThis is actually a useful modeling limitation to highlight: the ARPU \u00d7 subscriber framework can approximately reconcile to the Consumer line for annual periods (under linear growth assumptions), but breaks down for Q1 2026, suggesting either non-linear subscriber growth or other factors not captured by the simple ARPU \u00d7 subscriber model.\n\nOK, I think I have more than enough information now. Let me write my comprehensive answer.\n\nLet me also verify one more thing - the Q1 2026 products/services split. I have:\n- Q1 2026: Products = $380M, Services = $4,314M, Total = $4,694M\n- Q1 2025: Products = $352M, Services = $3,715M, Total = $4,067M\n\nAnd Connectivity:\n- Q1 2026: Total = $3,257M, Products = $380M (all products = Connectivity), Services = $3,257M - $380M = $2,877M\n- Q1 2025: Total = $2,475M, Products = $352M, Services = $2,475M - $352M = $2,123M\n\nThese are consistent. Good.\n\nNow let me write my final answer. I'll structure it as:\n\n1. **Disclosed Revenue Streams (Directly Quantified)**\n   - Consumer (service + kit combined)\n   - Enterprise & Government (service + kit + mobile combined)\n   - Products (all kit, company-wide = Connectivity)\n   - Services (derived for Connectivity)\n\n2. **Reasonably Inferable Revenue Streams**\n   - Total Connectivity services (derived)\n   - Total Connectivity products/kit (directly disclosed via company-wide products)\n   - Consumer service revenue (approximated via ARPU \u00d7 subscribers, with caveats)\n   - Consumer kit revenue (derived as Consumer line - consumer service estimate)\n   - E&G kit revenue (derived as Total kit - consumer kit estimate)\n   - Growth deltas for mobile, government, and enterprise non-mobile (directly disclosed as deltas)\n\n3. **Unquantified Revenue Streams**\n   - Absolute Starlink Mobile revenue\n   - Absolute Starshield/government revenue\n   - Absolute aviation revenue\n   - Absolute maritime revenue\n   - Absolute land mobility revenue\n   - Absolute fixed-site enterprise revenue\n   - Consumer kit vs. E&G kit split (can only be bounded, not determined)\n   - Geographic revenue split\n\n4. **Modeling Limitations**\n   - Cannot decompose E&G into absolute sub-component levels\n   - Inconsistent sub-categorization across periods prevents clean chaining\n   - Cannot separate hardware from service economics by customer type\n   - Cannot model geographic mix shifts quantitatively\n   - Cannot assess subscriber retention/lifetime economics\n   - Cannot isolate government contract lumpiness\n   - Cannot model mobile unit economics separately\n   - Deferred revenue and backlog not allocated to Connectivity\n   - ARPU \u00d7 subscriber framework only approximately reconciles to Consumer line\n\nLet me write this up now.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_f09be8b916bf4db9a4914c67",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7208 - 6464"
+          }
+        },
+        {
+          "tool_call_id": "call_38d6a99f6cb34f54b10eccde",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4830 - 3658"
+          }
+        },
+        {
+          "tool_call_id": "call_4d00332835974627929195b6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1510 - 744"
+          }
+        },
+        {
+          "tool_call_id": "call_615dacab951d4999b51ef2d2",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "1470 - 1172"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_f09be8b916bf4db9a4914c67",
+            "content": "744"
+          },
+          {
+            "source_call_id": "call_38d6a99f6cb34f54b10eccde",
+            "content": "1172"
+          },
+          {
+            "source_call_id": "call_4d00332835974627929195b6",
+            "content": "766"
+          },
+          {
+            "source_call_id": "call_615dacab951d4999b51ef2d2",
+            "content": "298"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 23986,
+        "completion_tokens": 2431,
+        "cached_tokens": 11136,
+        "cost_usd": 0.070355
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-25T02:48:51.033986+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed to provide a comprehensive analysis. Let me submit my final answer.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Good. Now I have all the calculations I need. Let me write the final answer.\n\nSummary of key figures:\n\n**Directly disclosed (formal revenue table):**\n- Consumer: $2,817M (2023), $4,830M (2024), $7,208M (2025), $1,492M (Q1 2025), $2,148M (Q1 2026)\n- Enterprise & Government (incl. Starlink Mobile): $1,052M (2023), $2,769M (2024), $4,179M (2025), $983M (Q1 2025), $1,109M (Q1 2026)\n- Total Connectivity: $3,869M (2023), $7,599M (2024), $11,387M (2025), $2,475M (Q1 2025), $3,257M (Q1 2026)\n\n**Directly disclosed (company-wide products/services, all products = Connectivity):**\n- Products (Starlink Kit): $1,093M (2023), $1,470M (2024), $1,510M (2025), $352M (Q1 2025), $380M (Q1 2026)\n\n**Derived (Connectivity services = Total Connectivity - Products):**\n- Connectivity services: $2,776M (2023), $6,129M (2024), $9,877M (2025), $2,123M (Q1 2025), $2,877M (Q1 2026)\n\n**Narrative growth deltas within E&G (only deltas, not absolute levels):**\n- FY2024 vs FY2023: Enterprise connectivity +$466M, Government +$1,250M\n- FY2025 vs FY2024: Enterprise connectivity (incl. mobile) +$1,218M, of which Mobile +$632M; Government +$193M\n- Q1 2026 vs Q1 2025: Aviation/maritime/other enterprise +$209M, Mobile +$85M, Government -$175M\n\n**ARPU-based inference (using linear growth assumption for average subscribers):**\n- 2025: Consumer service \u2248 $6,464M, Consumer kit \u2248 $744M, E&G kit \u2248 $766M\n- 2024: Consumer service \u2248 $3,658M, Consumer kit \u2248 $1,172M, E&G kit \u2248 $298M\n- Q1 2026: Framework breaks down (implies negative E&G kit), suggesting non-linear subscriber growth or other factors\n\n**Key metrics disclosed:**\n- Starlink Subscribers: 2.3M (2023), 4.4M (2024), 8.9M (2025), 5.0M (Q1 2025), 10.3M (Q1 2026)\n- ARPU: $99 (2023), $91 (2024), $81 (2025), $86 (Q1 2025), $66 (Q1 2026)\n- Starlink Mobile: 7.4M monthly unique devices, ~30 countries, ~30 MNOs\n- Satellites: ~9,600 in LEO, ~650 V1 Mobile\n\n**Key metrics NOT disclosed:**\n- Churn, CAC, LTV\n- Net subscriber additions\n- ARPU by plan type or geography (actuals)\n- Kit volumes, ASP, margins\n- Number of enterprise/government customers\n- Geographic revenue split\n- Connectivity-specific deferred revenue\n- Segment gross margin\n\nLet me now write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c82c7ea5aa42490f88483f03",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Connectivity Revenue: Inferred Streams, Unquantified Components, and Modeling Limitations\n\n### 1. Disclosure Architecture\n\nThe SpaceX S-1 discloses Connectivity revenue through two overlapping but non-aligned lenses:\n\n**Lens A \u2014 Customer-type disaggregation (formal revenue table):**\n| ($M) | FY2023 | FY2024 | FY2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| Consumer | 2,817 | 4,830 | 7,208 | 1,492 | 2,148 |\n| Enterprise & Government (incl. Starlink Mobile) | 1,052 | 2,769 | 4,179 | 983 | 1,109 |\n| **Connectivity Total** | **3,869** | **7,599** | **11,387** | **2,475** | **3,257** |\n\n**Lens B \u2014 Products vs. Services disaggregation (company-wide; all products = Connectivity):**\n| ($M) | FY2023 | FY2024 | FY2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| Products (Starlink Kit) | 1,093 | 1,470 | 1,510 | 352 | 380 |\n| Connectivity Services (derived) | 2,776 | 6,129 | 9,877 | 2,123 | 2,877 |\n\nThe filing explicitly states: *\"All of products revenue is attributable to the Connectivity segment.\"* This allows derivation of total Connectivity services revenue (Total Connectivity \u2212 Products), but the two lenses cannot be cross-tabulated because the customer-type split (Consumer vs. E&G) bundles service and kit revenue together within each line.\n\n---\n\n### 2. Revenue Streams That Can Be Reasonably Inferred\n\n**a) Total Connectivity services revenue (derived with high confidence):**\nSince all products revenue flows through Connectivity, Connectivity services = Total Connectivity \u2212 Products:\n- FY2025: $11,387M \u2212 $1,510M = **$9,877M**\n- FY2024: $7,599M \u2212 $1,470M = **$6,129M**\n- FY2023: $3,869M \u2212 $1,093M = **$2,776M**\n- Q1 2026: $3,257M \u2212 $380M = **$2,877M**\n- Q1 2025: $2,475M \u2212 $352M = **$2,123M**\n\n**b) Total Starlink Kit (products) revenue (directly disclosed):**\n$1,510M (FY2025), $1,470M (FY2024), $1,093M (FY2023), $380M (Q1 2026), $352M (Q1 2025).\n\n**c) Consumer service revenue (approximated via ARPU \u00d7 subscribers, with caveats):**\nThe filing defines ARPU as: *Service revenue from Starlink Subscribers \u00f7 (average subscribers \u00d7 months in period).* Starlink Subscribers exclude managed enterprise/government customers, so ARPU captures only consumer service revenue. Using period-end subscriber counts as a proxy for the average (under a linear-growth assumption):\n\n| Period | ARPU | Avg Subs (est.) | Months | Est. Consumer Service | Consumer Line | Implied Consumer Kit |\n|---|---|---|---|---|---|---|\n| FY2025 | $81 | ~6.65M | 12 | ~$6,464M | $7,208M | ~$744M |\n| FY2024 | $91 | ~3.35M | 12 | ~$3,658M | $4,830M | ~$1,172M |\n\nThis implies E&G Kit = Total Kit \u2212 Consumer Kit \u2248 $766M (FY2025) and $298M (FY2024). These are reasonable inferences but depend on the undisclosed average subscriber count.\n\n**d) Growth deltas for E&G sub-components (directly disclosed as deltas only):**\n| Period | Enterprise (non-mobile) | Mobile | Government (Starshield) | Total E&G \u0394 |\n|---|---|---|---|---|\n| FY2024 vs FY2023 | +$466M (incl. mobile) | not broken out | +$1,250M | +$1,717M |\n| FY2025 vs FY2024 | +$586M (derived: $1,218M \u2212 $632M) | +$632M | +$193M | +$1,411M |\n| Q1 2026 vs Q1 2025 | +$209M (\"aviation, maritime, other\") | +$85M | \u2212$175M | +$126M |\n\n---\n\n### 3. Revenue Streams That Remain Unquantified\n\n**a) Absolute Starlink Mobile revenue:** Only growth deltas are disclosed (+$632M in FY2025; +$85M in Q1 2026). V1 Mobile satellites began deploying January 2024, so the FY2023 base was likely near zero, but the FY2024 base is unknown. The 7.4M monthly unique devices metric is disclosed, but without a corresponding revenue figure, mobile ARPU cannot be calculated from actuals (only market-sizing assumptions of $2\u2013$18/month by income tier are provided).\n\n**b) Absolute Starshield / government revenue:** Only growth deltas are disclosed (+$1,250M in FY2024; +$193M in FY2025; \u2212$175M in Q1 2026). The FY2023 base is unknown, so absolute government revenue cannot be chained forward. The Q1 2026 decline of $175M highlights the lumpy, contract-driven nature of this stream.\n\n**c) Absolute aviation, maritime, land mobility, and fixed-site enterprise revenue:** These are referenced qualitatively (industries served include \"construction, agriculture, retail, telecom, hospitality, aviation, maritime, and land mobility\") but never quantified individually. The Q1 2026 narrative groups them as \"aviation, maritime, and other enterprise business\" with a +$209M delta, but no absolute level or prior-period comparable.\n\n**d) Consumer Kit vs. E&G Kit split:** Can only be bounded, not determined. For Q1 2026, the ARPU \u00d7 subscriber framework (under linear growth) implies negative E&G kit, which is impossible\u2014indicating the average subscriber count exceeded the linear-growth estimate. The framework only approximately reconciles for annual periods and breaks down for Q1 2026.\n\n**e) Geographic revenue split:** No quantitative domestic vs. international or regional breakdown is disclosed. ARPU decline is attributed qualitatively to \"international expansion and the addition of lower-priced service plans,\" but the geographic revenue mix is not quantified.\n\n**f) Connectivity-specific deferred revenue and backlog:** Total deferred revenue ($12,116M at Dec 31, 2025; $13,236M at Mar 31, 2026) and total backlog ($27,621M) are disclosed only at the consolidated level. The filing states deferred revenue \"primarily relates to Space agreements and Connectivity enterprise and government contracts,\" but no Connectivity-specific carve-out is provided.\n\n**g) Subscriber-level economics:** Churn (gross or net), customer acquisition cost, lifetime value, net subscriber additions, ARPU by plan type (Residential vs. Roam vs. Business Priority), and ARPU by geography (actuals) are all undisclosed.\n\n**h) Kit unit economics:** Kit shipment volumes, average selling price, kit gross margin, and terminal manufacturing cost are not disclosed.\n\n**i) Enterprise/government customer metrics:** Number of enterprise customers, number of government customers, average contract value, and revenue retention rates are not disclosed. (The filing does note that since 2023, no Enterprise customer contributing >$750K annual revenue has voluntarily discontinued service.)\n\n---\n\n### 4. Modeling Limitations Following from This Disclosure Structure\n\n**Limitation 1 \u2014 Cannot decompose E&G into absolute sub-component levels.**\nThe narrative provides only year-over-year growth deltas for mobile, government, and enterprise sub-components, without absolute bases. Because the FY2023 starting split between enterprise and government within the $1,052M E&G total is unknown, absolute revenue levels for Starlink Mobile, Starshield, aviation, maritime, and other enterprise streams cannot be derived. A modeler cannot build separate revenue trajectories for these streams.\n\n**Limitation 2 \u2014 Inconsistent sub-categorization across periods prevents clean chaining.**\nThe E&G sub-component taxonomy shifts across periods:\n- FY2024 narrative: two buckets (enterprise connectivity, government connectivity)\n- FY2025 narrative: three buckets, with mobile nested within enterprise (\"inclusive of\")\n- Q1 2026 narrative: three buckets, with mobile broken out parallel to \"aviation, maritime, and other enterprise\"\n\nThese shifts mean growth deltas cannot be cleanly chained across periods to reconstruct absolute levels. Additionally, the Q1 2026 sub-components ($209M + $85M \u2212 $175M = $119M) do not precisely reconcile to the disclosed total E&G growth of $126M, leaving a ~$7M unexplained residual.\n\n**Limitation 3 \u2014 Cannot separate hardware (kit) from service economics by customer type.**\nThe products/services split is disclosed only at the company-wide level (all products = Connectivity). The consumer vs. E&G split bundles kit and service together. Without kit volumes, ASP, or margins, a modeler cannot assess the hardware subsidy strategy, kit contribution margin, or the service-vs-hardware revenue mix by customer segment.\n\n**Limitation 4 \u2014 ARPU \u00d7 subscriber framework only approximately reconciles and breaks down for quarterly periods.**\nThe ARPU metric is defined using *average* subscribers, but only period-end subscriber counts are disclosed. Under a linear-growth assumption, the framework approximately reconciles to the Consumer line for annual periods (implying ~$744M consumer kit in FY2025), but produces impossible results (negative E&G kit) for Q1 2026. This means quarterly consumer service vs. kit splits cannot be reliably inferred.\n\n**Limitation 5 \u2014 Cannot model geographic mix shifts quantitatively.**\nARPU has declined 33% from $99 (FY2023) to $66 (Q1 2026), attributed to international expansion and lower-priced plans. Without a geographic revenue split, a modeler cannot decompose ARPU decline into volume mix (geography) vs. price mix (plan tier) effects, limiting the ability to project future ARPU trajectories or model geographic expansion economics.\n\n**Limitation 6 \u2014 Cannot assess subscriber retention or lifetime economics.**\nNo churn, CAC, LTV, or net retention metrics are disclosed. The Service Line definition (one subscriber = one service line, not one end user) further complicates cohort analysis. Without these, sustainable growth rates and subscriber lifetime value cannot be modeled.\n\n**Limitation 7 \u2014 Cannot isolate government (Starshield) contract lumpiness.**\nGovernment revenue declined $175M in Q1 2026 after growing $1,250M in FY2024 and $193M in FY2025. Without absolute levels, contract timing details, or backlog allocation, the volatility and forward visibility of this stream cannot be modeled. The cost-to-cost input method for Starshield means revenue recognition depends on cost incurrence patterns that are not separately disclosed.\n\n**Limitation 8 \u2014 Cannot model Starlink Mobile unit economics separately.**\nMobile revenue is embedded within E&G, with only growth deltas disclosed. The 7.4M monthly unique devices metric and ~30 MNO partnerships are disclosed, but without a corresponding revenue figure, mobile ARPU, revenue per device, or MNO contract economics cannot be derived from actuals.\n\n**Limitation 9 \u2014 Deferred revenue and backlog cannot be allocated to Connectivity.**\nThis limits forward revenue visibility for the Connectivity segment specifically. Since deferred revenue \"primarily relates to Space agreements and Connectivity enterprise and government contracts,\" a significant portion of the $13,236M deferred revenue balance is Connectivity-related, but the exact amount and its expected recognition timing are not separable.\n\n**Limitation 10 \u2014 Segment gross margin is not directly disclosed.**\nOnly segment income from operations ($4,423M in FY2025) and segment Adjusted EBITDA ($7,168M in FY2025) are disclosed. Without a separate cost-of-revenue line for the segment, gross margin cannot be calculated, limiting analysis of hardware vs. service cost structures and operating leverage.\n\n---\n\n### Summary\n\nThe Connectivity segment's disclosure structure supports confident derivation of **total services vs. products revenue** and **Consumer vs. E&G revenue** at the top line. It also supports **approximate** inference of consumer service vs. kit revenue via the ARPU \u00d7 subscriber framework (for annual periods). However, the absolute revenue levels of **Starlink Mobile, Starshield/government, aviation, maritime, and other enterprise sub-streams** remain unquantified\u2014only growth deltas are provided, and these deltas use inconsistent categorizations across periods that prevent clean reconstruction. The resulting modeling limitations are significant: a modeler cannot build bottom-up sub-segment revenue models, cannot separate hardware from service economics by customer type, cannot model geographic mix shifts quantitatively, cannot assess subscriber retention/lifetime economics, and cannot allocate deferred revenue or backlog to Connectivity. These gaps are particularly material for the E&G line, which grew from $1,052M (FY2023) to $4,179M (FY2025)\u2014a 4\u00d7 increase driven by streams whose individual scales and trajectories are not disclosed.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Connectivity segment disclosures, revenue disaggregation tables, MD&A growth narratives, ARPU/subscriber definitions, and segment financial metrics\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c82c7ea5aa42490f88483f03",
+            "content": "## Connectivity Revenue: Inferred Streams, Unquantified Components, and Modeling Limitations\n\n### 1. Disclosure Architecture\n\nThe SpaceX S-1 discloses Connectivity revenue through two overlapping but non-aligned lenses:\n\n**Lens A \u2014 Customer-type disaggregation (formal revenue table):**\n| ($M) | FY2023 | FY2024 | FY2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| Consumer | 2,817 | 4,830 | 7,208 | 1,492 | 2,148 |\n| Enterprise & Government (incl. Starlink Mobile) | 1,052 | 2,769 | 4,179 | 983 | 1,109 |\n| **Connectivity Total** | **3,869** | **7,599** | **11,387** | **2,475** | **3,257** |\n\n**Lens B \u2014 Products vs. Services disaggregation (company-wide; all products = Connectivity):**\n| ($M) | FY2023 | FY2024 | FY2025 | Q1 2025 | Q1 2026 |\n|---|---|---|---|---|---|\n| Products (Starlink Kit) | 1,093 | 1,470 | 1,510 | 352 | 380 |\n| Connectivity Services (derived) | 2,776 | 6,129 | 9,877 | 2,123 | 2,877 |\n\nThe filing explicitly states: *\"All of products revenue is attributable to the Connectivity segment.\"* This allows derivation of total Connectivity services revenue (Total Connectivity \u2212 Products), but the two lenses cannot be cross-tabulated because the customer-type split (Consumer vs. E&G) bundles service and kit revenue together within each line.\n\n---\n\n### 2. Revenue Streams That Can Be Reasonably Inferred\n\n**a) Total Connectivity services revenue (derived with high confidence):**\nSince all products revenue flows through Connectivity, Connectivity services = Total Connectivity \u2212 Products:\n- FY2025: $11,387M \u2212 $1,510M = **$9,877M**\n- FY2024: $7,599M \u2212 $1,470M = **$6,129M**\n- FY2023: $3,869M \u2212 $1,093M = **$2,776M**\n- Q1 2026: $3,257M \u2212 $380M = **$2,877M**\n- Q1 2025: $2,475M \u2212 $352M = **$2,123M**\n\n**b) Total Starlink Kit (products) revenue (directly disclosed):**\n$1,510M (FY2025), $1,470M (FY2024), $1,093M (FY2023), $380M (Q1 2026), $352M (Q1 2025).\n\n**c) Consumer service revenue (approximated via ARPU \u00d7 subscribers, with caveats):**\nThe filing defines ARPU as: *Service revenue from Starlink Subscribers \u00f7 (average subscribers \u00d7 months in period).* Starlink Subscribers exclude managed enterprise/government customers, so ARPU captures only consumer service revenue. Using period-end subscriber counts as a proxy for the average (under a linear-growth assumption):\n\n| Period | ARPU | Avg Subs (est.) | Months | Est. Consumer Service | Consumer Line | Implied Consumer Kit |\n|---|---|---|---|---|---|---|\n| FY2025 | $81 | ~6.65M | 12 | ~$6,464M | $7,208M | ~$744M |\n| FY2024 | $91 | ~3.35M | 12 | ~$3,658M | $4,830M | ~$1,172M |\n\nThis implies E&G Kit = Total Kit \u2212 Consumer Kit \u2248 $766M (FY2025) and $298M (FY2024). These are reasonable inferences but depend on the undisclosed average subscriber count.\n\n**d) Growth deltas for E&G sub-components (directly disclosed as deltas only):**\n| Period | Enterprise (non-mobile) | Mobile | Government (Starshield) | Total E&G \u0394 |\n|---|---|---|---|---|\n| FY2024 vs FY2023 | +$466M (incl. mobile) | not broken out | +$1,250M | +$1,717M |\n| FY2025 vs FY2024 | +$586M (derived: $1,218M \u2212 $632M) | +$632M | +$193M | +$1,411M |\n| Q1 2026 vs Q1 2025 | +$209M (\"aviation, maritime, other\") | +$85M | \u2212$175M | +$126M |\n\n---\n\n### 3. Revenue Streams That Remain Unquantified\n\n**a) Absolute Starlink Mobile revenue:** Only growth deltas are disclosed (+$632M in FY2025; +$85M in Q1 2026). V1 Mobile satellites began deploying January 2024, so the FY2023 base was likely near zero, but the FY2024 base is unknown. The 7.4M monthly unique devices metric is disclosed, but without a corresponding revenue figure, mobile ARPU cannot be calculated from actuals (only market-sizing assumptions of $2\u2013$18/month by income tier are provided).\n\n**b) Absolute Starshield / government revenue:** Only growth deltas are disclosed (+$1,250M in FY2024; +$193M in FY2025; \u2212$175M in Q1 2026). The FY2023 base is unknown, so absolute government revenue cannot be chained forward. The Q1 2026 decline of $175M highlights the lumpy, contract-driven nature of this stream.\n\n**c) Absolute aviation, maritime, land mobility, and fixed-site enterprise revenue:** These are referenced qualitatively (industries served include \"construction, agriculture, retail, telecom, hospitality, aviation, maritime, and land mobility\") but never quantified individually. The Q1 2026 narrative groups them as \"aviation, maritime, and other enterprise business\" with a +$209M delta, but no absolute level or prior-period comparable.\n\n**d) Consumer Kit vs. E&G Kit split:** Can only be bounded, not determined. For Q1 2026, the ARPU \u00d7 subscriber framework (under linear growth) implies negative E&G kit, which is impossible\u2014indicating the average subscriber count exceeded the linear-growth estimate. The framework only approximately reconciles for annual periods and breaks down for Q1 2026.\n\n**e) Geographic revenue split:** No quantitative domestic vs. international or regional breakdown is disclosed. ARPU decline is attributed qualitatively to \"international expansion and the addition of lower-priced service plans,\" but the geographic revenue mix is not quantified.\n\n**f) Connectivity-specific deferred revenue and backlog:** Total deferred revenue ($12,116M at Dec 31, 2025; $13,236M at Mar 31, 2026) and total backlog ($27,621M) are disclosed only at the consolidated level. The filing states deferred revenue \"primarily relates to Space agreements and Connectivity enterprise and government contracts,\" but no Connectivity-specific carve-out is provided.\n\n**g) Subscriber-level economics:** Churn (gross or net), customer acquisition cost, lifetime value, net subscriber additions, ARPU by plan type (Residential vs. Roam vs. Business Priority), and ARPU by geography (actuals) are all undisclosed.\n\n**h) Kit unit economics:** Kit shipment volumes, average selling price, kit gross margin, and terminal manufacturing cost are not disclosed.\n\n**i) Enterprise/government customer metrics:** Number of enterprise customers, number of government customers, average contract value, and revenue retention rates are not disclosed. (The filing does note that since 2023, no Enterprise customer contributing >$750K annual revenue has voluntarily discontinued service.)\n\n---\n\n### 4. Modeling Limitations Following from This Disclosure Structure\n\n**Limitation 1 \u2014 Cannot decompose E&G into absolute sub-component levels.**\nThe narrative provides only year-over-year growth deltas for mobile, government, and enterprise sub-components, without absolute bases. Because the FY2023 starting split between enterprise and government within the $1,052M E&G total is unknown, absolute revenue levels for Starlink Mobile, Starshield, aviation, maritime, and other enterprise streams cannot be derived. A modeler cannot build separate revenue trajectories for these streams.\n\n**Limitation 2 \u2014 Inconsistent sub-categorization across periods prevents clean chaining.**\nThe E&G sub-component taxonomy shifts across periods:\n- FY2024 narrative: two buckets (enterprise connectivity, government connectivity)\n- FY2025 narrative: three buckets, with mobile nested within enterprise (\"inclusive of\")\n- Q1 2026 narrative: three buckets, with mobile broken out parallel to \"aviation, maritime, and other enterprise\"\n\nThese shifts mean growth deltas cannot be cleanly chained across periods to reconstruct absolute levels. Additionally, the Q1 2026 sub-components ($209M + $85M \u2212 $175M = $119M) do not precisely reconcile to the disclosed total E&G growth of $126M, leaving a ~$7M unexplained residual.\n\n**Limitation 3 \u2014 Cannot separate hardware (kit) from service economics by customer type.**\nThe products/services split is disclosed only at the company-wide level (all products = Connectivity). The consumer vs. E&G split bundles kit and service together. Without kit volumes, ASP, or margins, a modeler cannot assess the hardware subsidy strategy, kit contribution margin, or the service-vs-hardware revenue mix by customer segment.\n\n**Limitation 4 \u2014 ARPU \u00d7 subscriber framework only approximately reconciles and breaks down for quarterly periods.**\nThe ARPU metric is defined using *average* subscribers, but only period-end subscriber counts are disclosed. Under a linear-growth assumption, the framework approximately reconciles to the Consumer line for annual periods (implying ~$744M consumer kit in FY2025), but produces impossible results (negative E&G kit) for Q1 2026. This means quarterly consumer service vs. kit splits cannot be reliably inferred.\n\n**Limitation 5 \u2014 Cannot model geographic mix shifts quantitatively.**\nARPU has declined 33% from $99 (FY2023) to $66 (Q1 2026), attributed to international expansion and lower-priced plans. Without a geographic revenue split, a modeler cannot decompose ARPU decline into volume mix (geography) vs. price mix (plan tier) effects, limiting the ability to project future ARPU trajectories or model geographic expansion economics.\n\n**Limitation 6 \u2014 Cannot assess subscriber retention or lifetime economics.**\nNo churn, CAC, LTV, or net retention metrics are disclosed. The Service Line definition (one subscriber = one service line, not one end user) further complicates cohort analysis. Without these, sustainable growth rates and subscriber lifetime value cannot be modeled.\n\n**Limitation 7 \u2014 Cannot isolate government (Starshield) contract lumpiness.**\nGovernment revenue declined $175M in Q1 2026 after growing $1,250M in FY2024 and $193M in FY2025. Without absolute levels, contract timing details, or backlog allocation, the volatility and forward visibility of this stream cannot be modeled. The cost-to-cost input method for Starshield means revenue recognition depends on cost incurrence patterns that are not separately disclosed.\n\n**Limitation 8 \u2014 Cannot model Starlink Mobile unit economics separately.**\nMobile revenue is embedded within E&G, with only growth deltas disclosed. The 7.4M monthly unique devices metric and ~30 MNO partnerships are disclosed, but without a corresponding revenue figure, mobile ARPU, revenue per device, or MNO contract economics cannot be derived from actuals.\n\n**Limitation 9 \u2014 Deferred revenue and backlog cannot be allocated to Connectivity.**\nThis limits forward revenue visibility for the Connectivity segment specifically. Since deferred revenue \"primarily relates to Space agreements and Connectivity enterprise and government contracts,\" a significant portion of the $13,236M deferred revenue balance is Connectivity-related, but the exact amount and its expected recognition timing are not separable.\n\n**Limitation 10 \u2014 Segment gross margin is not directly disclosed.**\nOnly segment income from operations ($4,423M in FY2025) and segment Adjusted EBITDA ($7,168M in FY2025) are disclosed. Without a separate cost-of-revenue line for the segment, gross margin cannot be calculated, limiting analysis of hardware vs. service cost structures and operating leverage.\n\n---\n\n### Summary\n\nThe Connectivity segment's disclosure structure supports confident derivation of **total services vs. products revenue** and **Consumer vs. E&G revenue** at the top line. It also supports **approximate** inference of consumer service vs. kit revenue via the ARPU \u00d7 subscriber framework (for annual periods). However, the absolute revenue levels of **Starlink Mobile, Starshield/government, aviation, maritime, and other enterprise sub-streams** remain unquantified\u2014only growth deltas are provided, and these deltas use inconsistent categorizations across periods that prevent clean reconstruction. The resulting modeling limitations are significant: a modeler cannot build bottom-up sub-segment revenue models, cannot separate hardware from service economics by customer type, cannot model geographic mix shifts quantitatively, cannot assess subscriber retention/lifetime economics, and cannot allocate deferred revenue or backlog to Connectivity. These gaps are particularly material for the E&G line, which grew from $1,052M (FY2023) to $4,179M (FY2025)\u2014a 4\u00d7 increase driven by streams whose individual scales and trajectories are not disclosed.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Connectivity segment disclosures, revenue disaggregation tables, MD&A growth narratives, ARPU/subscriber definitions, and segment financial metrics\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26435,
+        "completion_tokens": 3899,
+        "cached_tokens": 21312,
+        "cost_usd": 0.07843750000000001
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 141665,
+    "total_completion_tokens": 16667,
+    "total_cached_tokens": 97152,
+    "total_cost_usd": 0.3993925,
+    "total_steps": 12
+  }
+}

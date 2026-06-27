@@ -1,0 +1,476 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "d290a8d2-4b96-4fc9-aa02-8dccdb4072d4",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-24T17:10:09.932927+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-24T17:10:09.932927+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nUsing FY2025 Connectivity Segment Adjusted EBITDA and operating income, calculate the implied EBITDA-to-operating-income gap. Why is satellite depreciation economically recurring even though excluded from Adjusted EBITDA?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-24T17:10:09.932927+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about SpaceX's FY2025 Connectivity Segment Adjusted EBITDA and operating income. I need to retrieve information from the SpaceX S-1 filing. Let me start by parsing the filing and then retrieving the relevant segment information.\n\nLet me first parse the SpaceX S-1 filing to get the financial data.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_27eacd2ec7884062892cabf5",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_27eacd2ec7884062892cabf5",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3163,
+        "completion_tokens": 121,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0052775
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-24T17:10:54.385874+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now let me retrieve information about the Connectivity Segment Adjusted EBITDA and operating income for FY2025.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e8b743fc497741fdb6fa6fca",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the FY2025 Connectivity Segment Adjusted EBITDA and operating income? Please provide the exact figures from the segment reporting section in {{spacex_s1}}. Also include any reconciliation tables showing how Adjusted EBITDA is calculated from operating income, including depreciation and amortization adjustments."
+          }
+        },
+        {
+          "tool_call_id": "call_ab34a789b0d0420b81037756",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the definition of Adjusted EBITDA in {{spacex_s1}}? What items are excluded from Adjusted EBITDA, particularly satellite depreciation? Please provide the exact language used in the filing regarding Adjusted EBITDA definition and the rationale for excluding depreciation."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e8b743fc497741fdb6fa6fca",
+            "content": "# FY2025 Connectivity Segment Financials\n\n## Key Figures\n\n| Metric | FY2025 Amount |\n|--------|--------------|\n| **Income from operations** | **$4,423 million** |\n| **Segment Adjusted EBITDA** | **$7,168 million** |\n\n## Reconciliation Table (Year Ended December 31, 2025)\n\nThe following table reconciles Connectivity segment Income from operations (the most directly comparable GAAP measure) to Segment Adjusted EBITDA:\n\n| (in millions) | Connectivity |\n|---|---|\n| Income from operations | $4,423 |\n| **Add:** | |\n| Depreciation and amortization | 2,376 |\n| Share-based compensation | 369 |\n| Restructuring charges | \u2014 |\n| Impairment | \u2014 |\n| **Segment Adjusted EBITDA** | **$7,168** |\n\n## Verification of Calculation\n\n$4,423 (operating income) + $2,376 (D&A) + $369 (SBC) + $0 (restructuring) + $0 (impairment) = **$7,168 million** \u2713\n\n## Additional Context\n\nPer the MD&A discussion, Connectivity Segment Adjusted EBITDA for 2025 **increased by $3,319 million** compared to $3,849 million in 2024, representing **year-over-year growth of 86.2%**. This growth was primarily driven by:\n- Higher revenue from growth in consumer and enterprise customers (revenue grew 49.8% to $11,387 million, and operating income grew 120.4%)\n- Partially offset by higher marketing and international expansion costs to grow subscribers, as well as higher research and development costs for next-generation product development\n\nThe Connectivity segment's strong performance was primarily driven by Starlink, benefiting from subscriber growth, increasing enterprise adoption, and continued improvement in network efficiency."
+          },
+          {
+            "source_call_id": "call_ab34a789b0d0420b81037756",
+            "content": "Based on the provided filing, here is the exact language used to define Adjusted EBITDA, the items excluded (including satellite depreciation), and the rationale for excluding depreciation.\n\n### Exact Definition and Excluded Items\nThe filing defines Adjusted EBITDA as follows:\n> \"Adjusted EBITDA is defined as net income (loss) excluding (i) depreciation and amortization, (ii) share-based compensation, (iii) impairment, (iv) restructuring charges, (v) interest expense, (vi) interest income, (vii) other income (expense), net and (viii) provision for income taxes.\"\n\n*(Note: The filing also mentions a slightly different definition used specifically for the CFO's performance-based stock options award, where \"adjusted EBITDA is calculated as income from operations excluding (i) depreciation and amortization, (ii) share-based compensation, (iii) impairment, and (iv) restructuring impacts.\")*\n\n### Satellite Depreciation\nSatellite depreciation is excluded from Adjusted EBITDA as part of the broader **\"(i) depreciation and amortization\"** exclusion. In a separate section of the filing detailing accounting estimates, it specifies that the company depreciates property, plant, and equipment (which includes spacecraft and satellites) over their estimated useful lives or expected number of average flights. Because Adjusted EBITDA strips out all depreciation and amortization, the depreciation associated with satellite assets is inherently excluded from this non-GAAP measure.\n\n### Rationale for Excluding Depreciation\nThe filing provides the following rationale for using non-GAAP measures that exclude items like depreciation:\n> \"Management believes that certain financial measures that are not presented in accordance with GAAP provide management and investors with useful supplemental information that provides a meaningful view of our financial condition and results of operations across periods by removing the impact of items that management believes do not directly reflect our ongoing operating performance.\"\n\nAdditionally, the filing notes that these measures are used because they are:\n> \"...key performance measures that our management uses to assess our financial performance as well as for internal planning and forecasting purposes. We consider Adjusted EBITDA and Segment Adjusted EBITDA to be meaningful performance measures for investors to evaluate our operating performance and to compare the financial results...\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3300,
+        "completion_tokens": 160,
+        "cached_tokens": 3136,
+        "cost_usd": 0.0059299999999999995
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-24T17:12:22.637565+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have the key figures:\n- FY2025 Connectivity Segment Adjusted EBITDA: $7,168 million\n- FY2025 Connectivity Segment Income from operations: $4,423 million\n- Depreciation and amortization: $2,376 million\n- Share-based compensation: $369 million\n\nThe EBITDA-to-operating-income gap = $7,168 - $4,423 = $2,745 million\n\nLet me verify this calculation.\n\nNow I need to address why satellite depreciation is economically recurring even though excluded from Adjusted EBITDA.\n\nThe key insight is:\n1. Satellites have finite useful lives (typically 5-7 years for Starlink satellites in low Earth orbit)\n2. SpaceX must continuously launch replacement satellites to maintain its constellation\n3. The depreciation expense reflects the consumption of these capital assets\n4. Even though it's a non-cash expense on the income statement, it represents a real economic cost because the company must continually invest in new satellites to maintain its network\n5. This is different from depreciation on long-lived assets like buildings where the replacement cycle is much longer\n\nLet me also retrieve more information about satellite useful lives and the constellation replacement economics to support this analysis.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_2d9e870476e040e8b994843d",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the useful life of Starlink satellites and how often do they need to be replaced? Please provide information from {{spacex_s1}} about satellite depreciation policies, useful lives of spacecraft and satellites, and any disclosure about satellite replacement cycles or constellation replenishment."
+          }
+        },
+        {
+          "tool_call_id": "call_ef0f991f3a0447c8902e8c39",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about capital expenditures for satellites, satellite production costs, and the ongoing investment required to maintain the Starlink constellation? Please include any discussion of satellite manufacturing, launch costs, and the recurring nature of satellite investment."
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_2d9e870476e040e8b994843d",
+            "content": "# Useful Life of Starlink Satellites and Replacement Frequency\n\n## Estimated Useful Lives\n\nBased on the Significant Accounting Policies note, SpaceX estimates the following useful lives for its satellite assets:\n\n| Satellite Type | Estimated Useful Life |\n|---|---|\n| **Broadband satellites** | **5 years** |\n| **First-generation mobile satellites** | **3 years** |\n| **Satellites (general range disclosed)** | **3\u20135 years** |\n\n## Criteria for Useful Life Estimation\n\nThe Company estimates the useful lives of its satellite assets based on the following factors:\n\n- **Engineering studies**\n- **Historical on-orbit performance**\n- **Propellant life**\n- **Utilization patterns**\n- **Design enhancements across generations**\n- **Planned transitions to newer satellite technology**\n\nAdditionally, for satellite assets specifically, the Company considers factors such as **on-orbit performance, orbit-raise timing, expected service capability, and the evolution of constellation density and technology**.\n\n## Early Deorbiting and Replacement\n\nThe Company discloses that it **often deorbits satellites before the end of their useful lives**, primarily to reduce degradation risks that could impair its autonomous collision avoidance system and compromise safety. This means actual replacement cycles may be **shorter** than the estimated 3\u20135 year useful lives.\n\nThe Risk Factors note reinforces this, stating:\n\n> \"The useful life of our satellites is inherently shorter than that of the information technology systems and infrastructure they host. As a result, we must periodically launch replacement satellites as existing satellites reach the end of their useful lives and are decommissioned.\"\n\n## Capitalization and Refurbishment Policies\n\n- **Maintenance and repairs** that do not extend the lives of assets are **expensed as incurred**.\n- **Significant refurbishment, renewals, and enhancements** that increase functionality, output, or expected life are **capitalized and depreciated ratably** over the identified useful life.\n- Satellites include costs to build (parts, labor, allocated overhead) as well as **capitalized launch costs** incurred by the Space segment.\n- The Company also **capitalizes certain interest costs** associated with significant construction of property, plant, and equipment, including satellites.\n\n## Revision of Estimates\n\nManagement periodically reviews useful life estimates with engineering and operations teams and revises them as additional data becomes available. When useful lives are determined to be shorter or longer than originally estimated, the Company **adjusts the rate of depreciation** to reflect the revised useful lives.\n\n## Materiality of Estimate Changes\n\nThe Company disclosed that if the average useful life of its satellite assets had been changed by **one year**, it would have had an approximately **$480 million** impact on operating income for the year ended December 31, 2025, and approximately **$170 million** for the three months ended March 31, 2026\u2014underscoring the financial significance of these estimates.\n\n## Summary\n\nStarlink broadband satellites are estimated to have a **5-year useful life**, while first-generation mobile satellites have a **3-year useful life**. However, satellites are frequently **deorbited before reaching the end of their estimated useful lives** for safety reasons, meaning the effective replacement cycle can be shorter. The Company must therefore **periodically launch replacement satellites** to maintain constellation capacity, with replacement driven by both end-of-life decommissioning and proactive early deorbiting protocols."
+          },
+          {
+            "source_call_id": "call_ef0f991f3a0447c8902e8c39",
+            "content": "Based on the provided document chunks, here is a summary of SpaceX's disclosures regarding capital expenditures for satellites, satellite production costs, launch costs, and the ongoing investment required to maintain the Starlink constellation:\n\n**Capital Expenditures and Ongoing Investment**\nSpaceX notes that it has incurred significant capital expenditures and expects to increase them substantially in the future to design, develop, and deploy its satellite constellations, launch vehicles, ground stations, and manufacturing facilities. These expenditures include R&D, construction, acquisition of property and equipment, and \"ongoing maintenance and upgrades to ensure reliability and competitiveness.\" \n\nThe company explicitly warns that it may choose to accelerate these investments at any time, which could result in periods of reduced profitability as it prioritizes long-term growth over near-term financial performance. This is reflected in the Connectivity segment's capital expenditures, which increased $680 million to $4.18 billion in 2025, and increased another $518 million to $1.33 billion in Q1 2026. These increases were primarily driven by higher satellite and ground equipment costs as the company continues to increase its number of satellites and grow the network.\n\n**Satellite Manufacturing and Production Costs**\nSpaceX highlights its vertically integrated satellite platform as a key competitive advantage. Unlike traditional manufacturers that rely on fragmented supply chains, SpaceX controls satellite design, architecture, chip design, software, power systems, final assembly, and launch operations in-house. This high-throughput manufacturing capability enables the company to rapidly iterate on next-generation satellites and produce them at scale\u2014thousands per year\u2014which accelerates deployment timelines and allows for capital efficiency that is difficult for competitors to replicate. \n\nThe company expects that as it scales, Connectivity cost of revenue will decrease as a percentage of revenue as it drives efficiencies in its next-generation satellites, Starlink Kits, and ground infrastructure. However, R&D expenses will continue to increase in absolute dollars to fund the development, build, and testing of next-generation satellites.\n\n**Launch Costs**\nThe cost of satellites includes the costs to build them (parts, labor, allocated overhead) as well as capitalized launch costs incurred by the Space segment to launch them into orbit (which includes an allocation of flight vehicle costs). \n\nFor Starlink satellite launches, the company does not recognize inter-segment revenue. Instead, those launch costs are capitalized into \"satellites\" within Property, plant, and equipment, net. Because SpaceX allocates a significant amount of its launch capacity to the Connectivity segment, the relative increase in Starlink satellite launches (from 89 in 2024 to 122 in 2025) results in relatively more launch operations and overhead costs being capitalized into the Connectivity segment. \n\n**Recurring Nature of Satellite Investment**\nThe investment in the Starlink constellation is highly recurring. As the number of satellites placed into orbit grows, the Connectivity segment experiences continuous increases in depreciation from these capitalized launch and satellite costs, which directly drives up the segment's cost of revenue. For example, in Q1 2026, Connectivity cost of revenue increased by $437 million, primarily due to $276 million in higher depreciation from capitalized launch and satellite costs. This reflects the ongoing cycle of manufacturing, launching, and depreciating assets required to scale and maintain the constellation."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4327,
+        "completion_tokens": 379,
+        "cached_tokens": 3264,
+        "cost_usd": 0.0105275
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-24T17:12:34.041002+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the information I need to answer the question. Let me calculate the EBITDA-to-operating-income gap and explain why satellite depreciation is economically recurring.\n\nFY2025 Connectivity Segment:\n- Income from operations: $4,423 million\n- Segment Adjusted EBITDA: $7,168 million\n- Depreciation and amortization: $2,376 million\n- Share-based compensation: $369 million\n\nEBITDA-to-operating-income gap = $7,168 - $4,423 = $2,745 million\n\nLet me verify this calculation.\n\nThe gap is composed of:\n- D&A: $2,376 million\n- SBC: $369 million\n- Total: $2,745 million\n\nNow for the explanation of why satellite depreciation is economically recurring:\n\n1. Satellites have short useful lives (3-5 years for broadband satellites, 3 years for first-gen mobile satellites)\n2. Satellites are often deorbited before end of useful life for safety reasons\n3. SpaceX must continuously launch replacement satellites to maintain constellation capacity\n4. The depreciation expense reflects the consumption of these capital assets\n5. Even though it's a non-cash expense on the income statement, it represents a real economic cost because the company must continually invest in new satellites to maintain its network\n6. The Connectivity segment's capex was $4.18 billion in 2025, primarily driven by satellite and ground equipment costs\n7. In Q1 2026, Connectivity cost of revenue increased by $437 million, primarily due to $276 million in higher depreciation from capitalized launch and satellite costs\n8. A one-year change in useful life estimate would have a $480 million impact on operating income for FY2025\n\nThis is fundamentally different from depreciation on long-lived assets like buildings where the replacement cycle is much longer. For satellites, the replacement cycle is short and continuous, making the depreciation economically equivalent to a recurring cash outflow.\n\nLet me calculate the gap precisely.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_d3a5a23d66a4405bb6c9444d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - 4423"
+          }
+        },
+        {
+          "tool_call_id": "call_72f93e264741484dacd06012",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2376 + 369"
+          }
+        },
+        {
+          "tool_call_id": "call_21fbdd43b0874ae985000604",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(7168 - 4423) / 4423 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_31b4f2e7f1fa48afa77f492c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "2376 / 2745 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_d3a5a23d66a4405bb6c9444d",
+            "content": "2745"
+          },
+          {
+            "source_call_id": "call_72f93e264741484dacd06012",
+            "content": "2745"
+          },
+          {
+            "source_call_id": "call_21fbdd43b0874ae985000604",
+            "content": "62.06194890345918"
+          },
+          {
+            "source_call_id": "call_31b4f2e7f1fa48afa77f492c",
+            "content": "86.55737704918033"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6056,
+        "completion_tokens": 496,
+        "cached_tokens": 4288,
+        "cost_usd": 0.01474
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-24T17:12:59.626664+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the calculations:\n- EBITDA-to-operating-income gap = $7,168M - $4,423M = $2,745M\n- This gap is composed of D&A ($2,376M) + SBC ($369M) = $2,745M\n- The gap represents 62.06% of operating income\n- D&A represents 86.56% of the total gap\n\nNow let me submit the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c9d608d797b44ff38d020c50",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## FY2025 Connectivity Segment: EBITDA-to-Operating-Income Gap\n\n### Reported Figures (Year Ended December 31, 2025)\n\n| Metric (Connectivity Segment) | FY2025 ($ millions) |\n|---|---|\n| Income from operations (GAAP) | $4,423 |\n| Add: Depreciation and amortization | $2,376 |\n| Add: Share-based compensation | $369 |\n| Add: Restructuring charges | $0 |\n| Add: Impairment | $0 |\n| **Segment Adjusted EBITDA** | **$7,168** |\n\n### Implied EBITDA-to-Operating-Income Gap\n\n**Gap = $7,168M \u2212 $4,423M = $2,745 million**\n\nThis gap equals the sum of the two add-backs ($2,376M D&A + $369M SBC = $2,745M), confirming the reconciliation. In proportional terms:\n\n- The gap is **~62.06% of operating income** ($2,745M / $4,423M).\n- **Depreciation and amortization alone accounts for ~86.56% of the gap** ($2,376M / $2,745M), with share-based compensation making up the remainder.\n\nSo while Adjusted EBITDA presents the Connectivity segment as generating $7.2B of \"cash-like\" operating profit, $2.4B of that uplift is depreciation \u2014 and the bulk of that depreciation is satellite-related.\n\n---\n\n### Why Satellite Depreciation Is Economically Recurring (Despite Being Excluded from Adjusted EBITDA)\n\nThe S-1 defines Adjusted EBITDA as net income excluding (among other items) \"depreciation and amortization,\" and management's stated rationale is that D&A \"do[es] not directly reflect our ongoing operating performance.\" Satellite depreciation is swept into this exclusion as part of the broader D&A line. However, the same filing's disclosures make clear that, for SpaceX's satellite constellation, this exclusion is economically misleading for several reasons:\n\n**1. Satellites have very short useful lives \u2014 3 to 5 years.**\nPer the Significant Accounting Policies note:\n- Broadband (Starlink) satellites: **5-year useful life**\n- First-generation mobile satellites: **3-year useful life**\n\nThese lives are far shorter than typical PP&E (buildings, terrestrial infrastructure), so the depreciation is being recognized over a horizon that closely matches the actual consumption of the asset.\n\n**2. Satellites are frequently deorbited *before* end of useful life.**\nThe filing discloses that SpaceX \"often deorbits satellites before the end of their useful lives\" to reduce degradation risks to its autonomous collision-avoidance system. The Risk Factors reinforce this: *\"The useful life of our satellites is inherently shorter than that of the information technology systems and infrastructure they host. As a result, we must periodically launch replacement satellites as existing satellites reach the end of their useful lives and are decommissioned.\"* The effective replacement cycle is therefore shorter than even the 3\u20135 year book life.\n\n**3. Replacement is mandatory to maintain service \u2014 it is not optional capex.**\nTo preserve constellation capacity and coverage, SpaceX must continuously manufacture, launch, and deploy replacement satellites. This is a structural, non-discretionary cost of remaining in the connectivity business. The Risk Factors and MD&A describe ongoing capital expenditures to \"design, develop, and deploy\" the constellation and \"ongoing maintenance and upgrades to ensure reliability.\"\n\n**4. The cash outflow is already visible in Connectivity capex.**\nConnectivity segment capital expenditures rose **$680 million to $4.18 billion in 2025**, \"primarily driven by higher satellite and ground equipment costs as the company continues to increase its number of satellites and grow the network.\" Capex rose another $518 million to $1.33 billion in Q1 2026. The depreciation being added back in Adjusted EBITDA is the GAAP amortization of these very same cash outflows \u2014 i.e., the cash has already been (or is being) spent.\n\n**5. The depreciation is actively flowing through cost of revenue.**\nThe filing explicitly notes that as the in-orbit fleet grows, \"the Connectivity segment experiences continuous increases in depreciation from these capitalized launch and satellite costs, which directly drives up the segment's cost of revenue.\" In Q1 2026 alone, Connectivity cost of revenue rose $437 million, of which **$276 million was higher depreciation from capitalized launch and satellite costs** \u2014 confirming that satellite depreciation is a recurring, growing operating cost, not a one-time or non-cash-only item.\n\n**6. The estimate is highly material and sensitive.**\nSpaceX discloses that a one-year change in the average useful-life estimate for satellite assets would have impacted FY2025 operating income by approximately **$480 million** (and ~$170 million for Q1 2026). This sensitivity underscores that satellite depreciation is a large, recurring charge that materially shapes reported profitability.\n\n### Economic Conclusion\n\nFor most businesses, excluding D&A from EBITDA is defensible because the underlying assets are long-lived and replacement is lumpy/optional. For SpaceX's Connectivity segment, the opposite is true: satellites are short-lived (3\u20135 years), frequently deorbited early, and must be replaced on a near-continuous basis to keep the constellation operational. The depreciation add-back therefore converts a structurally recurring economic cost \u2014 the periodic replacement of the in-orbit fleet \u2014 into a \"non-cash\" exclusion, even though the corresponding cash is being spent in real time (evidenced by $4.18B of Connectivity capex in 2025). In substance, satellite depreciation functions much like a recurring lease or capacity-maintenance payment: it is the GAAP recognition of an unavoidable, repeating economic outflow required to sustain the business. Excluding it from Adjusted EBITDA overstates the segment's sustainable cash-generating power by roughly $2.4 billion in FY2025.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment reporting / Connectivity reconciliation, Significant Accounting Policies (satellite useful lives), Risk Factors, and MD&A (capex and cost-of-revenue drivers)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c9d608d797b44ff38d020c50",
+            "content": "## FY2025 Connectivity Segment: EBITDA-to-Operating-Income Gap\n\n### Reported Figures (Year Ended December 31, 2025)\n\n| Metric (Connectivity Segment) | FY2025 ($ millions) |\n|---|---|\n| Income from operations (GAAP) | $4,423 |\n| Add: Depreciation and amortization | $2,376 |\n| Add: Share-based compensation | $369 |\n| Add: Restructuring charges | $0 |\n| Add: Impairment | $0 |\n| **Segment Adjusted EBITDA** | **$7,168** |\n\n### Implied EBITDA-to-Operating-Income Gap\n\n**Gap = $7,168M \u2212 $4,423M = $2,745 million**\n\nThis gap equals the sum of the two add-backs ($2,376M D&A + $369M SBC = $2,745M), confirming the reconciliation. In proportional terms:\n\n- The gap is **~62.06% of operating income** ($2,745M / $4,423M).\n- **Depreciation and amortization alone accounts for ~86.56% of the gap** ($2,376M / $2,745M), with share-based compensation making up the remainder.\n\nSo while Adjusted EBITDA presents the Connectivity segment as generating $7.2B of \"cash-like\" operating profit, $2.4B of that uplift is depreciation \u2014 and the bulk of that depreciation is satellite-related.\n\n---\n\n### Why Satellite Depreciation Is Economically Recurring (Despite Being Excluded from Adjusted EBITDA)\n\nThe S-1 defines Adjusted EBITDA as net income excluding (among other items) \"depreciation and amortization,\" and management's stated rationale is that D&A \"do[es] not directly reflect our ongoing operating performance.\" Satellite depreciation is swept into this exclusion as part of the broader D&A line. However, the same filing's disclosures make clear that, for SpaceX's satellite constellation, this exclusion is economically misleading for several reasons:\n\n**1. Satellites have very short useful lives \u2014 3 to 5 years.**\nPer the Significant Accounting Policies note:\n- Broadband (Starlink) satellites: **5-year useful life**\n- First-generation mobile satellites: **3-year useful life**\n\nThese lives are far shorter than typical PP&E (buildings, terrestrial infrastructure), so the depreciation is being recognized over a horizon that closely matches the actual consumption of the asset.\n\n**2. Satellites are frequently deorbited *before* end of useful life.**\nThe filing discloses that SpaceX \"often deorbits satellites before the end of their useful lives\" to reduce degradation risks to its autonomous collision-avoidance system. The Risk Factors reinforce this: *\"The useful life of our satellites is inherently shorter than that of the information technology systems and infrastructure they host. As a result, we must periodically launch replacement satellites as existing satellites reach the end of their useful lives and are decommissioned.\"* The effective replacement cycle is therefore shorter than even the 3\u20135 year book life.\n\n**3. Replacement is mandatory to maintain service \u2014 it is not optional capex.**\nTo preserve constellation capacity and coverage, SpaceX must continuously manufacture, launch, and deploy replacement satellites. This is a structural, non-discretionary cost of remaining in the connectivity business. The Risk Factors and MD&A describe ongoing capital expenditures to \"design, develop, and deploy\" the constellation and \"ongoing maintenance and upgrades to ensure reliability.\"\n\n**4. The cash outflow is already visible in Connectivity capex.**\nConnectivity segment capital expenditures rose **$680 million to $4.18 billion in 2025**, \"primarily driven by higher satellite and ground equipment costs as the company continues to increase its number of satellites and grow the network.\" Capex rose another $518 million to $1.33 billion in Q1 2026. The depreciation being added back in Adjusted EBITDA is the GAAP amortization of these very same cash outflows \u2014 i.e., the cash has already been (or is being) spent.\n\n**5. The depreciation is actively flowing through cost of revenue.**\nThe filing explicitly notes that as the in-orbit fleet grows, \"the Connectivity segment experiences continuous increases in depreciation from these capitalized launch and satellite costs, which directly drives up the segment's cost of revenue.\" In Q1 2026 alone, Connectivity cost of revenue rose $437 million, of which **$276 million was higher depreciation from capitalized launch and satellite costs** \u2014 confirming that satellite depreciation is a recurring, growing operating cost, not a one-time or non-cash-only item.\n\n**6. The estimate is highly material and sensitive.**\nSpaceX discloses that a one-year change in the average useful-life estimate for satellite assets would have impacted FY2025 operating income by approximately **$480 million** (and ~$170 million for Q1 2026). This sensitivity underscores that satellite depreciation is a large, recurring charge that materially shapes reported profitability.\n\n### Economic Conclusion\n\nFor most businesses, excluding D&A from EBITDA is defensible because the underlying assets are long-lived and replacement is lumpy/optional. For SpaceX's Connectivity segment, the opposite is true: satellites are short-lived (3\u20135 years), frequently deorbited early, and must be replaced on a near-continuous basis to keep the constellation operational. The depreciation add-back therefore converts a structurally recurring economic cost \u2014 the periodic replacement of the in-orbit fleet \u2014 into a \"non-cash\" exclusion, even though the corresponding cash is being spent in real time (evidenced by $4.18B of Connectivity capex in 2025). In substance, satellite depreciation functions much like a recurring lease or capacity-maintenance payment: it is the GAAP recognition of an unavoidable, repeating economic outflow required to sustain the business. Excluding it from Adjusted EBITDA overstates the segment's sustainable cash-generating power by roughly $2.4 billion in FY2025.\n\n---\n\n### Sources\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Segment reporting / Connectivity reconciliation, Significant Accounting Policies (satellite useful lives), Risk Factors, and MD&A (capex and cost-of-revenue drivers)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6589,
+        "completion_tokens": 1490,
+        "cached_tokens": 6016,
+        "cost_usd": 0.0238525
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 23435,
+    "total_completion_tokens": 2646,
+    "total_cached_tokens": 19776,
+    "total_cost_usd": 0.06032749999999999,
+    "total_steps": 7
+  }
+}

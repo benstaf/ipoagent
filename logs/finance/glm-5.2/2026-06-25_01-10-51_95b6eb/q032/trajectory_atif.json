@@ -1,0 +1,476 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "8b3dc57d-bd7b-48d2-8692-b029a36ff4a1",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-25T01:10:57.084525+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-25T01:10:57.084525+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nFY2025 consolidated capex totaled $20,737M versus Connectivity Segment Adjusted EBITDA of $7,168M. Express consolidated capex as a multiple of Connectivity Adjusted EBITDA and explain what this implies about the structural role of IPO capital versus internally generated cash.\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-25T01:10:57.084525+00:00",
+      "source": "agent",
+      "message": "\nI'll analyze this question by first verifying the figures from the SpaceX S-1 filing, then calculating the multiple and explaining the implications.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about FY2025 consolidated capex versus Connectivity Segment Adjusted EBITDA. They've given me the figures:\n- FY2025 consolidated capex: $20,737M\n- Connectivity Segment Adjusted EBITDA: $7,168M\n\nI need to:\n1. Calculate the multiple (capex / Connectivity Adjusted EBITDA)\n2. Explain what this implies about the structural role of IPO capital versus internally generated cash\n\nLet me first verify these figures from the SpaceX S-1 filing, then do the calculation.\n\nLet me search the S-1 filing for these figures.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c4b78995c8104073a3d1a62e",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        },
+        {
+          "tool_call_id": "call_e659dc280d934a7fad547505",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "20737 / 7168"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c4b78995c8104073a3d1a62e",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          },
+          {
+            "source_call_id": "call_e659dc280d934a7fad547505",
+            "content": "2.8929966517857144"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3179,
+        "completion_tokens": 225,
+        "cached_tokens": 3072,
+        "cost_usd": 0.0063575
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-25T01:11:34.628647+00:00",
+      "source": "agent",
+      "message": "Let me verify the figures from the S-1 filing.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The multiple is approximately 2.89x. Now let me verify the figures from the S-1 filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0de245208ec14075b302ca79",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What was the FY2025 consolidated capital expenditures (capex) total? Also, what was the Connectivity Segment Adjusted EBITDA for FY2025? Please provide the exact figures and any context about the segments and capital intensity. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_0de245208ec14075b302ca79",
+            "content": "Based on the provided MD&A section, here are the exact figures and context regarding the company's capital expenditures and segment performance for FY2025:\n\n**FY2025 Consolidated Capital Expenditures (Capex)**\n*   **Total:** **$20,737 million** \n\n**FY2025 Connectivity Segment Adjusted EBITDA**\n*   **Total:** **$7,168 million** \n\n**Context on Segments and Capital Intensity:**\nThe company's $20.7 billion in total FY2025 capital expenditures is divided across three reportable segments, reflecting varying degrees of capital intensity and strategic focus:\n\n*   **AI Segment ($12,727 million):** The AI segment is by far the most capital-intensive, representing over 61% of total capex. The massive year-over-year increase (up from $5,633 million in 2024) was primarily driven by investments in the rapid expansion of terrestrial data centers, including the development, construction, and equipping of new facilities and supporting infrastructure. The company expects a multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA.\n*   **Connectivity Segment ($4,178 million):** Capex for this segment increased by $680 million compared to 2024. The investments were primarily driven by higher satellite and ground equipment costs as the company continues to increase its number of satellites and grow its Starlink network. Despite these high capital needs, the segment is highly profitable, generating $7,168 million in Segment Adjusted EBITDA (up 86.2% year-over-year), benefiting from subscriber growth, enterprise adoption, and improved network efficiency. \n*   **Space Segment ($3,832 million):** Space capex increased by $1,800 million year-over-year, driven primarily by increased investment in launch site infrastructure for the next-generation Starship launch vehicle. While capital intensive, the Space segment generated $653 million in Segment Adjusted EBITDA in 2025, though this was a decrease from the prior year due to accelerated Starship development investments."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3434,
+        "completion_tokens": 100,
+        "cached_tokens": 3136,
+        "cost_usd": 0.005665
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-25T01:12:25.787531+00:00",
+      "source": "agent",
+      "message": "Let me also check the use of IPO proceeds and the broader capital structure context.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I've verified the figures:\n- FY2025 consolidated capex: $20,737M\n- Connectivity Segment Adjusted EBITDA: $7,168M\n\nThe multiple is 20,737 / 7,168 = 2.89x\n\nNow let me think about what this implies about the structural role of IPO capital versus internally generated cash.\n\nKey insights:\n1. The Connectivity Segment (Starlink) is the cash-generative engine of the company, producing $7,168M in Adjusted EBITDA\n2. However, total consolidated capex of $20,737M is 2.89x the Connectivity Adjusted EBITDA\n3. This means even the entire Connectivity Adjusted EBITDA only covers about 34.6% of total capex\n4. The remaining ~$13,569M of capex must be funded from other sources - either external capital (debt, equity, IPO proceeds) or other segment cash flow\n\nLet me also check the segment breakdown:\n- AI Segment capex: $12,727M (61% of total)\n- Connectivity Segment capex: $4,178M\n- Space Segment capex: $3,832M\n\nSo the AI segment alone consumes $12,727M in capex, which is 1.78x the entire Connectivity Adjusted EBITDA.\n\nThe Connectivity segment itself generates $7,168M in Adjusted EBITDA but only consumes $4,178M in capex, so it's actually self-funding with surplus of ~$2,990M.\n\nBut the consolidated picture is that the company is investing heavily in AI and Space segments that are not yet generating sufficient cash to fund their own capex.\n\nThis implies:\n1. The IPO capital is structurally necessary to fund the gap between internally generated cash (primarily from Connectivity) and total capex needs\n2. The Connectivity segment is the cash cow, but its cash generation is insufficient to fund the company's broader capital deployment strategy\n3. The IPO proceeds are likely being used to fund the AI and Space segment capex that exceed internally generated cash\n4. This is a classic \"cash cow funding growth investments\" structure, but at a scale where external capital is needed\n\nLet me also check the IPO proceeds and use of proceeds to confirm this.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_829c07ceaa6a4de982834feb",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What are the intended uses of IPO proceeds? How much capital is the company raising? What is the company's capital structure including debt, and how does management describe the need for external capital versus internally generated cash? Also, what is the total Adjusted EBITDA across all segments and how does it compare to total capex? {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_829c07ceaa6a4de982834feb",
+            "content": "Based on the provided prospectus excerpts, here are the answers to your questions:\n\n**1. Intended Uses of IPO Proceeds**\nThe company intends to use the net proceeds from the IPO to fund its overall growth strategy, specifically allocating the capital toward:\n*   Expansion of AI compute infrastructure\n*   Enhancements to launch infrastructure and launch vehicles\n*   Increases in the scale and capacity of its satellite constellations\n*   Any remaining amounts for general corporate purposes \n\n**2. How Much Capital is the Company Raising?**\nThe exact dollar amounts are left blank in the provided text (denoted as \"$\"). However, the company expects to receive \"approximately $___ of net proceeds\" (or \"$___ if the underwriters exercise their option to purchase additional shares of Class A common stock in full\"). This is based on an assumed initial public offering price of \"$___ per share,\" which represents the midpoint of the price range set forth on the prospectus cover page, after deducting underwriting discounts, commissions, and estimated offering expenses.\n\n**3. Capital Structure Including Debt**\nAs of March 31, 2026, the company's capitalization (on an actual basis) is structured as follows:\n*   **Cash and Cash Equivalents:** $15,852 million\n*   **Total Long-Term Debt:** $29,111 million, consisting of:\n    *   SpaceX Bridge Loan: $20,000 million\n    *   Other Financings: $9,105 million\n    *   X 2027 and X 2030 Notes: $27 million\n    *   SpaceX Credit Facility: $0\n    *   Less: Unamortized deferred financing costs: $(21) million\n*   **Redeemable Convertible Preferred Stock:** $7,049 million (Actual); $0 (Pro Forma, giving effect to the Preferred Conversion).\n*   **Shareholders\u2019 Equity:** Class A common stock (par value $0.001). \n\n**4. External Capital vs. Internally Generated Cash**\nManagement describes the company's primary sources of liquidity as cash flows generated from operations, total cash and cash equivalents ($15,852 million), and short-term marketable securities ($7,823 million) as of March 31, 2026. The company currently intends to retain future earnings to finance the growth of the business and does not anticipate paying cash dividends in the foreseeable future. \n\nHowever, because of massive capital requirements\u2014particularly in the AI segment where capital expenditures will \"scale as quickly as we are able to deploy power and compute\"\u2014management explicitly states that they \"plan to access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth and to maintain strong liquidity.\" This highlights that internally generated cash alone is insufficient to fund their multi-year investment horizon.\n\n**5. Total Adjusted EBITDA vs. Total Capex**\nAcross all reportable segments (Space, Connectivity, and AI), the company's total Adjusted EBITDA is significantly outpaced by its total capital expenditures across all reported periods:\n\n*   **Three Months Ended March 31, 2026:** Adjusted EBITDA was $1,127 million, compared to Total Capex of $10,107 million.\n*   **Three Months Ended March 31, 2025:** Adjusted EBITDA was $1,730 million, compared to Total Capex of $4,140 million.\n*   **Year Ended December 31, 2025:** Adjusted EBITDA was $6,584 million, compared to Total Capex of $20,737 million.\n*   **Year Ended December 31, 2024:** Adjusted EBITDA was $5,350 million, compared to Total Capex of $11,163 million.\n*   **Year Ended December 31, 2023:** Adjusted EBITDA was $3,821 million, compared to Total Capex of $4,415 million.\n\n**Comparison:** In every period presented, Total Capital Expenditures exceed Total Adjusted EBITDA, with the gap widening dramatically in recent periods due to heavy investments in AI compute infrastructure and Starship launch site infrastructure. This disparity further underscores management's stated need to access external debt and equity financing to maintain liquidity and fund growth."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3967,
+        "completion_tokens": 586,
+        "cached_tokens": 3392,
+        "cost_usd": 0.0115375
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-25T01:12:45.232951+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed. Let me do a few additional calculations to support the analysis.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive picture. Let me also verify the segment-level capex breakdown to make sure I have the right context.\n\nKey facts:\n- FY2025 consolidated capex: $20,737M\n- Connectivity Segment Adjusted EBITDA: $7,168M\n- Multiple: 20,737 / 7,168 = 2.89x\n- Total Adjusted EBITDA (all segments): $6,584M (less than Connectivity alone, meaning AI and Space segments have negative Adjusted EBITDA)\n- Segment capex breakdown:\n  - AI: $12,727M (61%)\n  - Connectivity: $4,178M\n  - Space: $3,832M\n\nWait, the total Adjusted EBITDA is $6,584M but Connectivity alone is $7,168M. That means the other segments (AI and Space) have negative Adjusted EBITDA combined of -$584M.\n\nLet me verify this:\n- Connectivity: $7,168M\n- Space: $653M (from earlier retrieval)\n- AI: must be negative to make total $6,584M\n- 7,168 + 653 + AI = 6,584\n- AI = 6,584 - 7,168 - 653 = -1,237M\n\nSo AI segment has negative Adjusted EBITDA of approximately -$1,237M.\n\nNow let me think about the implications:\n\n1. The multiple of 2.89x means consolidated capex is nearly 3x the Connectivity Segment Adjusted EBITDA\n2. Even if 100% of Connectivity's Adjusted EBITDA were reinvested, it would only fund ~34.6% of total capex\n3. The remaining ~$13,569M gap must be funded externally (debt, equity, IPO proceeds) or from balance sheet cash\n4. The Connectivity segment is the cash cow, but its cash generation is structurally insufficient to fund the company's broader capital deployment strategy\n5. The AI segment alone consumes $12,727M in capex (1.78x Connectivity Adjusted EBITDA) while generating negative Adjusted EBITDA\n6. This creates a structural dependency on external capital - the IPO is not just a liquidity event but a structural necessity to fund the gap\n\nImplications for IPO capital vs internally generated cash:\n- Internally generated cash (primarily from Connectivity) is insufficient to fund the consolidated capex program\n- The IPO capital plays a structural role in bridging the gap between internally generated cash and total capex needs\n- The company has explicitly stated it plans to \"access a range of debt and equity financing solutions available to us as a public company to fund future investments\"\n- The capital structure already includes $29,111M in long-term debt and $7,049M in redeemable convertible preferred stock\n- The IPO is part of a broader capital strategy to fund multi-year investment horizons, particularly in AI\n\nLet me also calculate the funding gap:\n- Total capex: $20,737M\n- Total Adjusted EBITDA: $6,584M\n- Gap: $20,737 - $6,584 = $14,153M\n\nOr using Connectivity Adjusted EBITDA as the proxy for internally generated cash:\n- Total capex: $20,737M\n- Connectivity Adjusted EBITDA: $7,168M\n- Gap: $20,737 - $7,168 = $13,569M\n\nThe Connectivity segment itself is actually self-funding:\n- Connectivity capex: $4,178M\n- Connectivity Adjusted EBITDA: $7,168M\n- Surplus: $7,168 - $4,178 = $2,990M\n\nSo the Connectivity segment generates ~$2,990M of surplus cash that can be redeployed to other segments, but this is far short of the $16,559M in capex needed by AI and Space segments combined.\n\nLet me also calculate the percentage of capex covered by Connectivity Adjusted EBITDA:\n7,168 / 20,737 = 34.6%\n\nSo Connectivity Adjusted EBITDA covers only ~34.6% of total capex.\n\nNow let me prepare the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_c07116a82ed2474498df7b43",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 / 20737 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_658a86e3e6f94423a7586300",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "20737 - 7168"
+          }
+        },
+        {
+          "tool_call_id": "call_449246871bff43a083315b7e",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "7168 - 4178"
+          }
+        },
+        {
+          "tool_call_id": "call_cf00dc007b854edca575f3e6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "12727 + 3832"
+          }
+        },
+        {
+          "tool_call_id": "call_9d022c794e784cdcac6cf5e2",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "6584 - 7168"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_c07116a82ed2474498df7b43",
+            "content": "34.56623426725177"
+          },
+          {
+            "source_call_id": "call_658a86e3e6f94423a7586300",
+            "content": "13569"
+          },
+          {
+            "source_call_id": "call_449246871bff43a083315b7e",
+            "content": "2990"
+          },
+          {
+            "source_call_id": "call_cf00dc007b854edca575f3e6",
+            "content": "16559"
+          },
+          {
+            "source_call_id": "call_9d022c794e784cdcac6cf5e2",
+            "content": "-584"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 5448,
+        "completion_tokens": 1026,
+        "cached_tokens": 3904,
+        "cost_usd": 0.019
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-25T01:13:08.365062+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed to provide a comprehensive answer.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the calculations:\n\n1. Multiple: 20,737 / 7,168 = 2.89x\n2. Connectivity Adjusted EBITDA covers only 34.57% of total capex\n3. Funding gap (using Connectivity Adjusted EBITDA as proxy): $13,569M\n4. Connectivity segment surplus (Adjusted EBITDA minus its own capex): $2,990M\n5. AI + Space capex combined: $16,559M\n6. Combined AI + Space Adjusted EBITDA: -$584M (i.e., they are net negative)\n\nLet me also verify the AI segment Adjusted EBITDA:\n- Total: $6,584M\n- Connectivity: $7,168M\n- Space: $653M\n- AI: 6,584 - 7,168 - 653 = -$1,237M\n\nSo the AI segment has negative Adjusted EBITDA of approximately -$1,237M.\n\nNow I'll prepare the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e99ae16a1d6f49339c55b9b8",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Multiple Calculation\n\n**Consolidated FY2025 Capex \u00f7 Connectivity Segment Adjusted EBITDA**\n\n= $20,737M \u00f7 $7,168M\n\n= **2.89x** (precisely 2.8930x)\n\nEquivalently, Connectivity Adjusted EBITDA covers only **~34.57%** of consolidated capex, leaving a funding gap of **~$13,569M** that must be sourced from outside the Connectivity segment's operating cash generation.\n\n---\n\n## What This Implies About IPO Capital vs. Internally Generated Cash\n\n### 1. The Connectivity segment is the cash engine, but it cannot self-fund the consolidated business\n\nThe Connectivity (Starlink) segment is the only segment producing material positive Adjusted EBITDA. However, even if 100% of its $7,168M of Adjusted EBITDA were redeployed into capex, it would fund only about one-third of the company's $20,737M total capex program. The Connectivity segment is itself modestly self-funding \u2014 its own capex was only $4,178M, leaving ~$2,990M of segment-level surplus \u2014 but that surplus is dwarfed by the capital demands of the other two segments.\n\n### 2. The capex burden is concentrated in segments that are not yet cash-generative\n\nThe segment capex breakdown for FY2025 is:\n\n| Segment | FY2025 Capex | FY2025 Adj. EBITDA |\n|---|---|---|\n| AI | $12,727M (~61% of total) | Negative (~$(1,237)M, implied) |\n| Connectivity | $4,178M | $7,168M |\n| Space | $3,832M | $653M |\n| **Consolidated** | **$20,737M** | **$6,584M** |\n\nThe AI and Space segments together consumed **$16,559M** of capex while generating a **combined negative ~$584M** of Adjusted EBITDA. Consolidated Adjusted EBITDA ($6,584M) is actually *lower* than Connectivity Adjusted EBITDA alone, confirming that the non-Connectivity segments are net consumers of cash on an Adjusted EBITDA basis.\n\n### 3. The 2.89x multiple structurally embeds a dependency on external capital\n\nA capex-to-Connectivity-EBITDA multiple of 2.89x means the consolidated entity is investing at nearly three times the cash-generating capacity of its most profitable segment. This is not a temporary working-capital gap \u2014 management explicitly states that AI capex will \"scale as quickly as we are able to deploy power and compute\" and that there is a \"multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA.\" The gap is therefore structural and persistent, not cyclical.\n\n### 4. The IPO is not merely a liquidity event \u2014 it is a structural funding pillar\n\nThe prospectus confirms the company's existing capital structure already leans heavily on external capital: as of March 31, 2026, total long-term debt was **$29,111M** (including a $20,000M SpaceX Bridge Loan) and redeemable convertible preferred stock was **$7,049M**. Management states it \"plan[s] to access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth and to maintain strong liquidity.\" Stated IPO use of proceeds \u2014 expansion of AI compute infrastructure, launch infrastructure/vehicles, and satellite constellation scale \u2014 maps directly to the segments driving the capex gap.\n\n### 5. Interpretation\n\nThe 2.89x multiple quantifies the structural role of IPO capital: internally generated cash (overwhelmingly from Connectivity) is the *base layer* of funding but is insufficient by a factor of roughly 3x to cover the consolidated investment program. IPO equity proceeds, together with the company's existing debt and preferred stack, function as the *bridge capital* that funds the AI and Space build-outs until those segments reach positive Adjusted EBITDA. In other words, the IPO is not opportunistic \u2014 it is a necessary component of the capital plan because the cash-generative segment cannot, on its own, finance the consolidated growth strategy.\n\n---\n\n### Important caveat on the recast basis\n\nThe consolidated figures reflect the retrospectively recast common-control combination of SpaceX, xAI (merged February 2, 2026), and X Holdings (merged into xAI March 28, 2025). No period reflects standalone SpaceX operations. The 2.89x multiple therefore reflects the combined entity's capital intensity, of which the AI segment \u2014 the largest capex consumer \u2014 is largely attributable to the recast xAI business. The Connectivity segment figures, by contrast, are essentially SpaceX/Starlink standalone in substance.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 MD&A segment results, capital expenditures, liquidity and capital resources, and use of proceeds\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e99ae16a1d6f49339c55b9b8",
+            "content": "## Multiple Calculation\n\n**Consolidated FY2025 Capex \u00f7 Connectivity Segment Adjusted EBITDA**\n\n= $20,737M \u00f7 $7,168M\n\n= **2.89x** (precisely 2.8930x)\n\nEquivalently, Connectivity Adjusted EBITDA covers only **~34.57%** of consolidated capex, leaving a funding gap of **~$13,569M** that must be sourced from outside the Connectivity segment's operating cash generation.\n\n---\n\n## What This Implies About IPO Capital vs. Internally Generated Cash\n\n### 1. The Connectivity segment is the cash engine, but it cannot self-fund the consolidated business\n\nThe Connectivity (Starlink) segment is the only segment producing material positive Adjusted EBITDA. However, even if 100% of its $7,168M of Adjusted EBITDA were redeployed into capex, it would fund only about one-third of the company's $20,737M total capex program. The Connectivity segment is itself modestly self-funding \u2014 its own capex was only $4,178M, leaving ~$2,990M of segment-level surplus \u2014 but that surplus is dwarfed by the capital demands of the other two segments.\n\n### 2. The capex burden is concentrated in segments that are not yet cash-generative\n\nThe segment capex breakdown for FY2025 is:\n\n| Segment | FY2025 Capex | FY2025 Adj. EBITDA |\n|---|---|---|\n| AI | $12,727M (~61% of total) | Negative (~$(1,237)M, implied) |\n| Connectivity | $4,178M | $7,168M |\n| Space | $3,832M | $653M |\n| **Consolidated** | **$20,737M** | **$6,584M** |\n\nThe AI and Space segments together consumed **$16,559M** of capex while generating a **combined negative ~$584M** of Adjusted EBITDA. Consolidated Adjusted EBITDA ($6,584M) is actually *lower* than Connectivity Adjusted EBITDA alone, confirming that the non-Connectivity segments are net consumers of cash on an Adjusted EBITDA basis.\n\n### 3. The 2.89x multiple structurally embeds a dependency on external capital\n\nA capex-to-Connectivity-EBITDA multiple of 2.89x means the consolidated entity is investing at nearly three times the cash-generating capacity of its most profitable segment. This is not a temporary working-capital gap \u2014 management explicitly states that AI capex will \"scale as quickly as we are able to deploy power and compute\" and that there is a \"multi-year investment horizon before these deployments translate into sustained positive AI Segment Adjusted EBITDA.\" The gap is therefore structural and persistent, not cyclical.\n\n### 4. The IPO is not merely a liquidity event \u2014 it is a structural funding pillar\n\nThe prospectus confirms the company's existing capital structure already leans heavily on external capital: as of March 31, 2026, total long-term debt was **$29,111M** (including a $20,000M SpaceX Bridge Loan) and redeemable convertible preferred stock was **$7,049M**. Management states it \"plan[s] to access a range of debt and equity financing solutions available to us as a public company to fund future investments in growth and to maintain strong liquidity.\" Stated IPO use of proceeds \u2014 expansion of AI compute infrastructure, launch infrastructure/vehicles, and satellite constellation scale \u2014 maps directly to the segments driving the capex gap.\n\n### 5. Interpretation\n\nThe 2.89x multiple quantifies the structural role of IPO capital: internally generated cash (overwhelmingly from Connectivity) is the *base layer* of funding but is insufficient by a factor of roughly 3x to cover the consolidated investment program. IPO equity proceeds, together with the company's existing debt and preferred stack, function as the *bridge capital* that funds the AI and Space build-outs until those segments reach positive Adjusted EBITDA. In other words, the IPO is not opportunistic \u2014 it is a necessary component of the capital plan because the cash-generative segment cannot, on its own, finance the consolidated growth strategy.\n\n---\n\n### Important caveat on the recast basis\n\nThe consolidated figures reflect the retrospectively recast common-control combination of SpaceX, xAI (merged February 2, 2026), and X Holdings (merged into xAI March 28, 2025). No period reflects standalone SpaceX operations. The 2.89x multiple therefore reflects the combined entity's capital intensity, of which the AI segment \u2014 the largest capex consumer \u2014 is largely attributable to the recast xAI business. The Connectivity segment figures, by contrast, are essentially SpaceX/Starlink standalone in substance.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 MD&A segment results, capital expenditures, liquidity and capital resources, and use of proceeds\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6507,
+        "completion_tokens": 1385,
+        "cached_tokens": 5440,
+        "cost_usd": 0.023317499999999998
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 22535,
+    "total_completion_tokens": 3322,
+    "total_cached_tokens": 18944,
+    "total_cost_usd": 0.0658775,
+    "total_steps": 7
+  }
+}

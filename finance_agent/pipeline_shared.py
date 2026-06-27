@@ -25,7 +25,7 @@ MODEL   = os.environ["ENRICHMENT_MODEL"]
 URL     = os.environ["ENRICHMENT_BASE_URL"]
 API_KEY = os.environ["ENRICHMENT_API_KEY"]
 
-MAX_TOKENS_CLUSTER = 38000
+MAX_TOKENS_CLUSTER = 120000
 MAX_TOKENS_CANON   = 3000
 MAX_TOKENS_RUBRIC  = 10000
 
@@ -420,7 +420,6 @@ def build_gaps_block(quality: dict) -> str:
 # Async LLM wrappers
 # ---------------------------------------------------------------------------
 
-
 async def cluster_facts(
     client: httpx.AsyncClient,
     question: str,
@@ -428,26 +427,45 @@ async def cluster_facts(
 ) -> list[list[dict]]:
     """Pass 1: group facts from multiple models into same-claim clusters."""
     facts_block = build_facts_block(model_facts)
-    resp = await client.post(
-        URL,
-        headers={"Authorization": f"Bearer {API_KEY}"},
-        json={
-            "model": MODEL,
-            "messages": [
-                {"role": "system", "content": CLUSTER_SYSTEM},
-                {"role": "user",   "content": CLUSTER_USER.format(
-                    question=question,
-                    facts_block=facts_block,
-                )},
-            ],
-            "max_tokens": MAX_TOKENS_CLUSTER,
-            "temperature": 0.0,
-            "thinking": {"type": "disabled"},
-        },
-        timeout=2800,
-    )
+
+    MAX_RETRIES = 3
+    RETRY_BASE_DELAY = 2.0
+
+    resp = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = await client.post(
+                URL,
+                headers={"Authorization": f"Bearer {API_KEY}"},
+                json={
+                    "model": MODEL,
+                    "messages": [
+                        {"role": "system", "content": CLUSTER_SYSTEM},
+                        {"role": "user",   "content": CLUSTER_USER.format(
+                            question=question,
+                            facts_block=facts_block,
+                        )},
+                    ],
+                    "max_tokens": MAX_TOKENS_CLUSTER,
+                    "temperature": 0.0,
+                    "thinking": {"type": "disabled"},
+                },
+                timeout=2800,
+            )
+            resp.raise_for_status()
+            break
+        except Exception as e:
+            print(f"    [cluster_facts] attempt {attempt + 1}/{MAX_RETRIES} failed: {e}")
+            if attempt == MAX_RETRIES - 1:
+                raise
+            await asyncio.sleep(RETRY_BASE_DELAY ** attempt)
 
     payload = resp.json()
+    if "choices" not in payload:
+        raise ValueError(
+            f"cluster_facts: API returned no 'choices'. "
+            f"Payload: {json.dumps(payload)[:2000]}"
+        )
     choice = payload["choices"][0]
     finish_reason = choice.get("finish_reason")
 
@@ -459,7 +477,6 @@ async def cluster_facts(
             f"Raise MAX_TOKENS_CLUSTER."
         )
 
-    resp.raise_for_status()
     raw = choice["message"]["content"].strip()
     clusters = extract_json(raw)
     assert isinstance(clusters, list)
@@ -509,6 +526,24 @@ async def canonicalize_cluster(
             await asyncio.sleep(RETRY_BASE_DELAY ** attempt)
 
 
+def _coerce_list_rubric(items: list) -> dict | None:
+    out = {"critical": [], "important": [], "optional": []}
+
+    if all(isinstance(it, dict) and "tier" in it and "facts" in it for it in items):
+        for it in items:
+            tier = it["tier"].lower()
+            if tier in out:
+                out[tier].extend(it["facts"])
+        return out
+
+    if all(isinstance(it, dict) and "fact" in it and "tier" in it for it in items):
+        for it in items:
+            tier = it["tier"].lower()
+            if tier in out:
+                out[tier].append(it["fact"])
+        return out
+
+    return None
 
 
 async def induce_rubric(
@@ -517,7 +552,6 @@ async def induce_rubric(
     category: str,
     facts: list[str],
 ) -> dict:
-    """Classify a flat fact list into critical / important / optional tiers."""
     facts_block = "\n".join(f"- {f}" for f in facts)
     resp = await client.post(
         URL,
@@ -527,26 +561,39 @@ async def induce_rubric(
             "messages": [
                 {"role": "system", "content": RUBRIC_INDUCTION_SYSTEM},
                 {"role": "user",   "content": RUBRIC_INDUCTION_USER.format(
-                    question=question,
-                    category=category,
-                    facts_block=facts_block,
+                    question=question, category=category, facts_block=facts_block,
                 )},
             ],
             "max_tokens": MAX_TOKENS_RUBRIC,
             "temperature": 0.0,
-            "thinking": {"type": "disabled"},   
+            "thinking": {"type": "disabled"},
         },
         timeout=2000,
     )
     resp.raise_for_status()
     raw = resp.json()["choices"][0]["message"]["content"].strip()
     rubric = extract_json(raw)
+
     if not isinstance(rubric, dict):
-        raise ValueError(f"Expected rubric dict, got {type(rubric)}")
+        if isinstance(rubric, list):
+            coerced = _coerce_list_rubric(rubric)
+            if coerced is not None:
+                print(f"  WARNING: coerced list-shaped rubric for {question[:60]!r}")
+                rubric = coerced
+            else:
+                raise ValueError(
+                    f"Expected rubric dict, got list for question={question!r}, "
+                    f"category={category!r}. Raw response:\n{raw[:2000]}"
+                )
+        else:
+            raise ValueError(
+                f"Expected rubric dict, got {type(rubric)} for question={question!r}. "
+                f"Raw response:\n{raw[:2000]}"
+            )
+
     for tier in ("critical", "important", "optional"):
         rubric.setdefault(tier, [])
     return rubric
-
 
 async def detect_contradictions(
     client: httpx.AsyncClient,

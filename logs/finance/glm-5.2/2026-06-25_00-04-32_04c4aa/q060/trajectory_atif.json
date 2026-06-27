@@ -1,0 +1,553 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "847d87b5-cae3-4caf-ba08-95b1446534bf",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-25T00:04:40.178434+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-25T00:04:40.178434+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nReuters reported pre-S-1 that SpaceX generated approximately $15\u201316 billion in revenue in the standalone pre-merger year. The S-1 as filed presents recast consolidated financials including xAI and X Holdings under common-control accounting. Using the consolidated FY2025 revenue disclosed in the S-1 and the pre-filing Reuters revenue estimate for the SpaceX standalone business, estimate the implied revenue contribution of xAI and X Holdings to the recast consolidated total. What does this decomposition imply about the valuation multiple that secondary market investors were assigning to the standalone SpaceX business before the xAI merger, and what accounting limitation prevents the S-1 from providing a clean standalone SpaceX revenue figure for the same period?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-25T00:04:40.178434+00:00",
+      "source": "agent",
+      "message": "\nI'll analyze this question by:\n1. Parsing the SpaceX S-1 filing to find consolidated FY2025 revenue\n2. Searching for the Reuters pre-filing revenue estimate\n3. Looking for secondary market valuation data for SpaceX\n\nLet me start with these parallel searches.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about SpaceX's S-1 filing. Let me break down the question:\n\n1. Reuters reported pre-S-1 that SpaceX generated approximately $15-16 billion in revenue in the standalone pre-merger year\n2. The S-1 presents recast consolidated financials including xAI and X Holdings under common-control accounting\n3. I need to:\n   - Find the consolidated FY2025 revenue disclosed in the S-1\n   - Use the pre-filing Reuters revenue estimate for SpaceX standalone (~$15-16B)\n   - Estimate the implied revenue contribution of xAI and X Holdings to the recast consolidated total\n   - Discuss what this decomposition implies about the valuation multiple secondary market investors were assigning to standalone SpaceX before the xAI merger\n   - Identify the accounting limitation that prevents the S-1 from providing a clean standalone SpaceX revenue figure\n\nLet me start by:\n1. Parsing the SpaceX S-1 filing\n2. Searching for the Reuters report on SpaceX revenue\n3. Looking for secondary market valuation data for SpaceX\n\nLet me do these in parallel.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_347c763656734cb1a7b6164a",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        },
+        {
+          "tool_call_id": "call_d0586da1ba2e44dc9d38c56c",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "Reuters SpaceX revenue $15 billion $16 billion 2025 pre-IPO"
+          }
+        },
+        {
+          "tool_call_id": "call_7776de8de81c4a2d8bf825f4",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "SpaceX secondary market valuation 2025 tender offer share price"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_347c763656734cb1a7b6164a",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          },
+          {
+            "source_call_id": "call_d0586da1ba2e44dc9d38c56c",
+            "content": "[{\"url\": \"https://blockchain.news/flashnews/spacex-ipo-reuters-reports-50b-raise-target-at-1-5-trillion-valuation-as-2025-revenue-reaches-15b-16b-and-ebitda-near-8b\", \"title\": \"SpaceX IPO: Reuters Reports $50B Raise Target at $1.5 Trillion Valuation as 2025 Revenue Reaches $15B\\u2013$16B and EBITDA Near $8B | Flash News Detail\", \"content\": \"SpaceX IPO: Reuters Reports $50B Raise Target at $1.5 Trillion Valuation as 2025 Revenue Reaches $15B\\u2013$16B and EBITDA Near $8B. According to @StockMKTNewz, citing Reuters, SpaceX reportedly generated between $15 billion and $16 billion in revenue in 2025 with approximately $8 billion in EBITDA, and is seeking to raise $50 billion in a June IPO at a $1.5 trillion valuation (source: Reuters). SpaceX, the innovative aerospace company led by Elon Musk, has reportedly generated impressive financial\", \"score\": 0.92857105, \"raw_content\": null}, {\"url\": \"https://www.roic.ai/news/spacex-reports-15-16-billion-in-revenue-for-2025-amid-800-billion-valuation-push-01-30-2026\", \"title\": \"SpaceX Reports $15-16 Billion in Revenue for 2025 Amid $800 Billion Valuation Push | Roic News\", \"content\": \"SpaceX generated between $15 billion and $16 billion in revenue last year, primarily from rocket launches and Starlink satellite internet, according to people familiar with the matter.\\n The company is planning a secondary share sale that would value it at $800 billion, with a potential full IPO in 2026 targeting up to $1.5 trillion.\", \"score\": 0.9092728, \"raw_content\": null}, {\"url\": \"https://www.straitstimes.com/business/companies-markets/spacex-generated-about-10-billion-in-profit-last-year-ahead-of-ipo-sources-say?ref=latest\", \"title\": \"SpaceX generated about $10 billion in profit last year ahead of IPO, sources say | The Straits Times\", \"content\": \"cent to 80 per cent of the total.  Banks estimate that SpaceX could raise over US$50 billion at a valuation exceeding US$1.5 trillion, ahead of a potential IPO later this year. Published Jan 31, 2026, 05:52 AM. Updated Jan 31, 2026, 05:52 AM. NEW YORK - SpaceX generated about US$8 billion (S$10.1 billion) in profit on US$15 billion to US$16 billion of revenue in 2025, two people familiar with the company\\u2019s results said, providing fresh insight into the financial health of Elon Musk\\u2019s space\", \"score\": 0.90452427, \"raw_content\": null}, {\"url\": \"https://telecom.economictimes.indiatimes.com/news/portal-in-portal/satcom/spacex-reports-8-billion-profit-pre-ipo-surge-anticipated/127813191\", \"title\": \"SpaceX Reports $8 Billion Profit: Pre-IPO Surge Anticipated, ETTelecom\", \"content\": \"at the Kennedy Space Center in Cape Canaveral, Florida, U.S., September 23, 2025. NEW YORK: SpaceX generated about $8 billion in profit on $15 billion to $16 billion of revenue \\u2060last year, two people familiar with the company's results said, providing fresh insight into the financial health of Elon Musk's space company that is expected to go public later this year. SpaceX's most \\u200crecent financials, which \\u200chave not been previously reported, led some banks to estimate that the company could raise\", \"score\": 0.88705814, \"raw_content\": null}, {\"url\": \"https://fintool.com/news/spacex-8-billion-profit-ipo-financials\", \"title\": \"SpaceX Posts $8 Billion Profit as Banks Eye $1.5 Trillion IPO Valuation | Fintool News\", \"content\": \"# SpaceX Posts $8 Billion Profit as Banks Eye $1.5 Trillion IPO Valuation. Elon Musk's SpaceX generated approximately $8 billion in EBITDA profit on $15 billion to $16 billion of revenue in 2025, according to sources familiar with the company's results\\u2014the first concrete financial disclosure ahead of what could become the largest technology IPO in history. The previously unreported financials have led some banks to estimate that SpaceX could raise more than $50 billion at a valuation exceeding\", \"score\": 0.8755427, \"raw_content\": null}, {\"url\": \"https://reuters.com/business/finance/spacex-generated-about-8-billion-profit-last-year-ahead-ipo-sources-say-2026-01-30\", \"title\": \"Exclusive: SpaceX generated about $8 billion in profit last year ahead of IPO, sources say | Reuters\", \"content\": \"NEW YORK, Jan 30 (Reuters) - SpaceX generated about $8 billion in profit on $15 billion to $16 billion of revenue \\u200blast year, two people familiar with the company's results said, providing fresh insight \\u200cinto the financial health of Elon Musk\\u2019s space company that is expected to go public later this year. Reuters reported on \\u200bThursday that SpaceX is also in talks with Musk\\u2019s artificial intelligence company, xAI, about a merger ahead of the IPO. Item 1 of 2 A SpaceX Falcon 9 rocket is prepared\", \"score\": 0.83678174, \"raw_content\": null}, {\"url\": \"https://techmarketbriefs.com/pre-ipo/spacex\", \"title\": \"SpaceX IPO 2026: $1.75T Valuation, Risks & Bull Case | TMB\", \"content\": \"| Lead bookrunners | Morgan Stanley, Goldman Sachs, JPMorgan, Bank of America, Citigroup (21-bank syndicate total) |\\n| 2025 revenue (per Reuters S-1 review) | $18.7B (Reuters April 2026 S-1 review, post-xAI consolidation); earlier sources-familiar Reuters reporting cited $15-16B pre-consolidation |\\n| 2025 profit/loss (per Reuters S-1 review) | $4.9B overall loss; Starlink op income $4.42B; AI division op loss $6.4B (Reuters April S-1 review) |\", \"score\": 0.81204927, \"raw_content\": null}, {\"url\": \"https://ts2.tech/en/spacex-valuation-surges-to-800-billion-in-insider-share-sale-what-the-latest-ipo-forecasts-say-for-2026-updated-dec-14-2025\", \"title\": \"SpaceX Valuation Surges to $800 Billion in Insider Share Sale\\u2014What the Latest IPO Forecasts Say for 2026 (Updated Dec. 14, 2025)\", \"content\": \"the market size for satellite-to-cell services and the feasibility of space-based data centers, even as the company generates about $15 billion in annual revenue. As of Dec. 14, 2025, the most defensible headline is straightforward: SpaceX\\u2019s latest insider share sale price implies a valuation of about $800 billion. Reuters.\", \"score\": 0.7533401, \"raw_content\": null}, {\"url\": \"https://en.oninvest.com/article/reuters-musk-s-spacex-has-8-billion-in-profits-in-2025-that-s-about-50-of-revenue\", \"title\": \"Reuters: Musk's SpaceX has $8 billion in profits in 2025. That's about 50% of revenue \\u2013 Oninvest\", \"content\": \"SpaceX did not respond to Reuters' request for comment. ## What this means for the SpaceX IPO. Based on the company's recent financial results, some banks have concluded that the company could raise more than $50 billion in the event of an IPO at a valuation above $1.5 trillion, according to Reuters sources. SpaceX was valued at about $800 billion at the end of the last offering. SpaceX plans to launch an IPO, which could be the world's largest, close to CEO Elon Musk's 55th birthday on June\", \"score\": 0.7197191, \"raw_content\": null}, {\"url\": \"https://www.reuters.com/article/business/doordash-valued-at-16-billion-in-pre-ipo-funding-round-idUSL4N2DV3WN\", \"title\": \"DoorDash valued at $16 billion in pre-IPO funding round | Reuters\", \"content\": \"Exclusive: SpaceX generated about $8 billion in profit last year ahead of IPO, sources say. Meta faces New Mexico trial over child-exploitation claims. ## Business.  ### Musk's Starlink updates privacy policy to allow consumer data to train AI. SpaceX revised its Starlink privacy policy to allow the use of customer data for AI training, a shift that could bolster Elon Musk's AI ambitions.  BusinesscategoryCanada says it is working with partners on a proposed defense bank.  Aerospace &\", \"score\": 0.68496037, \"raw_content\": null}]"
+          },
+          {
+            "source_call_id": "call_7776de8de81c4a2d8bf825f4",
+            "content": "[{\"url\": \"https://impactwealth.org/spacex-valuation-2025-current-value-tender-offers-stock-insights\", \"title\": \"SpaceX Valuation 2025: Current Value, Tender Offers & Stock Insights - Impact Wealth\", \"content\": \"## SpaceX Valuation Tender Offer (2025)\\n\\nSpaceX conducts periodic tender offers allowing employees and early investors to sell shares without going public. In 2025, the company\\u2019s tender offer reportedly:\\n\\n Valued SpaceX at $210 billion.\\n Offered shares at roughly $112\\u2013$115 per share (depending on tranche).\\n Was oversubscribed, signaling strong demand from institutional investors.\\n\\nThese tender offers serve as the best real-time indicator of SpaceX\\u2019s true market value.\", \"score\": 0.93885136, \"raw_content\": null}, {\"url\": \"https://ts2.tech/en/spacex-valuation-on-25-november-2025-private-markets-now-price-elon-musks-spacex-near-500-billion\", \"title\": \"SpaceX Valuation on 25 November 2025: Private Markets Now Price Elon Musk\\u2019s SpaceX Near $500 Billion\", \"content\": \"Forge Price (SpaceX secondary market)\\n  + Forge, a leading private\\u2011stock marketplace, lists a Forge Price of $263.22 per share for SpaceX as of 25 November 2025, and an implied \\u201cForge Price valuation\\u201d of about $497.98 billion. Forge Global+2Forge Global+2\\n  + Forge Price is a derived indicator based on recent transactions, bids/asks and funding data, not a public-market quote.\\n Recent internal/tender valuations\\n  + December 2024 company tender: ~$350 billion at $185 per share.\", \"score\": 0.93295, \"raw_content\": null}, {\"url\": \"https://news.satnews.com/2025/12/06/spacex-targets-800-billion-valuation-in-secondary-sale-eyes-2026-ipo\", \"title\": \"SpaceX Targets $800 Billion Valuation in Secondary Sale, Eyes 2026 IPO \\u2013 SatNews\", \"content\": \"December 6, 2025\\n\\nSurpassing the valuation of any other private company globally, SpaceX is reportedly negotiating a secondary share sale that would value the aerospace giant at approximately $800 billion. According to reporting by the Wall Street Journal, this tender offer represents a doubling of the company\\u2019s valuation from $400 billion in July 2025, driven by the rapid expansion of the Starlink satellite internet network and continued dominance in the global launch market.\", \"score\": 0.9311691, \"raw_content\": null}, {\"url\": \"https://driveteslacanada.ca/news/spacex-eyes-secondary-share-sale-with-800-b-valuation-and-potential-ipo\", \"title\": \"SpaceX eyes secondary share sale with $800 B valuation and potential IPO [Update] - Drive Tesla\", \"content\": \"Street Journal, SpaceX\\u2019s Chief Financial Officer Bret Johnson spoke to investors about an upcoming secondary share sale, also known as a tender offer. According to reports,SpaceX is valuing the company at $800B, a 100% increase from its July 2025 valuation of $400B. The company is expecting to generate around $15.5 B in revenue this year, and this will only increase as Starlink expands with the purchase of the EchoStar spectrum, and Starship nears launch. Are you buying a Tesla? Man charged in\", \"score\": 0.914176, \"raw_content\": null}, {\"url\": \"https://spaceinsider.tech/2024/11/18/spacex-valuation-could-reach-255-billion-amid-secondary-share-sale-discussions\", \"title\": \"SpaceX Valuation Could Reach $255 Billion Amid Secondary Share Sale Discussions\", \"content\": \"raising additional funds. SpaceX, the private aerospace company led by Elon Musk, is reportedly in early talks to conduct a secondary share sale that could elevate its valuation to around $255 billion. This would mark a significant increase from its previous valuation of $210 billion, solidifying SpaceX as the most valuable private company in the United States. According to sources familiar with the discussions, the potential tender offer would allow employees and early shareholders to sell\", \"score\": 0.81489426, \"raw_content\": null}, {\"url\": \"https://spaceinsider.tech/2024/12/11/spacex-valuation-surges-to-350-billion-amid-new-tender-offer\", \"title\": \"SpaceX Valuation Surges to $350 Billion Amid New Tender Offer\", \"content\": \"Home SpaceX Valuation Surges to $350 Billion Amid New Tender Offer. # SpaceX Valuation Surges to $350 Billion Amid New Tender Offer.  SpaceX has nearly doubled its valuation within a year, reaching $350 billion after announcing a tender offer allowing employees to sell shares to approved investors.  The tender offer includes a buyback of up to $500 million worth of common stock directly by SpaceX.  The current valuation is based on a per-share price of $185, reflecting a two-thirds increase\", \"score\": 0.8095324, \"raw_content\": null}, {\"url\": \"https://secondarylink.com/news/6937089309ff7f1b326960dd/spacex-eyes-800-billion-valuation-in-latest-tender-offer\", \"title\": \"SecondaryLink - SpaceX eyes $800 billion valuation in latest tender offer\", \"content\": \"SpaceX eyes $800 billion valuation in latest tender offer. Related Companies: SpaceX, ByteDance, Revolut, OpenAI. If completed, Elon Musk's space exploration company would eclipse OpenAI as the most valuable privately held company. If you liked this story, here are others you\\u2019ll enjoy reading! ByteDance to hit $550 billion valuation in proposed secondary sale. Thereportedstakedivestmentby General Atlanticmarksa~15%upliftovertheTikTok parent'svaluationina November share auction. Revolut conducts\", \"score\": 0.80771893, \"raw_content\": null}, {\"url\": \"https://pitchbook.com/news/articles/spacex-tender-offer-secondary-sales-vc\", \"title\": \"SpaceX tender offer caps standout year for secondary sales - PitchBook\", \"content\": \"# SpaceX tender offer caps standout year for secondary sales. ## Leading VC-backed companies have leaned into secondary share sales as IPO timelines extend. Elon Musk\\u2019s SpaceX is planning a tender offer at a valuation of around $350 billion, Bloomberg reported, a $140 billion jump over what it was worth in a similar transaction earlier this year. The planned deal would cement a blockbuster year for secondary share sales of VC-backed companies, which have blossomed even as broader startup\", \"score\": 0.767847, \"raw_content\": null}, {\"url\": \"https://ts2.tech/en/spacex-targets-800-billion-valuation-in-new-secondary-share-sale-poised-to-leapfrog-openai\", \"title\": \"SpaceX Targets $800 Billion Valuation in New Secondary Share Sale, Poised to Leapfrog OpenAI\", \"content\": \"Wall Street Journal+2Reuters+2. According to multiple reports citing people familiar with the talks, SpaceX Chief Financial Officer Bret Johnsen has informed investors in recent days that the company plans a new secondary share sale\\u2014a tender offer in which existing shareholders, such as employees and early backers, sell stock to outside investors. If completed at the mooted price, the deal would mark a dramatic jump from SpaceX\\u2019s roughly $400 billion valuation in a similar insider sale earlier\", \"score\": 0.7613083, \"raw_content\": null}, {\"url\": \"https://satnews.com/2025/12/06/spacex-targets-800-billion-valuation-in-secondary-sale-eyes-2026-ipo\", \"title\": \"SpaceX Targets $800 Billion Valuation in Secondary Sale, Eyes 2026 IPO \\u2013 SatNews\", \"content\": \"December 6, 2025\\n\\n in late 2026. While the company has operated as a private entity for nearly 25 years to maintain control over long-term development projects like Starship, an $800 billion public listing would immediately place SpaceX among the top 20 publicly traded companies globally by market capitalization.\\n\\nFiled Under: Business & Finance, Launch ProvidersTagged With: Featured\\n\\n## Primary Sidebar\\n\\n### Coverage\", \"score\": 0.7043437, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3262,
+        "completion_tokens": 381,
+        "cached_tokens": 3072,
+        "cost_usd": 0.008125
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-25T00:05:42.974823+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve the consolidated FY2025 revenue from the SpaceX S-1 filing.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I have good information. Let me now retrieve the consolidated FY2025 revenue from the SpaceX S-1 filing. I need to look at the consolidated financial statements.\n\nKey facts so far:\n- Reuters reported SpaceX generated $15-16 billion in revenue in 2025 (pre-merger standalone)\n- SpaceX was valued at ~$800 billion in December 2025 tender offer (pre-xAI merger)\n- The S-1 was filed May 20, 2026 with recast consolidated financials including xAI and X Holdings\n\nLet me retrieve the consolidated revenue from the S-1.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_53cf7b9fe6924b1ea0e3616b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What is the total consolidated revenue for fiscal year 2025 disclosed in the consolidated statements of operations in {{spacex_s1}}? Please provide the exact figure and any segment breakdown if available."
+          }
+        },
+        {
+          "tool_call_id": "call_620d9a6da78148cb8a430241",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does {{spacex_s1}} disclose about common-control accounting, the xAI merger, and the X Holdings merger? Specifically, how are historical periods recast and what limitations does this create for identifying standalone SpaceX revenue?"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_53cf7b9fe6924b1ea0e3616b",
+            "content": "# Total Consolidated Revenue for Fiscal Year 2025\n\n## Total Consolidated Revenue\n\nAccording to the Consolidated Statements of Operations for the year ended December 31, 2025, the total consolidated revenue was **$18,674 million** (approximately $18.7 billion).\n\nThis represents a **33.2% increase** from $14,015 million in fiscal year 2024 (a $4,659 million increase).\n\n## Segment Breakdown\n\nThe revenue disaggregated by reportable segment was as follows:\n\n| Segment | FY 2025 Revenue (in millions) |\n|---|---|\n| **Space** | $4,086 |\n| **Connectivity** | $11,387 |\n| **AI** | $3,201 |\n| **Total Reportable Segments** | **$18,674** |\n\n## Further Disaggregation by Type\n\nWithin these segments, revenue by type was:\n\n- **Space Segment:**\n  - Launch Services: $2,576 million\n  - Launch & Development: $1,510 million\n\n- **Connectivity Segment:**\n  - Consumer: $7,208 million\n  - Enterprise & Government: $4,179 million\n\n- **AI Segment:**\n  - Advertising: $1,844 million\n  - AI Solutions & Infrastructure: $1,357 million\n\nThe Space and Connectivity segments together contributed the substantial majority of consolidated revenue in fiscal year 2025."
+          },
+          {
+            "source_call_id": "call_620d9a6da78148cb8a430241",
+            "content": "# Disclosures on Common-Control Accounting, the xAI Merger, and the X Holdings Merger\n\n## 1. Common-Control Accounting Framework\n\nThe document discloses that both mergers were accounted for as **reorganizations of entities under common control**. The justification is that Elon Musk held a controlling financial interest in SpaceX, xAI, and X through his majority voting interest in each entity during all periods presented. This is a critical accounting election because it dictates the entire retrospective treatment.\n\nKey accounting consequences disclosed:\n\n- **Retrospective combination at historical carrying amounts** \u2014 The net assets of xAI and X are combined into SpaceX's financials at their historical carrying values for *all periods presented*, not at fair value at the acquisition date.\n- **No new goodwill or intangible assets recorded** \u2014 Unlike an arm's-length acquisition under ASC 805, no purchase price allocation occurs, meaning no goodwill or acquired intangibles appear on the balance sheet from these transactions.\n- **Elimination of all historical related-party transactions** \u2014 Any commercial dealings between SpaceX, xAI, and X during historical periods are eliminated in consolidation, removing what could have been material revenue or cost line items.\n- **Change in reporting entity** \u2014 The document explicitly states this presentation \"constitutes a change in reporting entity,\" triggering retrospective application across all comparative periods.\n\n## 2. Merger Timeline and Structure\n\n| Transaction | Date | Acquirer | Target | Legal Form |\n|---|---|---|---|---|\n| X Merger | March 28, 2025 | xAI | X Holdings Corp. and X.AI Corp. | Share exchange |\n| xAI Merger | February 2, 2026 | SpaceX | X.AI Holdings Corp. (xAI) | Share exchange |\n\nSupporting context: X.AI Corp. began operations in March 2023, and Twitter was acquired by Musk in October 2022.\n\n## 3. How Historical Periods Are Recast\n\nThe recasting operates on two dimensions:\n\n### a. Income Statement and Balance Sheet Recasting\n- All historical periods presented (2023, 2024, 2025, and interim 2026) now include the **fully combined results** of SpaceX, xAI, and X as if they had always been a single entity.\n- Intercompany transactions between the three entities are eliminated for all periods.\n- The document states: *\"The summary historical consolidated financial and operating data of SpaceX has been prepared to reflect the retrospective combination of the companies for all periods presented.\"*\n\n### b. Share Count and Equity Recasting\nHistorical share counts are adjusted using the following exchange ratios:\n\n| Security Converted | Conversion Ratio | Into |\n|---|---|---|\n| X Holdings common stock | 2.776 shares | xAI common stock (same class) |\n| X.AI Corp. common stock | 1.000 share | xAI common stock (same class) |\n| X.AI Corp. preferred stock | 1.000 share | xAI Redeemable Convertible Preferred Stock |\n| xAI common stock | 0.1433 shares | SpaceX common stock |\n| xAI warrants | 0.1433 shares | SpaceX Class A common stock (cashless) |\n\nAll share and per-share data is then further adjusted for the **five-for-one 2026 Stock Split** (effective May 4, 2026) on a retroactive basis.\n\n### c. Important Exception \u2014 xAI Redeemable Convertible Preferred Stock\nThe document discloses a **critical limitation on the retrospective recasting**: xAI's Redeemable Convertible Preferred Stock is *not* recast on an as-converted basis for periods prior to the xAI Merger date. Because it was legally outstanding as a separate equity class of a legally distinct predecessor entity, its conversion into SpaceX common stock is recognized **only prospectively** as of February 2, 2026. Historical balance sheets continue to show it as outstanding xAI preferred stock.\n\n## 4. Limitations for Identifying Standalone SpaceX Revenue\n\nThe retrospective combination creates several significant limitations for any reader attempting to isolate standalone SpaceX revenue:\n\n### a. No Segregation of Pre-Merger Results\nBecause the financials are recast for *all periods presented*, there is no line-item disclosure separating SpaceX-only revenue from xAI-only or X-only revenue in the historical periods. The combined entity's revenue is presented as a single consolidated figure for 2023, 2024, and 2025 \u2014 even though xAI was not legally acquired by SpaceX until February 2026 and X was not acquired by xAI until March 2025.\n\n### b. Elimination of Intercompany Revenue\nThe document states that *\"all historical related party transactions between the entities have been eliminated in consolidation.\"* This means any revenue that SpaceX may have recognized from transactions with xAI or X (or vice versa) during 2023\u20132025 is removed from the consolidated totals. A reader cannot determine from the face of the financial statements how much intercompany revenue existed or what its nature was.\n\n### c. No Separate Financial Statements Provided\nThe document explicitly justifies the omission of standalone financials: *\"As the consolidated financial statements already reflect the reorganization of entities under common control for all periods presented, separate financial statements of xAI and X are not provided.\"* This eliminates the primary mechanism a reader would normally use to reconstruct standalone results.\n\n### d. Management's Own Caution\nThe document includes an explicit disclaimer that the summary historical data is *\"not indicative of the results to be expected for any future period, and the results for any interim period are not necessarily indicative of the results to be expected for the full fiscal period.\"* This suggests that the combined historical figures may not even be useful as a run-rate proxy, because the entities operated independently during those periods.\n\n### e. Change in Reporting Entity Complicates Trend Analysis\nBecause the presentation constitutes a change in reporting entity, year-over-year comparisons within the recast financials reflect the combined entity throughout, making it impossible to assess SpaceX's organic growth trajectory, margin profile, or capital efficiency on a standalone basis from the consolidated disclosures alone.\n\n### f. Related-Party Commercial Relationships Are Only Partially Disclosed\nWhile the document does disclose certain related-party transaction amounts with Tesla (e.g., xAI obtained $191 million in goods/services from Tesla in 2024, $506 million in 2025), the intercompany economics *among* SpaceX, xAI, and X prior to consolidation are not separately quantified in the preamble sections provided. This means a reader cannot reconstruct what portion of any entity's historical revenue was derived from the other two entities now in the consolidated group.\n\n## Summary\n\nThe disclosure framework presents a fully combined SpaceX-xAI-X entity for all historical periods, with no goodwill, no standalone financials, and no visible intercompany revenue. While this is the correct GAAP treatment for common-control combinations, it means that **standalone SpaceX revenue for any historical period cannot be directly identified from the consolidated financial statements as presented**. A reader would need segment-level disclosures (if provided elsewhere in the prospectus) or non-GAAP supplemental information to attempt any such reconstruction, and even then, the elimination of intercompany transactions would limit precision."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 7540,
+        "completion_tokens": 246,
+        "cached_tokens": 3200,
+        "cost_usd": 0.01731
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-25T00:06:20.654003+00:00",
+      "source": "agent",
+      "message": "I have strong data. Let me verify the segment composition to confirm that the AI segment represents xAI + X Holdings, and check for any additional context on the secondary market valuation.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have all the information I need. Let me synthesize:\n\n1. **Consolidated FY2025 revenue from S-1**: $18,674 million (~$18.7 billion)\n   - Space Segment: $4,086 million\n   - Connectivity Segment: $11,387 million\n   - AI Segment: $3,201 million (this is xAI + X Holdings combined)\n\n2. **Reuters pre-filing estimate for SpaceX standalone**: $15-16 billion in 2025 revenue\n\n3. **Implied revenue contribution of xAI and X Holdings**:\n   - Using midpoint of Reuters estimate: $15.5 billion\n   - Consolidated total: $18.674 billion\n   - Implied xAI + X contribution: $18.674B - $15.5B = $3.174 billion\n   - Using low end ($15B): $18.674B - $15B = $3.674 billion\n   - Using high end ($16B): $18.674B - $16B = $2.674 billion\n   - Range: $2.674B to $3.674B\n   - Midpoint: ~$3.174 billion\n\n   Interestingly, the AI segment revenue is $3,201 million, which is very close to the midpoint estimate. This makes sense because the AI segment represents xAI + X Holdings.\n\n4. **Valuation multiple implication**:\n   - SpaceX was valued at ~$800 billion in December 2025 tender offer (pre-xAI merger)\n   - Reuters standalone revenue estimate: $15-16 billion\n   - Implied EV/Revenue multiple: $800B / $15.5B = ~51.6x (using midpoint)\n   - Range: $800B / $16B = 50x to $800B / $15B = 53.3x\n   - This is an extraordinarily high revenue multiple, reflecting investor expectations of massive growth potential in Starlink and launch services\n\n5. **Accounting limitation**:\n   - Common-control accounting under ASC 805-50 requires retrospective combination at historical carrying amounts for all periods presented\n   - This means the S-1 presents a fully combined SpaceX-xAI-X entity for all historical periods\n   - No standalone SpaceX financials are provided\n   - Intercompany transactions are eliminated\n   - The S-1 explicitly states: \"As the consolidated financial statements already reflect the reorganization of entities under common control for all periods presented, separate financial statements of xAI and X are not provided.\"\n   - This is a change in reporting entity that triggers retrospective application\n\nLet me also verify the segment breakdown - the AI segment ($3,201M) appears to represent xAI + X Holdings. Let me check this.\n\nActually, looking at the segment breakdown:\n- Space Segment: $4,086M (SpaceX launch services)\n- Connectivity Segment: $11,387M (Starlink)\n- AI Segment: $3,201M (xAI + X Holdings)\n\nSpace + Connectivity = $4,086 + $11,387 = $15,473M = ~$15.5 billion\n\nThis is remarkably close to the Reuters estimate of $15-16 billion for SpaceX standalone! This confirms that:\n- The Space and Connectivity segments represent the standalone SpaceX business\n- The AI segment represents xAI + X Holdings\n\nSo the implied revenue contribution of xAI and X Holdings is approximately $3,201 million (~$3.2 billion), which is the AI segment revenue.\n\nLet me calculate the valuation multiple:\n- $800B / $15.5B = 51.6x revenue\n- Or using the segment-based standalone SpaceX revenue of $15,473M: $800B / $15.473B = 51.7x\n\nThis is an extraordinarily high revenue multiple, even for a high-growth aerospace/satellite company. For context, this is well above typical aerospace/defense multiples (usually 2-5x revenue) and even above high-growth tech multiples.\n\nLet me also note that the question asks about the implied valuation multiple that secondary market investors were assigning to the standalone SpaceX business before the xAI merger. The key data points are:\n- Pre-xAI merger secondary market valuation: ~$800 billion (December 2025 tender offer)\n- Standalone SpaceX revenue (Reuters estimate): $15-16 billion\n- Implied EV/Revenue multiple: ~50-53x\n\nThis is a very high multiple, suggesting investors were pricing in:\n1. Massive future growth from Starlink expansion\n2. Dominance in global launch market\n3. Potential for Starship to open new markets\n4. Significant margin expansion potential\n\nNow let me also verify the segment composition by retrieving more information about what's in each segment.\n\nActually, I have enough information. Let me also do a calculation to verify the implied revenue contribution.\n\nLet me also check if there's any disclosure about the segment composition to confirm that the AI segment is xAI + X Holdings.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4488407806124b0caea7ff0b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "In {{spacex_s1}}, what entities and businesses are included in the AI reportable segment? Does the AI segment include xAI and X Holdings (Twitter) operations? Please describe the segment composition."
+          }
+        },
+        {
+          "tool_call_id": "call_7268cc24f338486aaadf4fdf",
+          "function_name": "web_search",
+          "arguments": {
+            "search_query": "SpaceX December 2025 tender offer $800 billion valuation secondary market"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_4488407806124b0caea7ff0b",
+            "content": "# Composition of the AI Reportable Segment\n\nBased on the provided text, the AI reportable segment includes the operations of **both xAI and X Holdings (Twitter)**, along with related AI computational infrastructure.\n\n## Entities and Businesses Included\n\nThe segment comprises:\n\n1. **xAI (X.AI Holdings Corp.)** \u2014 Acquired by SpaceX on February 2, 2026, serving as the \"foundational platform\" for the AI segment. This entity itself had previously acquired X Holdings Corp. and X.AI Corp. on March 28, 2025.\n\n2. **X (formerly Twitter)** \u2014 The real-time information, entertainment, and free speech platform, accessible via x.com. Twitter, Inc. was originally acquired by Elon Musk in October 2022 and later rebranded to X in July 2023.\n\n3. **Grok** \u2014 The suite of text and multi-modal AI models (described as a \"truth-seeking frontier model\"), accessible to individual users online and to enterprise clients for research, productivity, and decision-making applications.\n\n4. **AI computational infrastructure** \u2014 Including data centers, GPU hardware, and compute capacity (measured in nameplate compute draw in gigawatts).\n\n## Defining Language from the Filing\n\nThe prospectus explicitly defines the segment as:\n\n> *\"AI segment\" refers to our AI business, which we acquired in connection with our acquisition of xAI in February 2026, and includes our AI compute, Grok, and X.*\n\nThe segment is described as operating \"a vertically integrated AI platform spanning a frontier LLM Grok, AI solutions for consumer and enterprise customers, X \u2014 a real-time information, entertainment, and free speech platform \u2014 and AI computational infrastructure.\"\n\n## Segment Realignment Context\n\nFollowing the Mergers, the Company's CODM (Chief Executive Officer) reorganized the combined company into three reportable segments effective Q1 2026: Space, Connectivity, and AI. Prior period presentations were conformed to this new structure. The acquisitions were accounted for as common-control reorganizations, with historical results retrospectively combined for all periods presented."
+          },
+          {
+            "source_call_id": "call_7268cc24f338486aaadf4fdf",
+            "content": "[{\"url\": \"https://news.satnews.com/2025/12/06/spacex-targets-800-billion-valuation-in-secondary-sale-eyes-2026-ipo\", \"title\": \"SpaceX Targets $800 Billion Valuation in Secondary Sale, Eyes 2026 IPO \\u2013 SatNews\", \"content\": \"December 6, 2025\\n\\nSurpassing the valuation of any other private company globally, SpaceX is reportedly negotiating a secondary share sale that would value the aerospace giant at approximately $800 billion. According to reporting by the Wall Street Journal, this tender offer represents a doubling of the company\\u2019s valuation from $400 billion in July 2025, driven by the rapid expansion of the Starlink satellite internet network and continued dominance in the global launch market.\", \"score\": 0.95386744, \"raw_content\": null}, {\"url\": \"https://ts2.tech/en/spacex-eyes-late-2026-ipo-as-secondary-share-sale-targets-up-to-800-billion-valuation\", \"title\": \"SpaceX Eyes Late\\u20112026 IPO as Secondary Share Sale Targets Up to $800 Billion Valuation\", \"content\": \"December 2025: The new tender offer is pitched at up to $800 billion, with some scenarios pointing nearer $560 billion based on a ~$300 share price.\", \"score\": 0.9409691, \"raw_content\": null}, {\"url\": \"https://ts2.tech/en/spacex-targets-800-billion-valuation-in-new-secondary-share-sale-poised-to-leapfrog-openai\", \"title\": \"SpaceX Targets $800 Billion Valuation in New Secondary Share Sale, Poised to Leapfrog OpenAI\", \"content\": \"December 5, 2025\\n\\nElon Musk\\u2019s SpaceX is reportedly preparing another insider share sale that would value the rocket and satellite company at roughly $800 billion, a move that would more than double its last reported valuation and likely restore its status as the world\\u2019s most valuable private company.\", \"score\": 0.9123193, \"raw_content\": null}, {\"url\": \"https://ts2.tech/en/spacex-ipo-800-billion-valuation-rumors-and-starship-pad-approval-key-spacex-news-december-5-7-2025\", \"title\": \"SpaceX IPO, $800 Billion Valuation Rumors and Starship Pad Approval: Key SpaceX News, December 5\\u20137, 2025\", \"content\": \"mission over an alleged security breach.  Valuation debate: A planned secondary share sale could value SpaceX at up to $800 billion, more than half of Tesla\\u2019s market cap despite generating roughly one\\u2011sixth of Tesla\\u2019s revenue.  Launch tempo: SpaceX has already flown 156 Falcon 9 missions in 2025, more than 70% of them for Starlink, with multiple additional launches clustered between December 7 and 10.  MarketWatch, citing Wall Street Journal data and analyst estimates, notes that SpaceX could\", \"score\": 0.90771407, \"raw_content\": null}, {\"url\": \"https://satnews.com/2025/12/06/spacex-targets-800-billion-valuation-in-secondary-sale-eyes-2026-ipo\", \"title\": \"SpaceX Targets $800 Billion Valuation in Secondary Sale, Eyes 2026 IPO \\u2013 SatNews\", \"content\": \"December 6, 2025\\n\\n in late 2026. While the company has operated as a private entity for nearly 25 years to maintain control over long-term development projects like Starship, an $800 billion public listing would immediately place SpaceX among the top 20 publicly traded companies globally by market capitalization.\\n\\nFiled Under: Business & Finance, Launch ProvidersTagged With: Featured\\n\\n## Primary Sidebar\\n\\n### Coverage\", \"score\": 0.8914433, \"raw_content\": null}, {\"url\": \"https://www.instagram.com/popular/spacex-valuation-december-2025\", \"title\": \"Spacex Valuation December 2025\", \"content\": \"# Spacex Valuation December 2025. Watch reels about spacex valuation december 2025 from people around the world. ## spacex valuation 2025. ## spacex valuation. ## spacex. ## SpaceX valuation 2025. ## spacex's. ## Spacex valuation 2025. ## Spacex Valuation 2025. ## SpaceX Valuation 2025. SpaceX is eyeing a December tender offer with a valuation of over $250 billion.](/popular/spacex-valuation-december-2025/reels/DC8QFelvpZs/). SpaceX, valued at a staggering $800 billion as of December 2025, is a\", \"score\": 0.88822687, \"raw_content\": null}, {\"url\": \"https://secondarylink.com/news/6937089309ff7f1b326960dd/spacex-eyes-800-billion-valuation-in-latest-tender-offer\", \"title\": \"SecondaryLink - SpaceX eyes $800 billion valuation in latest tender offer\", \"content\": \"SpaceX eyes $800 billion valuation in latest tender offer. Related Companies: SpaceX, ByteDance, Revolut, OpenAI. If completed, Elon Musk's space exploration company would eclipse OpenAI as the most valuable privately held company. If you liked this story, here are others you\\u2019ll enjoy reading! ByteDance to hit $550 billion valuation in proposed secondary sale. Thereportedstakedivestmentby General Atlanticmarksa~15%upliftovertheTikTok parent'svaluationina November share auction. Revolut conducts\", \"score\": 0.8861155, \"raw_content\": null}, {\"url\": \"https://ground.news/article/spacex-aims-for-800-billion-valuation-in-secondary-share-sale-wsj-reports\", \"title\": \"SpaceX aims for $800 billion valuation in secondary share sale, WSJ reports\", \"content\": \"# SpaceX aims for $800 billion valuation in secondary share sale, WSJ reports. ## SpaceX\\u2019s $800 billion secondary share sale doubles its previous valuation to provide liquidity and support a potential 2026 IPO, surpassing OpenAI as the top private U.S. company. #### SpaceX Goal Is a Valuation Topping OpenAI's. SpaceX is seeking a new $800 billion valuation in a secondary share sale, which would make Elon Musk's enterprise the most valuable private company in the US\\u2014overtaking OpenAI. The\", \"score\": 0.8684817, \"raw_content\": null}, {\"url\": \"https://intellectia.ai/news/spacex-targets-800-billion-valuation-in-secondary-sale\", \"title\": \"SpaceX Targets $800 Billion Valuation in Secondary Sale | Intellectia.AI\", \"content\": \"cellular services. SpaceX has signaled its intention to pursue an IPO by late 2026, a move that could further solidify its standing in the market. SpaceX is also expanding its satellite capabilities to enable direct-to-consumer cellular services, addressing global connectivity gaps. If the IPO materializes as planned, SpaceX could redefine public market valuations for aerospace and technology companies alike.  SpaceX reportedly talks secondary sale $800B valuation, America\\u2019s valuable private\", \"score\": 0.854509, \"raw_content\": null}, {\"url\": \"https://spaceinsider.tech/2024/12/11/spacex-valuation-surges-to-350-billion-amid-new-tender-offer\", \"title\": \"SpaceX Valuation Surges to $350 Billion Amid New Tender Offer\", \"content\": \"Responsive Image\\n\\nSpaceX has nearly doubled its valuation within a year, reaching $350 billion. This significant increase comes as the company announces a tender offer allowing employees to sell shares to approved investors, as reported by Bloomberg. The tender offer includes a buyback of up to $500 million worth of common stock directly by SpaceX.\", \"score\": 0.60049355, \"raw_content\": null}]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9590,
+        "completion_tokens": 1171,
+        "cached_tokens": 7488,
+        "cost_usd": 0.026325
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-25T00:06:40.054803+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed. Let me perform the precise calculations.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "I now have all the information I need to answer the question comprehensively. Let me synthesize:\n\n**Key Data Points:**\n\n1. **Consolidated FY2025 revenue from S-1**: $18,674 million (~$18.7 billion)\n   - Space Segment: $4,086 million (SpaceX launch services)\n   - Connectivity Segment: $11,387 million (Starlink)\n   - AI Segment: $3,201 million (xAI + X Holdings)\n\n2. **Reuters pre-filing estimate for SpaceX standalone**: $15-16 billion in 2025 revenue (reported January 30, 2026)\n\n3. **Pre-xAI merger secondary market valuation**: ~$800 billion (December 2025 tender offer)\n\n**Calculations:**\n\nImplied revenue contribution of xAI and X Holdings:\n- Using Reuters midpoint ($15.5B): $18.674B - $15.5B = $3.174 billion\n- Using Reuters low ($15B): $18.674B - $15B = $3.674 billion\n- Using Reuters high ($16B): $18.674B - $16B = $2.674 billion\n- Range: ~$2.7B to ~$3.7B\n- Midpoint: ~$3.2 billion\n\nThis is remarkably consistent with the AI segment revenue of $3,201 million (~$3.2 billion), which confirms that:\n- The Space + Connectivity segments ($4,086M + $11,387M = $15,473M \u2248 $15.5B) represent the standalone SpaceX business\n- The AI segment ($3,201M) represents xAI + X Holdings\n\n**Valuation Multiple Implication:**\n\nPre-xAI merger secondary market valuation: ~$800 billion\nStandalone SpaceX revenue (Reuters estimate): $15-16 billion\n\nImplied EV/Revenue multiple:\n- Using midpoint ($15.5B): $800B / $15.5B = 51.6x\n- Using low ($15B): $800B / $15B = 53.3x\n- Using high ($16B): $800B / $16B = 50.0x\n- Range: ~50x to ~53x\n- Midpoint: ~51.6x\n\nThis is an extraordinarily high revenue multiple, reflecting:\n- Investor expectations of massive future growth (Starlink expansion, Starship commercialization)\n- Dominance in global launch market\n- High margin potential (Reuters reported ~$8B EBITDA on $15-16B revenue = ~50% EBITDA margin)\n- Scarcity premium for the only pure-play space infrastructure company at scale\n\nFor context, this multiple is:\n- Well above typical aerospace/defense multiples (2-5x revenue)\n- Above high-growth tech multiples (10-20x revenue)\n- Comparable to or exceeding the most richly valued software/AI companies\n\n**Accounting Limitation:**\n\nThe S-1 cannot provide a clean standalone SpaceX revenue figure because:\n\n1. **Common-control accounting (ASC 805-50)**: Both mergers were accounted for as reorganizations of entities under common control because Elon Musk held a controlling financial interest in SpaceX, xAI, and X during all periods presented.\n\n2. **Retrospective combination at historical carrying amounts**: The net assets of xAI and X are combined into SpaceX's financials at their historical carrying values for ALL periods presented, not at fair value at the acquisition date.\n\n3. **Change in reporting entity**: This presentation constitutes a change in reporting entity, triggering retrospective application across all comparative periods (2023, 2024, 2025, and interim 2026).\n\n4. **No standalone financials provided**: The S-1 explicitly states: \"As the consolidated financial statements already reflect the reorganization of entities under common control for all periods presented, separate financial statements of xAI and X are not provided.\"\n\n5. **Elimination of intercompany transactions**: All historical related-party transactions between SpaceX, xAI, and X are eliminated in consolidation, removing what could have been material revenue or cost line items. A reader cannot determine from the face of the financial statements how much intercompany revenue existed.\n\n6. **No goodwill or purchase price allocation**: Unlike an arm's-length acquisition under ASC 805, no purchase price allocation occurs, meaning no goodwill or acquired intangibles appear on the balance sheet from these transactions.\n\nThe result is that the consolidated financials present a fully combined SpaceX-xAI-X entity for all historical periods, with no line-item disclosure separating SpaceX-only revenue from xAI-only or X-only revenue. While the segment disclosure (Space, Connectivity, AI) provides a useful proxy\u2014since the AI segment corresponds to xAI + X Holdings\u2014this is a segment-level disaggregation, not a legal-entity-level standalone financial statement, and it still reflects intercompany eliminations that may have affected the historical revenue figures.\n\nLet me now do the calculations precisely.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_dac09dfbb9714a558802827c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "18674 - 15500"
+          }
+        },
+        {
+          "tool_call_id": "call_8fa6e655f04a4fc5a48e523d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "18674 - 15000"
+          }
+        },
+        {
+          "tool_call_id": "call_db169dfe43644e81ba644d40",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "18674 - 16000"
+          }
+        },
+        {
+          "tool_call_id": "call_5703cd60622c4de99875a8c5",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "4086 + 11387"
+          }
+        },
+        {
+          "tool_call_id": "call_ac8b7927446947aeb28f005b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "800000 / 15500"
+          }
+        },
+        {
+          "tool_call_id": "call_b9f306ee65e84b07b716f1c8",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "800000 / 15000"
+          }
+        },
+        {
+          "tool_call_id": "call_8bb198fbd3c74f248a2a83ba",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "800000 / 16000"
+          }
+        },
+        {
+          "tool_call_id": "call_7fdb4e6b67e34a8da725a06c",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "3201 / 18674 * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_a52de47d95fd4b909d4f95cc",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "15473 / 18674 * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_dac09dfbb9714a558802827c",
+            "content": "3174"
+          },
+          {
+            "source_call_id": "call_8fa6e655f04a4fc5a48e523d",
+            "content": "3674"
+          },
+          {
+            "source_call_id": "call_db169dfe43644e81ba644d40",
+            "content": "2674"
+          },
+          {
+            "source_call_id": "call_5703cd60622c4de99875a8c5",
+            "content": "15473"
+          },
+          {
+            "source_call_id": "call_ac8b7927446947aeb28f005b",
+            "content": "51.61290322580645"
+          },
+          {
+            "source_call_id": "call_b9f306ee65e84b07b716f1c8",
+            "content": "53.333333333333336"
+          },
+          {
+            "source_call_id": "call_8bb198fbd3c74f248a2a83ba",
+            "content": "50.0"
+          },
+          {
+            "source_call_id": "call_7fdb4e6b67e34a8da725a06c",
+            "content": "17.141480132804972"
+          },
+          {
+            "source_call_id": "call_a52de47d95fd4b909d4f95cc",
+            "content": "82.85851986719504"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12933,
+        "completion_tokens": 1199,
+        "cached_tokens": 9536,
+        "cost_usd": 0.0324025
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-25T00:07:13.339697+00:00",
+      "source": "agent",
+      "message": "I now have all the information needed to provide a comprehensive answer.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "All calculations are confirmed. Let me now compose the final answer.\n\nSummary of key findings:\n\n1. **Consolidated FY2025 revenue from S-1**: $18,674 million (~$18.7 billion)\n   - Space Segment: $4,086 million\n   - Connectivity Segment: $11,387 million\n   - AI Segment: $3,201 million (xAI + X Holdings)\n   - Space + Connectivity (standalone SpaceX proxy): $15,473 million (~$15.5 billion)\n\n2. **Reuters pre-filing estimate for SpaceX standalone**: $15-16 billion in 2025 revenue\n\n3. **Implied revenue contribution of xAI and X Holdings**:\n   - Using Reuters midpoint ($15.5B): $18.674B - $15.5B = $3.174 billion\n   - Using Reuters low ($15B): $18.674B - $15B = $3.674 billion\n   - Using Reuters high ($16B): $18.674B - $16B = $2.674 billion\n   - Range: ~$2.7B to ~$3.7B; midpoint ~$3.2B\n   - This is remarkably consistent with the AI segment revenue of $3,201 million\n\n4. **Valuation Multiple Implication**:\n   - Pre-xAI merger secondary market valuation: ~$800 billion (December 2025 tender offer)\n   - Implied EV/Revenue multiple: ~50x to ~53x (midpoint ~51.6x)\n   - This is an extraordinarily high revenue multiple\n\n5. **Accounting Limitation**: Common-control accounting under ASC 805-50 requires retrospective combination at historical carrying amounts for all periods presented, with no standalone financials provided and intercompany transactions eliminated.\n\nLet me write the final answer.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_68ec18773aaf413b951df5b0",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "## Decomposition of Recast Consolidated FY2025 Revenue and Implied Standalone SpaceX Valuation Multiple\n\n### 1. Consolidated FY2025 Revenue Disclosed in the S-1\n\nThe SpaceX S-1 (filed May 20, 2026) reports total consolidated revenue of **$18,674 million (~$18.7 billion)** for fiscal year 2025, disaggregated by reportable segment as follows:\n\n| Segment | FY2025 Revenue ($M) | Composition |\n|---|---|---|\n| Space | $4,086 | SpaceX launch services & development |\n| Connectivity | $11,387 | Starlink (consumer + enterprise/government) |\n| AI | $3,201 | xAI + X Holdings (Grok, X platform, AI compute) |\n| **Total** | **$18,674** | Recast consolidated entity |\n\nThe S-1 explicitly defines the AI segment as including \"our AI business, which we acquired in connection with our acquisition of xAI in February 2026, and includes our AI compute, Grok, and X.\" This confirms that the AI segment corresponds to the combined xAI + X Holdings operations.\n\n### 2. Implied Revenue Contribution of xAI and X Holdings\n\nReuters reported on January 30, 2026 (pre-S-1) that SpaceX generated approximately **$15\u201316 billion in revenue in 2025** on a standalone pre-merger basis. Using the S-1's recast consolidated total of $18,674 million and the Reuters standalone estimate:\n\n| Reuters Standalone Estimate | Implied xAI + X Contribution |\n|---|---|\n| $15.0B (low) | $18.674B \u2212 $15.0B = **$3.674B** |\n| $15.5B (midpoint) | $18.674B \u2212 $15.5B = **$3.174B** |\n| $16.0B (high) | $18.674B \u2212 $16.0B = **$2.674B** |\n\n**Implied xAI + X Holdings revenue contribution: approximately $2.7B\u2013$3.7B, with a midpoint of ~$3.2B.**\n\nThis estimate is remarkably consistent with the S-1's AI segment revenue of **$3,201 million (~$3.2B)**, providing strong corroboration. Conversely, the Space + Connectivity segments combined total **$15,473 million (~$15.5B)**, which falls squarely within the Reuters standalone SpaceX range of $15\u201316B. This internal consistency confirms that:\n- The Space and Connectivity segments effectively represent the standalone SpaceX business (~82.9% of consolidated revenue)\n- The AI segment represents the xAI + X Holdings contribution (~17.1% of consolidated revenue)\n\n### 3. Implied Valuation Multiple on Standalone SpaceX (Pre-xAI Merger)\n\nIn December 2025\u2014before the xAI merger closed on February 2, 2026\u2014SpaceX conducted a secondary share sale (tender offer) that valued the company at approximately **$800 billion**. This was the last secondary market valuation reflecting the standalone SpaceX business before the xAI combination.\n\nUsing the Reuters standalone revenue estimate of $15\u201316B:\n\n| Standalone Revenue | Implied EV/Revenue Multiple |\n|---|---|\n| $15.0B | $800B / $15.0B = **53.3x** |\n| $15.5B (midpoint) | $800B / $15.5B = **51.6x** |\n| $16.0B | $800B / $16.0B = **50.0x** |\n\n**Implied standalone SpaceX EV/Revenue multiple: approximately 50x\u201353x (midpoint ~51.6x).**\n\nThis is an extraordinarily rich revenue multiple\u2014well above typical aerospace/defense multiples (typically 2\u20135x revenue) and even above most high-growth software/AI comparables. The multiple implies that secondary market investors were pricing in:\n- Massive future growth from Starlink expansion (consumer + enterprise/government + direct-to-cell)\n- Continued dominance of the global launch market\n- Future commercialization of Starship\n- Exceptional margin profile (Reuters separately reported ~$8B EBITDA on $15\u201316B revenue, implying ~50% EBITDA margins)\n- A scarcity premium as the only scaled, pure-play space infrastructure company\n\nIn effect, secondary market investors were valuing standalone SpaceX at a multiple typically reserved for the highest-growth, highest-margin software franchises, despite SpaceX's revenue being derived primarily from capital-intensive launch and satellite connectivity hardware/services.\n\n### 4. Accounting Limitation Preventing a Clean Standalone SpaceX Revenue Figure\n\nThe S-1 cannot provide a clean standalone SpaceX revenue figure for FY2025 (or any historical period) due to **common-control accounting under ASC 805-50**. The specific limitations are:\n\n**(a) Retrospective combination at historical carrying amounts.** Because Elon Musk held a controlling financial interest in SpaceX, xAI, and X during all periods presented, both mergers were accounted for as reorganizations of entities under common control. The net assets of xAI and X are combined into SpaceX's financials at their historical carrying values for **all periods presented** (2023, 2024, 2025, and interim 2026)\u2014not at fair value as of the acquisition date. This constitutes a \"change in reporting entity\" requiring retrospective application.\n\n**(b) No standalone financial statements provided.** The S-1 explicitly states: *\"As the consolidated financial statements already reflect the reorganization of entities under common control for all periods presented, separate financial statements of xAI and X are not provided.\"* This eliminates the primary mechanism a reader would normally use to reconstruct standalone results.\n\n**(c) Elimination of all intercompany transactions.** The filing states that *\"all historical related party transactions between the entities have been eliminated in consolidation.\"* Any revenue SpaceX may have recognized from transactions with xAI or X (or vice versa) during 2023\u20132025 is removed from the consolidated totals, and the filing does not separately quantify the magnitude or nature of these intercompany revenues. A reader therefore cannot determine from the face of the financial statements how much intercompany revenue existed.\n\n**(d) No purchase price allocation or goodwill.** Unlike an arm's-length acquisition under ASC 805, no purchase price allocation occurs, meaning no goodwill or acquired intangibles appear on the balance sheet from these transactions. This further obscures the economic substance of what was acquired.\n\n**(e) Segment disclosure is a proxy, not a legal-entity standalone.** While the segment breakdown (Space + Connectivity vs. AI) provides a useful proxy for isolating SpaceX-only revenue (~$15.5B) from xAI + X revenue (~$3.2B), this is a management-defined operating segment disaggregation, not a legal-entity-level standalone financial statement. It still reflects intercompany eliminations that may have affected the historical revenue figures of each entity, and the segment structure was only realigned effective Q1 2026 with prior periods conformed.\n\n**Bottom line:** The S-1's recast consolidated financials present a fully combined SpaceX-xAI-X entity for all historical periods, making it impossible to directly identify standalone SpaceX revenue from the consolidated disclosures. The Reuters pre-filing estimate (~$15\u201316B) and the S-1's segment disaggregation (Space + Connectivity = ~$15.5B) converge to confirm that xAI and X Holdings contributed approximately $3.2B to the recast consolidated FY2025 revenue of $18.7B. The implied ~50\u201353x EV/Revenue multiple on standalone SpaceX at the December 2025 $800B secondary market valuation reflects an exceptionally rich assessment of SpaceX's growth and margin trajectory by pre-IPO investors.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Consolidated Statements of Operations, Segment Disclosures, and Common-Control Accounting Footnotes\"\n    },\n    {\n      \"url\": \"https://reuters.com/business/finance/spacex-generated-about-8-billion-profit-last-year-ahead-ipo-sources-say-2026-01-30\",\n      \"name\": \"Reuters \u2014 'Exclusive: SpaceX generated about $8 billion in profit last year ahead of IPO, sources say' (January 30, 2026)\"\n    },\n    {\n      \"url\": \"https://news.satnews.com/2025/12/06/spacex-targets-800-billion-valuation-in-secondary-sale-eyes-2026-ipo\",\n      \"name\": \"SatNews \u2014 'SpaceX Targets $800 Billion Valuation in Secondary Sale, Eyes 2026 IPO' (December 6, 2025, citing WSJ)\"\n    },\n    {\n      \"url\": \"https://www.straitstimes.com/business/companies-markets/spacex-generated-about-10-billion-in-profit-last-year-ahead-of-ipo-sources-say\",\n      \"name\": \"The Straits Times \u2014 'SpaceX generated about $10 billion in profit last year ahead of IPO, sources say' (January 31, 2026, citing Reuters)\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_68ec18773aaf413b951df5b0",
+            "content": "## Decomposition of Recast Consolidated FY2025 Revenue and Implied Standalone SpaceX Valuation Multiple\n\n### 1. Consolidated FY2025 Revenue Disclosed in the S-1\n\nThe SpaceX S-1 (filed May 20, 2026) reports total consolidated revenue of **$18,674 million (~$18.7 billion)** for fiscal year 2025, disaggregated by reportable segment as follows:\n\n| Segment | FY2025 Revenue ($M) | Composition |\n|---|---|---|\n| Space | $4,086 | SpaceX launch services & development |\n| Connectivity | $11,387 | Starlink (consumer + enterprise/government) |\n| AI | $3,201 | xAI + X Holdings (Grok, X platform, AI compute) |\n| **Total** | **$18,674** | Recast consolidated entity |\n\nThe S-1 explicitly defines the AI segment as including \"our AI business, which we acquired in connection with our acquisition of xAI in February 2026, and includes our AI compute, Grok, and X.\" This confirms that the AI segment corresponds to the combined xAI + X Holdings operations.\n\n### 2. Implied Revenue Contribution of xAI and X Holdings\n\nReuters reported on January 30, 2026 (pre-S-1) that SpaceX generated approximately **$15\u201316 billion in revenue in 2025** on a standalone pre-merger basis. Using the S-1's recast consolidated total of $18,674 million and the Reuters standalone estimate:\n\n| Reuters Standalone Estimate | Implied xAI + X Contribution |\n|---|---|\n| $15.0B (low) | $18.674B \u2212 $15.0B = **$3.674B** |\n| $15.5B (midpoint) | $18.674B \u2212 $15.5B = **$3.174B** |\n| $16.0B (high) | $18.674B \u2212 $16.0B = **$2.674B** |\n\n**Implied xAI + X Holdings revenue contribution: approximately $2.7B\u2013$3.7B, with a midpoint of ~$3.2B.**\n\nThis estimate is remarkably consistent with the S-1's AI segment revenue of **$3,201 million (~$3.2B)**, providing strong corroboration. Conversely, the Space + Connectivity segments combined total **$15,473 million (~$15.5B)**, which falls squarely within the Reuters standalone SpaceX range of $15\u201316B. This internal consistency confirms that:\n- The Space and Connectivity segments effectively represent the standalone SpaceX business (~82.9% of consolidated revenue)\n- The AI segment represents the xAI + X Holdings contribution (~17.1% of consolidated revenue)\n\n### 3. Implied Valuation Multiple on Standalone SpaceX (Pre-xAI Merger)\n\nIn December 2025\u2014before the xAI merger closed on February 2, 2026\u2014SpaceX conducted a secondary share sale (tender offer) that valued the company at approximately **$800 billion**. This was the last secondary market valuation reflecting the standalone SpaceX business before the xAI combination.\n\nUsing the Reuters standalone revenue estimate of $15\u201316B:\n\n| Standalone Revenue | Implied EV/Revenue Multiple |\n|---|---|\n| $15.0B | $800B / $15.0B = **53.3x** |\n| $15.5B (midpoint) | $800B / $15.5B = **51.6x** |\n| $16.0B | $800B / $16.0B = **50.0x** |\n\n**Implied standalone SpaceX EV/Revenue multiple: approximately 50x\u201353x (midpoint ~51.6x).**\n\nThis is an extraordinarily rich revenue multiple\u2014well above typical aerospace/defense multiples (typically 2\u20135x revenue) and even above most high-growth software/AI comparables. The multiple implies that secondary market investors were pricing in:\n- Massive future growth from Starlink expansion (consumer + enterprise/government + direct-to-cell)\n- Continued dominance of the global launch market\n- Future commercialization of Starship\n- Exceptional margin profile (Reuters separately reported ~$8B EBITDA on $15\u201316B revenue, implying ~50% EBITDA margins)\n- A scarcity premium as the only scaled, pure-play space infrastructure company\n\nIn effect, secondary market investors were valuing standalone SpaceX at a multiple typically reserved for the highest-growth, highest-margin software franchises, despite SpaceX's revenue being derived primarily from capital-intensive launch and satellite connectivity hardware/services.\n\n### 4. Accounting Limitation Preventing a Clean Standalone SpaceX Revenue Figure\n\nThe S-1 cannot provide a clean standalone SpaceX revenue figure for FY2025 (or any historical period) due to **common-control accounting under ASC 805-50**. The specific limitations are:\n\n**(a) Retrospective combination at historical carrying amounts.** Because Elon Musk held a controlling financial interest in SpaceX, xAI, and X during all periods presented, both mergers were accounted for as reorganizations of entities under common control. The net assets of xAI and X are combined into SpaceX's financials at their historical carrying values for **all periods presented** (2023, 2024, 2025, and interim 2026)\u2014not at fair value as of the acquisition date. This constitutes a \"change in reporting entity\" requiring retrospective application.\n\n**(b) No standalone financial statements provided.** The S-1 explicitly states: *\"As the consolidated financial statements already reflect the reorganization of entities under common control for all periods presented, separate financial statements of xAI and X are not provided.\"* This eliminates the primary mechanism a reader would normally use to reconstruct standalone results.\n\n**(c) Elimination of all intercompany transactions.** The filing states that *\"all historical related party transactions between the entities have been eliminated in consolidation.\"* Any revenue SpaceX may have recognized from transactions with xAI or X (or vice versa) during 2023\u20132025 is removed from the consolidated totals, and the filing does not separately quantify the magnitude or nature of these intercompany revenues. A reader therefore cannot determine from the face of the financial statements how much intercompany revenue existed.\n\n**(d) No purchase price allocation or goodwill.** Unlike an arm's-length acquisition under ASC 805, no purchase price allocation occurs, meaning no goodwill or acquired intangibles appear on the balance sheet from these transactions. This further obscures the economic substance of what was acquired.\n\n**(e) Segment disclosure is a proxy, not a legal-entity standalone.** While the segment breakdown (Space + Connectivity vs. AI) provides a useful proxy for isolating SpaceX-only revenue (~$15.5B) from xAI + X revenue (~$3.2B), this is a management-defined operating segment disaggregation, not a legal-entity-level standalone financial statement. It still reflects intercompany eliminations that may have affected the historical revenue figures of each entity, and the segment structure was only realigned effective Q1 2026 with prior periods conformed.\n\n**Bottom line:** The S-1's recast consolidated financials present a fully combined SpaceX-xAI-X entity for all historical periods, making it impossible to directly identify standalone SpaceX revenue from the consolidated disclosures. The Reuters pre-filing estimate (~$15\u201316B) and the S-1's segment disaggregation (Space + Connectivity = ~$15.5B) converge to confirm that xAI and X Holdings contributed approximately $3.2B to the recast consolidated FY2025 revenue of $18.7B. The implied ~50\u201353x EV/Revenue multiple on standalone SpaceX at the December 2025 $800B secondary market valuation reflects an exceptionally rich assessment of SpaceX's growth and margin trajectory by pre-IPO investors.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 Consolidated Statements of Operations, Segment Disclosures, and Common-Control Accounting Footnotes\"\n    },\n    {\n      \"url\": \"https://reuters.com/business/finance/spacex-generated-about-8-billion-profit-last-year-ahead-ipo-sources-say-2026-01-30\",\n      \"name\": \"Reuters \u2014 'Exclusive: SpaceX generated about $8 billion in profit last year ahead of IPO, sources say' (January 30, 2026)\"\n    },\n    {\n      \"url\": \"https://news.satnews.com/2025/12/06/spacex-targets-800-billion-valuation-in-secondary-sale-eyes-2026-ipo\",\n      \"name\": \"SatNews \u2014 'SpaceX Targets $800 Billion Valuation in Secondary Sale, Eyes 2026 IPO' (December 6, 2025, citing WSJ)\"\n    },\n    {\n      \"url\": \"https://www.straitstimes.com/business/companies-markets/spacex-generated-about-10-billion-in-profit-last-year-ahead-of-ipo-sources-say\",\n      \"name\": \"The Straits Times \u2014 'SpaceX generated about $10 billion in profit last year ahead of IPO, sources say' (January 31, 2026, citing Reuters)\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 14203,
+        "completion_tokens": 2422,
+        "cached_tokens": 12928,
+        "cost_usd": 0.0435675
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 47528,
+    "total_completion_tokens": 5419,
+    "total_cached_tokens": 36224,
+    "total_cost_usd": 0.12773,
+    "total_steps": 7
+  }
+}

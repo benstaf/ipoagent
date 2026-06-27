@@ -1,0 +1,745 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "5c9617c3-4082-4147-b8ca-fba8f8b47c5b",
+  "agent": {
+    "name": "finance",
+    "version": "1.0",
+    "model_name": "glm-5.2",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the public internet for information. Each result will contain a url, a title, and one excerpt taken directly from the page.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The query to search for"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) The start date for the search range in the format YYYY-MM-DD. Must not be equal to end_date."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) The end date for the search range in the format YYYY-MM-DD. If the value is later than 2026-03-01, it will be set to 2026-03-01."
+              },
+              "number_of_results": {
+                "type": "integer",
+                "description": "(optional) The number of search results to return.",
+                "maximum": 20,
+                "minimum": 1,
+                "default": 10
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "retrieve_information",
+          "description": "Retrieves critical data segments from a previously ingested document via hybrid lexical and semantic calculations. Crucial Requirement: The search prompt argument MUST contain the token placeholder containing your storage key inside double curly brackets, exactly format formatted as: {{key_name}} alongside your query description text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "Your target question containing the explicit target reference mapping (e.g., 'What were the total research costs in {{my_document_key}}?')."
+              },
+              "preserve_document_order": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to True if processing complex structural data dependencies across sequential disclosures."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "parse_html_page",
+          "description": "Parses an HTML document or SEC filing. It automatically extracts key metadata, converts asset tables to clean markdown, slices sections into optimal word chunks, and runs concurrent contextual LLM enrichment before updating the disk cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The target URL of the HTML page/filing to process."
+              },
+              "key": {
+                "type": "string",
+                "description": "The unique cache storage key for saving and loading the index."
+              }
+            },
+            "required": [
+              "url",
+              "key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "edgar_search",
+          "description": "Search the EDGAR Database through the SEC API. You should provide a search query. You can also optionally provide a start date, an end date, a page number, top N results, a list of form types, and/or a list of CIKs. The results are returned as a list of dictionaries, each containing the metadata for a filing. It does not contain the full text of the filing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_query": {
+                "type": "string",
+                "description": "The case-insensitive search-term or phrase to search the contents of filings and their attachments. This can be a single word, phrase, or combination of words and phrases. Supported search features include wildcards (*), Boolean operators (OR, NOT), and exact phrase matching by enclosing phrases in quotation marks (\"exact phrase\"). By default, all terms are joined by an implicit AND operator."
+              },
+              "form_types": {
+                "type": "array",
+                "description": "(optional) Limits search to specific EDGAR form types (e.g., ['8-K', '10-Q']) list of strings. Default: all form types",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ciks": {
+                "type": "array",
+                "description": "(optional) Filters results to filings from specified CIKs, type list of strings. Leading zeros are optional but may be included. Example: [ \"0001811414\", \"1318605\" ]. Default: all CIKs",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_date": {
+                "type": "string",
+                "description": "(optional) Start date for the search range in yyyy-mm-dd format. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "1900-01-01"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "(optional) End date for the search range, in the same format as startDate. If the value is a date that is later than 2026-03-01, it will be set to 2026-03-01.",
+                "default": "2026-03-01"
+              },
+              "page": {
+                "type": "integer",
+                "description": "(optional) Used for pagination. Each page contains up to 100 matching filings. Increase the page number to retrieve the next set of 100 filings. Example: 3 retrieves the third page. Default: 1",
+                "default": 1
+              },
+              "top_n_results": {
+                "type": "integer",
+                "description": "(optional) Return only the first N results out of 100 from the page. If not provided, all 100 results will be returned. E.g. if page is 2, and top_n_results is 10, you will receive results 100 to 110.",
+                "maximum": 100,
+                "default": 100
+              }
+            },
+            "required": [
+              "search_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculator",
+          "description": "Evaluate a mathematical expression and return the result. Use this tool for all arithmetic calculations instead of computing by hand. Supports: +, -, *, /, ** (exponentiation), % (modulo), and parentheses for grouping. Available functions: abs(), min(), max(), sqrt(), log(), log10(). Examples: '(5000 - 3200) * 0.21', '(2865507 / 1905871) ** 0.5 - 1', '14060 / 2148'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate"
+              }
+            },
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "price_history",
+          "description": "Fetch historical daily price data for a specific asset class. Returns a CSV table with one row per day. Use asset_class='equity' or 'etf' for US-listed stocks/ETFs (e.g. AAPL, SPY), 'crypto' for pairs like btcusd (lowercase, no dash), or 'fx' for pairs like audusd. Non-US equities and most indices/futures are not covered by the pricing provider. Each row includes raw OHLC (open/high/low/close), split- and dividend-adjusted OHLC (adjOpen/adjHigh/adjLow/adjClose), raw and adjusted volume, divCash (dividend amount on the date), and splitFactor. ",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticker": {
+                "type": "string",
+                "description": "Ticker symbol. High-level symbology rules: (1) Equity/ETF/mutual fund: use the US exchange-listed symbol (AAPL, SPY, VFIAX). Symbols are case-insensitive and contain only letters and dashes. (2) Share classes use a dash, not a dot: 'BRK-A' / 'BRK-B' (not 'BRK.A'), 'BF-B'. (3) Securities are identified by the ticker as listed on the primary US exchange; non-US listings, OTC pink sheets, indices, and futures are generally not covered. (4) Tickers can be reused after delisting; data is point-in-time for the entity that held the ticker on each date. (5) Crypto: concatenated lowercase pair with no separator, e.g. 'btcusd', 'ethusd'. (6) FX: concatenated lowercase pair with no separator, e.g. 'audusd', 'eurusd'."
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Start date YYYY-MM-DD (inclusive)."
+              },
+              "end_date": {
+                "type": "string",
+                "description": "End date YYYY-MM-DD (inclusive)."
+              },
+              "asset_class": {
+                "type": "string",
+                "enum": [
+                  "equity",
+                  "etf",
+                  "crypto",
+                  "fx"
+                ],
+                "description": "Asset class used to route to the proper pricing endpoint."
+              }
+            },
+            "required": [
+              "ticker",
+              "start_date",
+              "end_date",
+              "asset_class"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "submit_final_result",
+          "description": "Submits the final answer to the user. You should include your final answer, as well as any necessary reasoning, justification, calculations, and explanation. Finally, you should provide any sources used to answer the question. You MUST use this tool to submit your final result. The user will not see your response if you do not use this tool to submit. You will not be able to continue working after this tool is called; the conversation will be ended.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "final_result": {
+                "type": "string",
+                "description": "The final result to submit to the user"
+              }
+            },
+            "required": [
+              "final_result"
+            ]
+          }
+        }
+      }
+    ],
+    "extra": {
+      "max_tokens": 32000,
+      "temperature": 0.0
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-06-24T22:47:45.790874+00:00",
+      "source": "system",
+      "message": "\nYou are an IPO and financial diligence agent.\n\nYou are given a question and must answer it using the tools provided.\n\nYou cannot interact with the user or ask clarifying questions.\n\nAnswer solely based on available information and tools.\n\nAssume the current date is May 31, 2026.\n\n---\n\nTOOLS AND DATA SOURCES\n\nYou have access to a document storage system.\n\nYou may store parsed HTML retrieved from the web and later retrieve\ninformation using LLM-based retrieval prompts.\n\nUse this system to avoid context-window limitations.\n\nWhen working with long filings, prefer section-specific retrieval prompts\nrather than broad document-level retrieval.\n\nExamples:\n\n- retrieve the Segment Adjusted EBITDA reconciliation table from MD&A\n- retrieve the glossary definition of Starshield\n- retrieve the controlled-company governance disclosure\n\nFor peer-comparison questions:\n\n- retrieve peer SEC filings using edgar_search\n- do not rely on memory for peer financial figures\n\nFor historical public-equity price data not available in SEC filings:\n\n- use price_history as primary source\n- use raw unadjusted prices unless adjusted prices are requested\n- fall back to web_search only if price_history fails\n\nStock indices are not covered by price_history.\n\nUse authoritative sources such as FRED or web_search for index levels.\n\n---\n\nSOURCE HIERARCHY\n\nPrioritize sources in this order:\n\n1. S-1 / S-1A filings\n2. Incorporated SEC filings\n3. SEC exhibits and merger documents\n4. SEC periodic filings\n5. Company earnings materials\n6. External sources\n\nIf figures differ across sources:\n\nprefer the most authoritative SEC source containing the directly reported\nfigure and explain material discrepancies when relevant.\n\nSEC filings are the primary and most authoritative source of financial and\ndisclosure information.\n\n---\n\nANSWER STANDARDS\n\nYou must call submit_final_result with the completed answer.\n\nYour submission will not be processed unless submit_final_result is called.\n\nInclude:\n\n- complete reasoning\n- calculations\n- supporting analysis\n\nYou will be evaluated on:\n\n- final-answer accuracy\n- analytical correctness\n\nDo not round intermediate calculations.\n\nRound only final reported values.\n\nWhen possible, report calculated figures to at least two decimal places.\n\nReport financial figures using the same scale and units used in the filing\nunless otherwise specified.\n\nShare prices should be reported with two decimal places.\n\n---\n\nDISCLOSURE DISCIPLINE\n\nBefore reaching a conclusion:\n\ndetermine whether the filing provides sufficient information to answer:\n\n- directly\n- partially\n- only through inference\n\nDistinguish carefully among:\n\n- facts explicitly disclosed\n- reasonable filing-supported inferences\n- information not disclosed\n\nDo not speculate beyond what the filing supports.\n\nIf material information is absent:\n\nexplicitly state that the filing does not provide sufficient information to\nconclude.\n\nAbsence of disclosure may itself be analytically material.\n\n---\n\nFORWARD-LOOKING STATEMENTS\n\nTreat separately:\n\n- historical facts\n- roadmap targets\n- commercialization expectations\n- management intentions\n- forward-looking statements\n\nDo not present aspirations or plans as historical outcomes.\n\n---\n\nGOVERNANCE AND LEGAL QUESTIONS\n\nFor governance, legal, or disclosure-language questions:\n\nuse the filing's precise terminology whenever possible.\n\nDistinguish among:\n\n- requirements\n- exemptions\n- company elections\n- forward-looking language\n\n---\n\nACCOUNTING POLICY QUESTIONS\n\nFor accounting-policy questions:\n\n1. Identify the relevant disclosed accounting policy or treatment\n2. Determine whether the filing explicitly resolves the issue\n3. If unresolved, state that the filing does not specify treatment\n\n---\n\nNON-GAAP QUESTIONS\n\nFor non-GAAP measures:\n\nidentify:\n\n- the starting GAAP metric\n- each disclosed adjustment\n- whether economically recurring costs are excluded\n\nDo not accept non-GAAP measures without analyzing their construction.\n\n---\n\nAUDIENCE TAGS\n\nQuestions may include audience tags such as:\n\n[PUBLIC | BANK]\n[VC | CREDIT]\n[LEGAL | ACCOUNTING]\n\nUse these tags to calibrate terminology and analytical emphasis while\nremaining grounded in disclosed facts.\n\n---\n\nSOURCES\n\nAt the end of your answer provide:\n\n{\n  \"sources\": [\n    {\n      \"url\": \"...\",\n      \"name\": \"...\"\n    }\n  ]\n}\n\n\n---\n\n\nFILING CONTEXT\n\nThe primary filing for this benchmark is the SpaceX S-1 filed May 20, 2026:\n\nhttps://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\n\nImportant:\n\nThe consolidated financial statements have been retrospectively recast under\ncommon-control accounting to include:\n\n- xAI (merged February 2, 2026)\n- X Holdings (merged into xAI March 28, 2025)\n\nfor all historical periods presented.\n\nNo period reflects standalone SpaceX operations exclusively.\n\nWhen interpreting historical segment figures, state whether they reflect the\nrecast consolidated entity.\n\nSpaceX (SPCX) has no public trading history as of May 30, 2026.\n\nDo not attempt price_history retrieval for SpaceX or SPCX.\n\nFor peer valuation or peer financial benchmarking, retrieve peer-company SEC\nfilings using edgar_search rather than relying on memory.\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-06-24T22:47:45.790874+00:00",
+      "source": "user",
+      "message": "\nQuestion:\nSecondary market platforms including Forge Global and Nasdaq Private Market use proprietary pricing models rather than observable transaction prices to derive their published SpaceX valuations. The filing discloses the most recent tender offer valuation and the stock split but does not publish a current fair market value estimate. Using the December 2024 tender offer valuation of approximately $350 billion and the December 2025 tender offer valuation of approximately $800 billion as data points, calculate the implied compound growth rate in inferred valuation between the two events. What does the filing disclose about the basis for tender offer pricing, and what analytical limitations arise from using tender offer valuations as a proxy for IPO pricing?\n"
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-06-24T22:47:45.790874+00:00",
+      "source": "agent",
+      "message": "\nI'll analyze this question by first parsing the SpaceX S-1 filing to find disclosures about tender offers, stock splits, and valuation methodology.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The user is asking about SpaceX's tender offer valuations and what the S-1 filing discloses about them. Let me break down the question:\n\n1. Calculate the implied compound growth rate between December 2024 ($350B) and December 2025 ($800B) tender offer valuations\n2. What does the filing disclose about the basis for tender offer pricing?\n3. What analytical limitations arise from using tender offer valuations as a proxy for IPO pricing?\n\nLet me first parse the SpaceX S-1 filing to find information about tender offers and stock splits.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_67464307d6074505afc87b5e",
+          "function_name": "parse_html_page",
+          "arguments": {
+            "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm",
+            "key": "spacex_s1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_67464307d6074505afc87b5e",
+            "content": "SUCCESS: Loaded portable assets for key: spacex_s1"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3250,
+        "completion_tokens": 200,
+        "cached_tokens": 3072,
+        "cost_usd": 0.006285
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-06-24T22:49:05.245693+00:00",
+      "source": "agent",
+      "message": "Now let me retrieve information about tender offers, stock splits, and valuation methodology from the filing.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now let me retrieve information about tender offers and stock splits from the filing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_13e8923f89f94aa6bace7832",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing disclose about tender offers, including the December 2024 tender offer valuation of approximately $350 billion and the December 2025 tender offer valuation of approximately $800 billion? What is the basis for tender offer pricing? Also, what does the filing disclose about stock splits? Please include any specific language about how tender offer prices were determined, who participated, and any related disclosures. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_5661060a13cc454d8f574578",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "What does the filing disclose about fair market value of common stock, secondary market transactions, Forge Global, Nasdaq Private Market, or any third-party valuation platforms? What are the analytical limitations or risks disclosed regarding using tender offer valuations as a proxy for IPO pricing? {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_13e8923f89f94aa6bace7832",
+            "content": "# Tender Offers, Repurchases, and Stock Splits in the Filing\n\n## Important Caveat on Terminology\n\nThe provided chunks **do not use the term \"tender offer\"** nor do they explicitly state \"$350 billion\" or \"$800 billion\" valuations. What the filing discloses are **share repurchase programs** conducted by SpaceX (and, post-merger, the consolidated entity) that are functionally analogous to tender offers but described as repurchases. The $350B/$800B figures you reference are not stated in these chunks; they may be derivable from implied per-share prices multiplied by shares outstanding, but the filing itself does not present them in the excerpts provided.\n\n---\n\n## What the Filing Actually Discloses About Share Repurchases\n\n### 2024 Repurchases (SpaceX Common and Preferred Stock)\n\n> \"the Company repurchased **$920 million or 38.7 million shares** of SpaceX Common Stock from eligible current and former employees and existing shareholders during the year ended December 31, 2024, as well as **$101 million or 0.1 million shares** of SpaceX Redeemable Convertible Preferred Stock in a number of unrelated transactions with existing shareholders at their then-current fair market value.\"\n\n**Implied per-share prices:**\n- SpaceX Common: ~$23.77/share ($920M \u00f7 38.7M shares)\n- SpaceX Redeemable Convertible Preferred: ~$1,010/share ($101M \u00f7 0.1M shares)\n\n### 2025 Repurchases (SpaceX Common Stock)\n\n> \"During the year ended December 31, 2025, SpaceX repurchased **$522 million or 14.0 million shares** of SpaceX Common Stock from eligible current and former employees.\"\n\n**Implied per-share price:** ~$37.29/share ($522M \u00f7 14.0M shares)\n\n### 2025 Repurchases (xAI Common Stock)\n\n> \"During the year ended December 31, 2025, the Company also purchased **11.8 million shares of xAI Common Stock for $600 million** from an existing shareholder of xAI. Following the xAI Merger, this transaction is considered as a repurchase of xAI Common Stock in the consolidated statements of redeemable convertible preferred stock and [shareholders' equity].\"\n\n**Implied per-share price:** ~$50.85/share ($600M \u00f7 11.8M shares)\n\n### Cash Flow Statement Corroboration\n\nThe Consolidated Statement of Cash Flows confirms aggregate repurchase activity:\n\n| Period | Payments for Repurchase of Common and Redeemable Convertible Preferred Stock |\n|---|---|\n| Year ended December 31, 2025 | $(1,125) million |\n| Year ended December 31, 2024 | $(1,021) million |\n| Year ended December 31, 2023 | $(170) million |\n\nThe 2024 figure of ~$1,021 million aligns with the $920M (common) + $101M (preferred) = $1,021M disclosed in the narrative. The 2025 figure of ~$1,125 million aligns with $522M (SpaceX common) + $600M (xAI common) = $1,122M, plus minor rounding or additional transactions.\n\n---\n\n## Basis for Repurchase/Tender Pricing\n\nThe filing provides explicit language on how repurchase prices were determined:\n\n> **\"The Company only repurchased shares held by eligible participants for more than six months at a purchase price per share equal to the then current fair market value.\"**\n\nAnd separately, regarding the preferred stock repurchases:\n\n> \"...in a number of unrelated transactions with existing shareholders **at their then-current fair market value**.\"\n\n### Key Pricing Principles Disclosed:\n\n1. **Pricing benchmark:** \"Then current fair market value\" \u2014 the filing does not specify a separate valuation methodology (e.g., 409A valuation, third-party appraisal, or discounted cash flow), but references fair market value as the governing standard.\n\n2. **Holding period requirement:** Shares had to be held by eligible participants for **more than six months** before repurchase.\n\n3. **Eligible participants:** \"Eligible current and former employees\" and \"existing shareholders\" \u2014 the filing does not specify whether all existing shareholders were eligible or only certain classes.\n\n4. **Transaction structure:** Described as \"a number of unrelated transactions\" rather than a formal, pro-rata tender offer, suggesting bilateral negotiated repurchases at fair market value rather than a fixed-price tender.\n\n5. **Retirement of shares:** \"All SpaceX shares repurchased to date have been retired\" and \"All xAI shares repurchased to date have been retired\" \u2014 repurchased shares were not held as treasury stock.\n\n---\n\n## Stock Splits\n\nThe filing references stock splits in two contexts:\n\n### 1. Capitalization Assumptions (Preamble)\n\n> \"The actual number of shares that may be issued will be determined based on a future trading price and is subject to customary adjustments for **reclassifications, recapitalization, stock splits** or any other similar event affecting the outstanding capital stock of [Cursor] or the...\"\n\nThis language appears in the context of convertible securities and the assumptions underlying share count calculations, indicating that the conversion ratios and share counts are subject to adjustment for stock splits.\n\n### 2. No Specific Stock Split Disclosed\n\nThe provided chunks **do not disclose any specific stock split** that has occurred or is planned. The references are standard protective/adjustment language only. The fee table's proposed maximum offering prices ($5.5 trillion to $7.5 trillion for 66,666,670 shares) imply extraordinarily high per-share values (~$82,500 to $112,500 per share), which could suggest a pre-IPO stock split may be contemplated, but **no such split is affirmatively disclosed** in the provided excerpts.\n\n---\n\n## Fee Table Context\n\nThe fee table you referenced shows proposed maximum aggregate offering prices for the **same 66,666,670 shares** escalating across five scenarios:\n\n| Shares | Proposed Maximum Offering Price |\n|---|---|\n| 66,666,670 | $5,500,000,000,000 |\n| 66,666,670 | $6,000,000,000,000 |\n| 66,666,670 | $6,500,000,000,000 |\n| 66,666,670 | $7,000,000,000,000 |\n| 66,666,670 | $7,500,000,000,000 |\n\nThis implies per-share offering prices ranging from approximately **$82,500 to $112,500**. These figures are the SEC fee calculation estimates on the cover page and are distinct from the repurchase/tender activities described above. The fee table does not reference tender offers or prior valuations.\n\n---\n\n## Summary of What Is and Is Not Disclosed\n\n| Item | Disclosed? | Details |\n|---|---|---|\n| Term \"tender offer\" | **No** | Filing uses \"repurchase\" terminology |\n| $350B valuation (Dec 2024) | **Not explicitly** | Implied per-share repurchase price ~$23.77; total valuation not stated |\n| $800B valuation (Dec 2025) | **Not explicitly** | Implied per-share repurchase price ~$37.29; total valuation not stated |\n| Basis for pricing | **Yes** | \"Then current fair market value\" |\n| Holding period requirement | **Yes** | >6 months |\n| Eligible participants | **Yes** | Current/former employees and existing shareholders |\n| Retirement of repurchased shares | **Yes** | All repurchased shares retired |\n| Stock splits (specific) | **No** | Only standard adjustment language |\n| Stock splits (protective clauses) | **Yes** | Customary adjustment provisions for conversion ratios |\n\nIf the $350B and $800B figures are derived externally (e.g., from the implied per-share repurchase prices multiplied by total shares outstanding), the filing does not present that calculation itself. You may want to check additional chunks or the full filing for any explicit valuation disclosure or \"tender offer\" terminology that may appear in sections not provided here."
+          },
+          {
+            "source_call_id": "call_5661060a13cc454d8f574578",
+            "content": "# Analysis of Fair Market Value, Secondary Market, and Tender Offer Valuation Disclosures\n\n## Direct Answer: None of These Topics Appear in the Provided Text\n\nAfter a thorough review of every chunk provided, **the filing excerpts contain no disclosure whatsoever** regarding:\n\n- **Fair market value of common stock** (in the context of private-market price discovery)\n- **Secondary market transactions** (pre-IPO private trading)\n- **Forge Global**\n- **Nasdaq Private Market**\n- **Any third-party valuation platforms** (in the context of private stock trading/valuation)\n- **Tender offer valuations as a proxy for IPO pricing**\n- **Analytical limitations or risks of using tender offer prices as IPO benchmarks**\n\n---\n\n## What the Text *Does* Say About Price Discovery and Valuation\n\nThe provided chunks address pricing and valuation only in the following, more conventional ways:\n\n### 1. No Prior Public Market\n> \"Prior to this offering, there has been no public market for our Class A common stock.\"\n\nThis is a standard disclosure but does **not** reference any private secondary market, tender offers, or third-party platforms that may have facilitated pre-IPO trading.\n\n### 2. IPO Price Determination\n> \"The initial public offering price has been determined by negotiations between us and the representatives. Among the factors considered in determining the initial public offering price were prevailing market conditions, our future prospects and those of our industry in general, our historical financial and operating performance in recent periods, an assessment by our management and the consideration of the above factors in relation to market valuation of companies engaged in [comparable businesses].\"\n\nThis describes the negotiation-based process with underwriters but makes **no reference** to tender offer prices, secondary market trades, or platform-based valuations as inputs.\n\n### 3. Valuation Specialists (Accounting Context Only)\n> \"The Company engages valuation specialists to assist in the valuation of equity instruments.\"\n\nThis appears in the critical accounting estimates section and relates to **share-based compensation accounting** (ASC 718 / 409A valuations), not to establishing a fair market value for IPO pricing purposes or referencing secondary market data.\n\n### 4. Third-Party Data Sources (Market Opportunity Only)\nThe filing references third-party sources such as **Novaspace**, the **World Bank**, **YouGov**, and the **World Economic Forum** \u2014 but exclusively for **total addressable market estimates** in the Space, Connectivity, and AI segments. These are not valuation platforms and have no connection to stock price discovery.\n\n---\n\n## Analytical Assessment\n\n| Topic Searched | Present in Provided Text? | Notes |\n|---|---|---|\n| Fair market value of common stock (private market) | **No** | Not discussed |\n| Secondary market transactions | **No** | Only \"no public market\" language |\n| Forge Global | **No** | Not mentioned |\n| Nasdaq Private Market | **No** | Not mentioned |\n| Third-party valuation platforms | **No** | Not mentioned |\n| Tender offer valuations | **No** | Not mentioned |\n| Risks/limitations of tender offers as IPO proxy | **No** | Not mentioned |\n| 409A / equity compensation valuations | **Yes** | Referenced in accounting estimates only |\n| IPO price negotiation factors | **Yes** | Standard factors listed; no private-market data referenced |\n\n---\n\n## Possible Explanations\n\n1. **The disclosures may exist elsewhere in the prospectus** (e.g., in a dedicated \"Determination of Offering Price\" section, a \"Recent Sales of Unregistered Securities\" section, or deeper within \"Risk Factors\") that was not included in the provided chunks.\n\n2. **SpaceX may not have conducted meaningful tender offers** or relied on secondary market platforms in a way that would require such disclosure \u2014 though this seems unlikely given the company's well-documented private funding history.\n\n3. **The S-1 may still be in preliminary form** (the text indicates \"SUBJECT TO COMPLETION\" and blank pricing fields), meaning certain disclosures about private-market valuations may be added in subsequent amendments.\n\n---\n\n## Recommendation\n\nIf you need to confirm whether these disclosures exist in the full filing, the most likely sections to check would be:\n\n- **\"Recent Sales of Unregistered Securities\"** (Item 15) \u2014 typically discloses private placements and any tender offers\n- **\"Determination of Offering Price\"** \u2014 sometimes included to justify the IPO price range\n- **Risk Factors** sub-sections on trading price volatility and lack of prior market\n- **Notes to Financial Statements** \u2014 fair value measurements of equity instruments\n\nThe provided excerpts do not contain the information you are seeking."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3465,
+        "completion_tokens": 200,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0066625
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-06-24T22:50:19.251660+00:00",
+      "source": "agent",
+      "message": "Let me search for more specific information about the stock split and tender offer valuations in the filing.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The retrieval didn't find specific tender offer language. Let me search for more specific information about the December 2024 and December 2025 tender offers, and the stock split. The filing mentions share repurchases but the question references tender offers. Let me search for more specific information.\n\nLet me also search for the stock split disclosure specifically.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5845cc6e5aec4a34837317c7",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any disclosure about a stock split, share split, or recapitalization that occurred in 2024 or 2025. Also find any disclosure about the December 2024 or December 2025 tender offer, employee tender offer, or share repurchase program with specific valuation figures. Look for any mention of $350 billion or $800 billion valuation, or any per-share prices in tender offers. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_dd1d93bc6a624264932f5523",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the \"Recent Sales of Unregistered Securities\" section or any disclosure about private placements, sales of unregistered securities, or issuances of common stock or preferred stock in 2024 and 2025. Include any specific per-share prices, valuation figures, or aggregate amounts. Also look for any disclosure about how the company determined the fair market value of its common stock for purposes of share repurchases or tender offers. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_5845cc6e5aec4a34837317c7",
+            "content": "# Findings from the Provided Text\n\n## 1. Stock Split / Share Split / Recapitalization Disclosure\n\n**No stock split or share split that occurred in 2024 or 2025 is disclosed in the provided text.**\n\nThe only mention of \"recapitalization\" and \"stock splits\" appears in the **IPO capitalization assumptions** section, which is a standard forward-looking structural condition\u2014not a historical event:\n\n> \"The actual number of shares that may be issued will be determined based on a future trading price and is subject to customary adjustments for reclassifications, **recapitalization, stock splits** or any other similar event affecting the outstanding capital stock of Cursor...\"\n\nAdditionally, the text references a **\"Class C Reclassification\"** (reclassification of Class C common stock into Class A) and a **\"Preferred Conversion\"** (conversion of preferred stock into Class A and Class B common stock), but these are described as pre-IPO structural events to be effected upon completion of the offering, not as events that occurred during 2024 or 2025.\n\n---\n\n## 2. December 2024 / December 2025 Tender Offer / Share Repurchase Program\n\nThe text describes **share repurchase programs** (not formal \"tender offers\") for SpaceX and xAI stock during 2024 and 2025, with the following specific figures:\n\n### Year Ended December 31, 2025:\n| Transaction | Dollar Amount | Share Count |\n|---|---|---|\n| SpaceX Common Stock repurchased from eligible current/former employees | **$522 million** | **14.0 million shares** |\n| xAI Common Stock purchased from an existing shareholder | **$600 million** | **11.8 million shares** |\n\n### Year Ended December 31, 2024:\n| Transaction | Dollar Amount | Share Count |\n|---|---|---|\n| SpaceX Common Stock repurchased from eligible current/former employees and existing shareholders | **$920 million** | **38.7 million shares** |\n| SpaceX Redeemable Convertible Preferred Stock repurchased from existing shareholders | **$101 million** | **0.1 million shares** |\n\n### Three Months Ended March 31, 2025:\n| Transaction | Dollar Amount | Share Count |\n|---|---|---|\n| SpaceX Common Stock repurchased from eligible current/former employees and existing shareholders | **$508 million** | **28.0 million shares** |\n\n### Three Months Ended March 31, 2026 (Subsequent Period):\n| Transaction | Dollar Amount | Share Count |\n|---|---|---|\n| SpaceX Common Stock repurchased from xAI employees (xAI Merger-related) | **$2,413 million** | **25.4 million shares** |\n| SpaceX Common Stock + Redeemable Convertible Preferred Stock from existing shareholders | **$1,933 million** | 30.5M common + 2.1M preferred |\n\n### Cash Flow Statement Confirmation:\nThe Consolidated Statement of Cash Flows shows:\n- **2025:** Payments for repurchase of common and redeemable convertible preferred stock = **$(1,125) million**\n- **2024:** Payments for repurchase = **$(1,021) million**\n- **2023:** Payments for repurchase = **$(170) million**\n\n### Purchase Price Terms:\nThe text states that the Company \"only repurchased shares held by eligible participants for more than six months at a **purchase price per share equal to the then current fair market value**.\" However, **no specific per-share dollar prices** are disclosed for any of these repurchase transactions.\n\n---\n\n## 3. $350 Billion / $800 Billion Valuation Mentions\n\n**Neither \"$350 billion\" nor \"$800 billion\" appears anywhere in the provided text.**\n\nThe only valuation figures mentioned in the context of the **xAI Award** (a performance-based award granted to Elon Musk in November 2025) are:\n\n> \"The xAI Award is subject to market conditions based on **valuation milestones, ranging from $213 billion to $1,313 billion**, performance condition requiring the Company to receive not less than **$2,000 million** in proceeds from investors through capital raises on the milestone date...\"\n\nThe grant date fair value of the xAI Award was determined to be **$2,205 million**, and the Company recorded **$28 million** of share-based compensation expense for the year ended December 31, 2025. The xAI Award was subsequently terminated in March 2026.\n\n---\n\n## Summary\n\n| Item Requested | Found in Text? |\n|---|---|\n| Stock split / share split occurring in 2024 or 2025 | **No** \u2014 only referenced as a standard IPO adjustment provision |\n| Recapitalization occurring in 2024 or 2025 | **No** \u2014 only referenced as a standard IPO structural condition (Class C Reclassification and Preferred Conversion are pre-offering events) |\n| December 2024/2025 tender offer with specific figures | **Partially** \u2014 share repurchase programs are disclosed with dollar amounts and share counts, but no formal \"tender offer\" terminology or per-share prices are used |\n| $350 billion valuation | **Not found** |\n| $800 billion valuation | **Not found** |\n| Per-share prices in tender offers | **Not found** \u2014 only \"then current fair market value\" is referenced |\n| Valuation range mentioned | **$213 billion to $1,313 billion** (xAI Award milestones) |"
+          },
+          {
+            "source_call_id": "call_dd1d93bc6a624264932f5523",
+            "content": "# Recent Sales of Unregistered Securities and Related Disclosures\n\n## Item 15. Recent Sales of Unregistered Securities\n\nThe filing includes an explicit **Item 15. Recent Sales of Unregistered Securities** section, which states:\n\n> \"The following sets forth information regarding all unregistered securities we have issued in the last three years. Unless stated otherwise, the sale of the securities listed below were deemed to be exempt from registration pursuant to **Section 4(a)(2) of the Securities Act**, including **Regulation D and Rule 506** promulgated thereunder, as transactions by an issuer not involving a public offering.\"\n\n### xAI Merger Stock Consideration (February 2026)\n\n- On **February 2, 2026**, the company consummated the xAI Merger and issued:\n  - **321,681,643 shares of Class A common stock**\n  - **121,683,400 shares of Class B common stock**\n  - as partial consideration, including **3,798,039 shares of Class A common stock to Tesla** following the completion of a regulatory review period.\n\n### Performance-Based Restricted Stock Grant to Elon Musk (January 2026)\n\n- On **January 13, 2026**, the company granted **200 million performance-based restricted shares of Class B common stock** to Mr. Musk, vesting upon:\n  - (i) achievement of specified market capitalization milestones across **15 equal tranches**, and\n  - (ii) [additional conditions not fully captured in the excerpt].\n\n---\n\n## xAI Award to Elon Musk (November 2025)\n\nIn **November 2025**, the company granted a separate performance-based award (the \"xAI Award\") to Elon Musk:\n\n- **Structure**: Twelve tranches, each representing the right to receive shares at fair market value equal to **1.0% of xAI's valuation** at the valuation milestone.\n- **Valuation milestones**: Ranging from **$213 billion to $1,313 billion**.\n- **Performance condition**: The company must receive **not less than $2,000 million** in proceeds from investors through capital raises on the milestone date.\n- **Service condition**: Mr. Musk's continued service over a **ten-year performance period**.\n- **Grant date fair value**: **$2,205 million**.\n- **Share-based compensation expense recorded** for the year ended December 31, 2025: **$28 million**.\n- **Termination**: In **March 2026**, the company terminated the xAI Award (refer to Note 21, Subsequent Events).\n\n---\n\n## Issuances of Redeemable Convertible Preferred Stock (2024\u20132025)\n\nFrom the Consolidated Statements of Redeemable Convertible Preferred Stock and Shareholders' Equity:\n\n| Period | Shares Issued | Aggregate Amount |\n|---|---|---|\n| Year ended December 31, 2024 | 862 million | $13,001 million |\n| Year ended December 31, 2025 | 299 million | $17,898 million |\n\n---\n\n## Share Repurchases \u2014 Fair Market Value Determination\n\nThe filing contains explicit disclosure about how the company determined fair market value for share repurchases:\n\n> \"The Company only repurchased shares held by eligible participants for more than six months at a **purchase price per share equal to the then current fair market value**.\"\n\nThis language appears in connection with both the annual and quarterly repurchase disclosures, indicating a consistent policy of repurchasing at then-current fair market value.\n\n### SpaceX Common Stock Repurchases\n\n| Period | Aggregate Amount | Shares Repurchased | Source |\n|---|---|---|---|\n| Year ended December 31, 2025 | $522 million | 14.0 million | Eligible current and former employees |\n| Year ended December 31, 2024 | $920 million | 38.7 million | Eligible current and former employees and existing shareholders |\n| Three months ended March 31, 2025 | $508 million | 28.0 million | Eligible current and former employees and existing shareholders |\n| Three months ended March 31, 2026 (xAI Merger-related) | $2,413 million | 25.4 million | Eligible current and former xAI employees |\n| Three months ended March 31, 2026 (open-market) | $1,933 million (combined with preferred) | 30.5 million common + 2.1 million preferred | Existing shareholders at then-current fair market value |\n\n### SpaceX Redeemable Convertible Preferred Stock Repurchases\n\n| Period | Aggregate Amount | Shares Repurchased |\n|---|---|---|\n| Year ended December 31, 2024 | $101 million | 0.1 million |\n| Three months ended March 31, 2026 (combined with common) | Included in $1,933 million above | 2.1 million |\n\n### xAI Common Stock Repurchases\n\n| Period | Aggregate Amount | Shares Repurchased | Source |\n|---|---|---|---|\n| Year ended December 31, 2025 | $600 million | 11.8 million | Existing shareholder of xAI |\n\nAll SpaceX and xAI shares repurchased to date have been **retired**.\n\n### Aggregate Cash Flow Disclosure\n\nFrom the Consolidated Statements of Cash Flows \u2014 Payments for repurchase of common and redeemable convertible preferred stock:\n\n| Year | Amount |\n|---|---|\n| 2025 | $(1,125) million |\n| 2024 | $(1,021) million |\n| 2023 | $(170) million |\n\n---\n\n## Equity Award Valuation Data\n\n| Metric | 2025 | 2024 | 2023 |\n|---|---|---|---|\n| Weighted-average grant-date fair value per share of options granted | $21.29 | $5.02 | $7.60 |\n| Total intrinsic value of options exercised | $1,249 million | $392 million | $261 million |\n| RSUs granted (weighted avg. grant date fair value per share) | 74 million shares at $54.84 | \u2014 | \u2014 |\n\n---\n\n## Summary of Key Per-Share and Valuation Figures\n\n- **xAI Award valuation milestones**: $213 billion to $1,313 billion\n- **xAI Award grant date fair value**: $2,205 million\n- **xAI Award capital raise performance threshold**: $2,000 million\n- **Options granted weighted-average fair value (2025)**: $21.29 per share\n- **RSUs granted weighted-average fair value (2025)**: $54.84 per share\n- **SpaceX common stock repurchases (2025)**: ~$37.29 per share implied ($522M / 14.0M shares)\n- **SpaceX common stock repurchases (2024)**: ~$23.77 per share implied ($920M / 38.7M shares)\n- **xAI common stock repurchases (2025)**: ~$50.85 per share implied ($600M / 11.8M shares)\n- **Redeemable convertible preferred stock issued (2024)**: ~$15.08 per share implied ($13,001M / 862M shares)\n- **Redeemable convertible preferred stock issued (2025)**: ~$59.86 per share implied ($17,898M / 299M shares)"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 6372,
+        "completion_tokens": 287,
+        "cached_tokens": 3456,
+        "cost_usd": 0.01448
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-06-24T22:51:23.557733+00:00",
+      "source": "agent",
+      "message": "Let me search for more specific information about the stock split and any tender offer valuations in the filing.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The filing doesn't explicitly mention $350 billion or $800 billion valuations, but it does disclose share repurchase programs at \"then current fair market value.\" Let me search for more specific information about the stock split and any tender offer valuations. Let me also look at the broader context of the filing to see if there's a specific section about tender offers or stock splits.\n\nLet me search for the specific stock split disclosure and any tender offer valuations.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3c6a1a9ce71a4974b78a1ac0",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any disclosure about a stock split, share split, or recapitalization that occurred in 2024 or 2025. Also find any disclosure about the December 2024 or December 2025 tender offer, employee tender offer, or share repurchase program with specific valuation figures. Look for any mention of $350 billion or $800 billion valuation, or any per-share prices in tender offers. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_24b941e6cc014c2e973c293f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the \"Determination of Offering Price\" section or any disclosure about how the IPO price was determined. Also find any risk factors related to lack of prior public market, valuation, or trading price volatility. Look for any disclosure about the basis for tender offer pricing or fair market value determinations for share repurchases. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3c6a1a9ce71a4974b78a1ac0",
+            "content": "# Findings on Stock Splits, Recapitalizations, Tender Offers, and Valuation Figures\n\n## 1. Stock Split / Share Split / Recapitalization in 2024 or 2025\n\n**No actual stock split, share split, or recapitalization event that occurred in 2024 or 2025 is disclosed in the provided text.**\n\nThe only mentions of these terms appear in **forward-looking IPO boilerplate language** in the capitalization assumptions section, not as historical events:\n\n> \"...subject to customary adjustments for reclassifications, **recapitalization, stock splits** or any other similar event affecting the outstanding capital stock of Cursor...\"\n\nAdditionally, the text references two IPO-structural events that would occur **upon completion of the offering** (not in 2024/2025):\n- The **\"Class C Reclassification\"** \u2014 reclassification of Class C common stock into Class A common stock\n- The **\"Preferred Conversion\"** \u2014 conversion of preferred stock into Class A and Class B common stock\n\nThese are prospective IPO conditions, not events that occurred during 2024 or 2025.\n\n---\n\n## 2. December 2024 / December 2025 Tender Offer or Share Repurchase Program\n\nThe text describes **share repurchase programs** (not explicitly labeled as \"tender offers\") for both periods. The repurchases were conducted from eligible current and former employees and existing shareholders at \"then-current fair market value.\"\n\n### Full-Year 2024 Repurchases:\n| Description | Amount | Shares |\n|---|---|---|\n| SpaceX Common Stock (from employees and existing shareholders) | **$920 million** | 38.7 million shares |\n| SpaceX Redeemable Convertible Preferred Stock (from existing shareholders) | **$101 million** | 0.1 million shares |\n\n### Full-Year 2025 Repurchases:\n| Description | Amount | Shares |\n|---|---|---|\n| SpaceX Common Stock (from eligible current/former employees) | **$522 million** | 14.0 million shares |\n| xAI Common Stock (from existing shareholder of xAI) | **$600 million** | 11.8 million shares |\n\n### Q1 2025 (Three Months Ended March 31, 2025):\n| Description | Amount | Shares |\n|---|---|---|\n| SpaceX Common Stock (from eligible employees and existing shareholders) | **$508 million** | 28.0 million shares |\n\n### Q1 2026 (Three Months Ended March 31, 2026) \u2014 xAI Merger Related:\n| Description | Amount | Shares |\n|---|---|---|\n| SpaceX Common Stock (from xAI employees as part of xAI Merger) | **$2,413 million** | 25.4 million shares |\n| SpaceX Common Stock + Redeemable Convertible Preferred Stock (from existing shareholders) | **$1,933 million** | 30.5 million common + 2.1 million preferred |\n\n### Cash Flow Statement Confirmation:\nThe Consolidated Statement of Cash Flows shows aggregate repurchase payments:\n- **2025:** $(1,125) million\n- **2024:** $(1,021) million\n- **2023:** $(170) million\n\nAll repurchased SpaceX and xAI shares were stated as **retired**.\n\n---\n\n## 3. $350 Billion or $800 Billion Valuation\n\n**Neither $350 billion nor $800 billion is mentioned anywhere in the provided text.**\n\nThe only valuation figures of comparable magnitude appear in the **xAI Award** disclosure (Note on share-based compensation):\n\n> \"The xAI Award is subject to market conditions based on **valuation milestones, ranging from $213 billion to $1,313 billion**...\"\n\nThis refers to the performance-based award granted to Elon Musk in November 2025, with twelve tranches each representing 1.0% of xAI's valuation at the milestone date. The grant date fair value of the award was determined to be **$2,205 million**.\n\n---\n\n## 4. Per-Share Prices in Tender Offers\n\n**No specific per-share prices are disclosed for any repurchase or tender offer.**\n\nThe only pricing language is generic:\n\n> \"The Company only repurchased shares held by eligible participants for more than six months at a **purchase price per share equal to the then current fair market value**.\"\n\n---\n\n## Summary\n\n| Item Sought | Found? | Details |\n|---|---|---|\n| Stock split / recapitalization in 2024\u20132025 | **No** | Only IPO boilerplate and prospective reclassification/conversion references |\n| December 2024/2025 tender offer or repurchase program | **Yes (repurchases, not labeled \"tender offers\")** | $920M + $101M (2024); $522M + $600M (2025); additional Q1 2025 and Q1 2026 amounts |\n| $350 billion valuation | **No** | Not present in text |\n| $800 billion valuation | **No** | Not present in text |\n| Per-share prices in tender offers | **No** | Only \"then current fair market value\" language; no specific per-share figures |\n| xAI Award valuation milestones | **Yes (contextual)** | Range of $213 billion to $1,313 billion |"
+          },
+          {
+            "source_call_id": "call_24b941e6cc014c2e973c293f",
+            "content": "Based on the provided text, here are the relevant disclosures matching your criteria:\n\n### 1. Determination of Offering Price & IPO Price Determination Process\nThe prospectus details how the initial public offering price was determined through negotiations between the company and the underwriters' representatives:\n> \"Prior to this offering, there has been no public market for our Class A common stock. The initial public offering price has been determined by negotiations between us and the representatives. Among the factors considered in determining the initial public offering price were prevailing market conditions, our future prospects and those of our industry in general, our historical financial and operating performance in recent periods, an assessment by our management and the consideration of the above factors in relation to market valuation of companies engaged in...\"\n\n### 2. Underwriters' Potential Conflicts\nThe preamble outlines the potential conflicts of interest and positions the underwriters may hold:\n> \"The underwriters and their respective affiliates may also make investment recommendations or publish or express independent research views in respect of such securities or instruments and may at any time hold, or recommend to clients that they acquire, long or short positions in such securities and instruments.\"\n\n### 3. Directed Share Program (Without Lock-up Restrictions)\nThe prospectus describes the directed share program reserving shares for employees and management associates, explicitly noting they are exempt from lock-up restrictions:\n> \"At our request, the underwriters have reserved up to percent of the shares of Class A common stock offered by this prospectus for sale at the initial public offering price through a directed share program to certain employees and persons identified by our management, which may include parties with whom we have a business relationship and friends and family of management. If purchased by these persons, these shares will not be subject to a lock-up restriction. The number of shares of Class A common stock available for sale to the general public will be reduced by the number of reserved shares sold to these persons. Any reserved shares not purchased by these persons...\"\n\n### 4. Risk Factors Related to Lack of Prior Public Market & Trading Price Volatility\nThe document explicitly highlights the lack of a prior public market and the risk of price volatility due to future sales:\n> \"Prior to this offering, there has been no public market for our Class A common stock. Future sales of our Class A common stock in the public market, or the availability of such shares for sale in the public market, could adversely affect the market price of our Class A common stock prevailing from time to time. As described below, only a limited number of shares will be available for sale shortly after this offering due to contractual and legal restrictions on resale. Nevertheless, sales of a substantial number of shares of our Class A common stock in the public market after such restrictions lapse, or the perception that those sales may occur, could adversely affect the prevailing...\"\n\n### 5. Fair Market Value Determinations & Basis for Pricing (Share Repurchases / ESPP)\nWhile there is no explicit \"tender offer\" disclosure, the filing details fair market value (FMV) pricing mechanics for the Employee Stock Purchase Plan (ESPP) and a potential acquisition:\n*   **ESPP Pricing:** \"The price per share at which shares are purchased under the A&R 2017 ESPP in a particular offering period is determined by the ESPP Administrator, but in no event will be less than 85% of the lower of the fair market value of the Class A common stock on the offering date or the fair market value of the Class A common stock on the [purchase date].\"\n*   **Cursor Acquisition Valuation Basis:** \"The consideration for the acquisition of Cursor would consist of shares of Class A common stock based on an implied equity value of Cursor of $60.0 billion, and the price of Class A common stock that equals, if the acquisition closed prior to the completion of this offering, the most recent quarterly valuation, or, if the acquisition closed after the completion of the Company\u2019s IPO, the volume-weighted average closing price thereof over the seven consecutive trading days immediately preceding the closing of the acquisition.\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 9384,
+        "completion_tokens": 291,
+        "cached_tokens": 6336,
+        "cost_usd": 0.01845
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-06-24T22:52:37.097449+00:00",
+      "source": "agent",
+      "message": "Let me search for more specific information about the stock split and tender offer valuations.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The filing doesn't explicitly mention $350 billion or $800 billion valuations, but it does disclose share repurchase programs at \"then current fair market value.\" Let me search for more specific information about the stock split and any tender offer valuations. Let me also look at the broader context of the filing to see if there's a specific section about tender offers or stock splits.\n\nLet me search for the specific stock split disclosure and any tender offer valuations.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_959048a9594748f684ac31f2",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any disclosure about a stock split that occurred in 2025, including the split ratio (e.g., 10-for-1, 5-for-1), the effective date, and the impact on shares outstanding. Also find any disclosure about tender offers conducted in December 2024 or December 2025, including the per-share price, total valuation, and number of shares purchased. Look for any mention of \"split\" or \"tender\" in the filing. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_df67c8c88e7f4444979ae906",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the section about share repurchases, employee liquidity, or tender offers in the filing. Look for any disclosure about how the company determined the fair market value of its common stock for purposes of share repurchases. Also find any disclosure about the basis for tender offer pricing, including whether the company used 409A valuations, third-party appraisals, or other methodologies. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_959048a9594748f684ac31f2",
+            "content": "# Findings on Stock Splits and Tender Offers\n\n## Stock Splits\n\n**No stock split occurred in 2025.** The filing discloses two stock splits, neither of which took place in 2025:\n\n### 2022 Stock Split\n- **Ratio:** 10-for-1 (\"each share of the SpaceX Common Stock issued and outstanding was split into ten shares\")\n- **Effective Date:** 2022 (exact date not specified)\n- **Impact:** Applied to all SpaceX Common Stock issued and outstanding\n\n### 2026 Stock Split\n- **Ratio:** 5-for-1 (\"each share of the Class A, Class B, and Class C SpaceX Common Stock issued and outstanding was split into five shares\")\n- **Effective Date:** May 4, 2026\n- **Impact:** Applied to authorized, issued, and outstanding shares of Class A, Class B, and Class C Common Stock. The conversion rate of SpaceX Redeemable Convertible Preferred Stock was proportionately adjusted. All share and per share information was retroactively adjusted for all periods presented. Class D Common Stock was excluded.\n\nThe filing also notes that xAI adopted an Amended and Restated Articles of Incorporation on **March 28, 2025**, which established its capital structure and designated multiple classes of common stock and preferred stock \u2014 but this was a capital structure establishment, not a stock split.\n\n---\n\n## Tender Offers\n\n**No tender offers are disclosed in the filing.** The word \"tender\" does not appear anywhere in the provided text. There are no disclosures of tender offers conducted in December 2024 or December 2025.\n\n### What the Filing Does Disclose: Share Repurchases\n\nThe filing describes share repurchase programs (distinct from tender offers), which are summarized below:\n\n| Period | Shares Repurchased | Total Value | Per-Share Price (implied) | Stock Class |\n|---|---|---|---|---|\n| Year ended Dec 31, 2025 | 14.0 million | $522 million | ~$37.29/share | SpaceX Common Stock |\n| Year ended Dec 31, 2024 | 38.7 million | $920 million | ~$23.77/share | SpaceX Common Stock |\n| Year ended Dec 31, 2024 | 0.1 million | $101 million | ~$1,010/share | SpaceX Redeemable Convertible Preferred Stock |\n| Year ended Dec 31, 2025 | 11.8 million | $600 million | ~$50.85/share | xAI Common Stock |\n\nKey details from the filing:\n- Repurchases were conducted from \"eligible current and former employees and existing shareholders\"\n- Shares were only repurchased from \"eligible participants for more than six months at a purchase price per share equal to the then current fair market value\"\n- All repurchased SpaceX and xAI shares \"have been retired\"\n- The xAI share purchase was from \"an existing shareholder of xAI\" and, following the xAI Merger, is treated as a repurchase of xAI Common Stock\n\nThe Consolidated Statement of Cash Flows reports aggregate \"Payments for repurchase of common and redeemable convertible preferred stock\" of $(1,125) million in 2025, $(1,021) million in 2024, and $(170) million in 2023.\n\n### xAI Merger Cash Election (Not a Tender Offer)\n\nSeparately, the xAI Merger included a cash election mechanism (not a tender offer) whereby eligible service providers holding xAI Series A Redeemable Convertible Preferred Stock or xAI Class A/B Common Stock could elect to receive **$75.46 per share** (on a pre-2026 Stock Split basis) instead of SpaceX stock at the 0.1433 exchange ratio. This was a merger consideration election, not a tender offer.\n\n---\n\n## Summary\n\n| Item Requested | Found? | Details |\n|---|---|---|\n| Stock split in 2025 | **No** | Splits occurred in 2022 (10-for-1) and May 2026 (5-for-1) |\n| Tender offer in Dec 2024 | **No** | No mention of \"tender\" anywhere in the filing |\n| Tender offer in Dec 2025 | **No** | No mention of \"tender\" anywhere in the filing |\n| Share repurchases (2024\u20132025) | Yes | Disclosed as employee/shareholder repurchases at fair market value, not tender offers |"
+          },
+          {
+            "source_call_id": "call_df67c8c88e7f4444979ae906",
+            "content": "# Share Repurchases and Fair Market Value Disclosures\n\n## Share Repurchase Activities (2024\u20132026)\n\nThe filing details substantial repurchase activity across SpaceX and xAI common and preferred stock:\n\n| Period | Security | Amount | Shares | Counterparties |\n|--------|----------|--------|--------|----------------|\n| Year ended Dec 31, 2025 | SpaceX Common Stock | $522 million | 14.0 million | Eligible current and former employees |\n| Year ended Dec 31, 2024 | SpaceX Common Stock | $920 million | 38.7 million | Eligible current/former employees and existing shareholders |\n| Year ended Dec 31, 2024 | SpaceX Redeemable Convertible Preferred Stock | $101 million | 0.1 million | Existing shareholders |\n| Year ended Dec 31, 2025 | xAI Common Stock | $600 million | 11.8 million | Existing shareholder of xAI |\n| Three months ended Mar 31, 2026 | SpaceX Common Stock | $2,413 million | 25.4 million | Eligible current and former xAI employees (xAI Merger) |\n| Three months ended Mar 31, 2026 | SpaceX Common Stock + Redeemable Convertible Preferred Stock | $1,933 million | 30.5 million + 2.1 million | Existing shareholders |\n| Three months ended Mar 31, 2025 | SpaceX Common Stock | $508 million | 28.0 million | Eligible current/former employees and existing shareholders |\n\nAll SpaceX and xAI shares repurchased to date have been retired.\n\n## Fair Market Value Determination for Repurchases\n\nThe filing's disclosure regarding fair market value for repurchases is notably **limited and formulaic**. The relevant language states:\n\n> *\"The Company only repurchased shares held by eligible participants for more than six months at a purchase price per share equal to the then current fair market value.\"*\n\nFor transactions with existing shareholders, the filing states shares were repurchased:\n\n> *\"in a number of unrelated transactions with existing shareholders at their then-current fair market value.\"*\n\n### What the filing does NOT disclose for repurchases:\n- **No explicit reference to 409A valuations** being used to determine repurchase pricing\n- **No reference to third-party appraisals** specifically for repurchase purposes\n- **No description of the methodology** used to establish \"then current fair market value\" for repurchases\n- **No identification of who determined** the fair market value (board, valuation specialists, etc.)\n\n## 409A Valuations and Third-Party Appraisals \u2014 Context from Stock Option Grants\n\nWhile the repurchase section lacks methodology detail, the filing does disclose the use of 409A valuations and third-party appraisals **in the context of stock option grant pricing**, which may inform the \"then current fair market value\" referenced for repurchases:\n\n> *\"The exercise price of each stock option granted during the 2025 Fiscal Year reflects the fair market value of a share of our Class C common stock on the date of grant and was determined based on a third-party valuation obtained in accordance with Section 409A of the Code.\"*\n\nAdditionally, in the Significant Accounting Policies note:\n\n> *\"the Company engages valuation specialists to assist in the valuation of equity instruments.\"*\n\nThe Summary Compensation Table footnotes also reference specific fair market values for Class C common stock (e.g., \"$37 on May 10, 2025\" for RSU grants to Ms. Shotwell), suggesting a contemporaneous 409A valuation framework exists, though the filing does not explicitly link this framework to repurchase pricing.\n\n## Valuation Methodologies for Equity Awards (Separate from Repurchases)\n\nThe share-based compensation note outlines distinct methodologies depending on award type:\n\n| Award Type | Valuation Methodology |\n|------------|----------------------|\n| RSUs, RSAs, ESPP | Fair value of common stock on grant/offering date |\n| Stock options (service/performance conditions) | Black-Scholes option-pricing model |\n| CEO awards (market, service, and performance conditions) | Monte Carlo simulation model |\n\nKey Black-Scholes assumptions include:\n- Expected term: simplified method (midpoint between vesting and contractual life)\n- Expected volatility: daily historical prices of comparable public companies\n- Risk-free interest rate: U.S. Government securities rates\n- Dividend yield: 0.00% (no dividends declared or anticipated)\n\nFor the CEO's xAI Award specifically:\n- Expected term: 10.0 years\n- Volatility: 45%\u201355%\n- Risk-free interest rate: 4.06%\n- Dividend yield: 0.00%\n\n## Summary\n\nThe filing discloses that all share repurchases were conducted at \"then current fair market value\" and restricted to shares held by eligible participants for more than six months. However, **the filing does not explicitly disclose the specific methodology, 409A valuations, or third-party appraisals used to determine fair market value for repurchase purposes**. The 409A third-party valuation methodology is disclosed only for stock option exercise price determination, and the general engagement of valuation specialists is noted for equity instrument valuation broadly. The absence of explicit linkage between these valuation frameworks and repurchase pricing represents a gap in the disclosure."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11618,
+        "completion_tokens": 315,
+        "cached_tokens": 9344,
+        "cost_usd": 0.020515
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-06-24T22:53:45.157190+00:00",
+      "source": "agent",
+      "message": "Let me search for additional context about the stock split and any related disclosures about valuation methodology.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a clearer picture. The filing:\n1. Does NOT explicitly mention $350 billion or $800 billion valuations\n2. Does NOT use the term \"tender offer\" - instead uses \"share repurchase\"\n3. Discloses share repurchases at \"then current fair market value\"\n4. Discloses a 5-for-1 stock split effective May 4, 2026 (not 2025)\n5. Discloses a 10-for-1 stock split in 2022\n\nThe question references \"the most recent tender offer valuation\" and \"the stock split\" - the stock split is the May 4, 2026 5-for-1 split. The tender offer valuations of $350B (Dec 2024) and $800B (Dec 2025) are external data points that the question provides.\n\nLet me calculate the implied compound growth rate:\n- December 2024: $350 billion\n- December 2025: $800 billion\n- Time period: 1 year\n\nCAGR = (800/350)^(1/1) - 1 = 800/350 - 1 = 2.2857 - 1 = 1.2857 = 128.57%\n\nSo the implied compound growth rate is approximately 128.57% over the one-year period.\n\nNow let me also verify the stock split disclosure and look for any additional context about tender offers or fair market value. Let me also check if there's any disclosure about the basis for tender offer pricing or any analytical limitations.\n\nLet me also look at the broader context of the filing to see if there's any specific section about tender offers or stock splits.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_b946ec2b88ce4146814653af",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find the specific disclosure about the May 4, 2026 5-for-1 stock split. Include the exact language used, the impact on shares outstanding, and any retroactive adjustments. Also find any disclosure about the 2022 10-for-1 stock split. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_59cb6672064240799957149b",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any disclosure about the lack of prior public market for the company's common stock, the determination of the IPO offering price, and any risk factors related to valuation or trading price. Also find any disclosure about whether the IPO price will be based on or related to prior tender offer prices, secondary market prices, or private valuations. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_b946ec2b88ce4146814653af",
+            "content": "# Stock Split Disclosures\n\n## May 4, 2026 \u2014 Five-for-One Forward Stock Split (\"2026 Stock Split\")\n\n### Exact Language (appearing in multiple locations)\n\n**From Note 1 (Nature of Business) and the financial statement notes:**\n\n> \"On May 4, 2026, the Company effected a five-for-one forward stock split of its authorized, issued, and outstanding shares of Class A, Class B, and Class C Common Stock ('2026 Stock Split'). The conversion rate of SpaceX Redeemable Convertible Preferred Stock was proportionately adjusted to factor in the 2026 Stock Split. All share and per share information has been retroactively adjusted to reflect the 2026 Stock Split for all periods presented.\"\n\n**From Note 13 (Capital Stock), describing Board approval:**\n\n> \"In May 2026, the Board approved the 2026 Stock Split, pursuant to which each share of the Class A, Class B, and Class C SpaceX Common Stock issued and outstanding was split into five shares of SpaceX Common Stock.\"\n\n**From the prospectus preamble (retrospective recasting statement):**\n\n> \"(ii) a five-for-one stock split of the Company's Class A, Class B, and Class C Common Stock, effective May 4, 2026 (the '2026 Stock Split'). Unless otherwise stated or the context otherwise requires, all share and per share information included in this prospectus have been retroactively adjusted to reflect the 2026 Stock Split.\"\n\n### Impact on Shares Outstanding\n\nThe split applied to **authorized, issued, and outstanding** shares of Class A, Class B, and Class C Common Stock \u2014 each share became five shares. The beneficial ownership table confirms the post-split share counts as of May 1, 2026:\n\n- **Class A common stock:** 6,932,508,000 shares outstanding\n- **Class B common stock:** 5,602,790,410 shares outstanding\n\n(Both figures stated \"after giving effect to the Class C Reclassification, the Preferred Conversion, and the 2026 Stock Split.\")\n\n### Retroactive Adjustments\n\n1. **All share and per share information** \u2014 retroactively adjusted for **all periods presented** in the consolidated financial statements and the prospectus.\n\n2. **SpaceX Redeemable Convertible Preferred Stock conversion rate** \u2014 proportionately adjusted. Each share of SpaceX Redeemable Convertible Preferred Stock became convertible into **fifty shares** of SpaceX Common Stock following the 2026 Stock Split (i.e., the pre-split rate of 10:1 multiplied by 5).\n\n3. **xAI Merger exchange ratios** \u2014 The xAI Merger exchange ratio of 0.1433 SpaceX shares per share of xAI Common Stock and the $75.46 per share cash election price are explicitly noted as being **\"on a pre-2026 Stock Split basis,\"** meaning they were established before the split and share counts derived from them would require multiplication by 5 for comparability.\n\n4. **EchoStar Spectrum Transaction** \u2014 The approximately 52.4 million Class A shares at $212 per share (totaling ~$11.1 billion equity consideration) are explicitly noted as **\"not giv[ing] effect to the 2026 Stock Split,\"** indicating those figures remain on a pre-split basis.\n\n5. **Weighted average shares for EPS** \u2014 The 3,884 million weighted average shares for Q1 2026 and 2,875 million for Q1 2025 reflect retroactive adjustment for the split.\n\n---\n\n## 2022 \u2014 Ten-for-One Stock Split (\"2022 Stock Split\")\n\n### Exact Language\n\n**From Note 13 (Capital Stock):**\n\n> \"In 2022, the Board approved a stock split (the '2022 Stock Split'), pursuant to which each share of the SpaceX Common Stock issued and outstanding was split into ten shares of SpaceX Common Stock.\"\n\n### Key Differences from the 2026 Split\n\n| Feature | 2022 Stock Split | 2026 Stock Split |\n|---|---|---|\n| **Ratio** | 10-for-1 | 5-for-1 |\n| **Classes affected** | SpaceX Common Stock (single class at the time) | Class A, Class B, and Class C Common Stock |\n| **Effective date** | 2022 (specific date not disclosed) | May 4, 2026 |\n| **Board approval** | 2022 | May 2026 |\n| **Preferred stock conversion adjustment** | Not separately disclosed | Explicitly stated \u2014 conversion rate proportionately adjusted (to 50:1) |\n\nThe 2022 split is described more briefly, without the same level of detail regarding retroactive adjustments or preferred stock conversion rate impacts, suggesting those mechanics were either simpler (single class of common stock) or not separately enumerated in the current filing's notes."
+          },
+          {
+            "source_call_id": "call_59cb6672064240799957149b",
+            "content": "Based on the provided text, here are the relevant disclosures matching your criteria:\n\n**1. Lack of Prior Public Market**\nThe prospectus explicitly states that there has been no prior public market for the company's common stock:\n* \"Prior to this offering, there has been no public market for our Class A common stock.\"\n* \"Currently, no public market exists for our Class A common stock.\"\n\n**2. Determination of the IPO Offering Price**\nThe IPO price was determined through negotiations between the company and the underwriters, based on several factors:\n* \"The initial public offering price has been determined by negotiations between us and the representatives. Among the factors considered in determining the initial public offering price were prevailing market conditions, our future prospects and those of our industry in general, our historical financial and operating performance in recent periods, an assessment by our management and the consideration of the above factors in relation to market valuation of companies engaged in\"\n\n**3. Risk Factors Related to Valuation or Trading Price**\nThe document warns that future sales could adversely impact the trading price:\n* \"Future sales of our Class A common stock in the public market, or the availability of such shares for sale in the public market, could adversely affect the market price of our Class A common stock prevailing from time to time.\"\n* \"Nevertheless, sales of a substantial number of shares of our Class A common stock in the public market after such restrictions lapse, or the perception that those sales may occur, could adversely affect the prevailing market price of our Class A common stock at such time and our ability to raise equity-related capital at a time and\"\n\n**4. IPO Price Based on Prior Tender Offers, Secondary Market Prices, or Private Valuations**\nThe provided text **does not** contain any disclosure stating that the IPO price will be based on or related to prior tender offer prices, secondary market prices, or private valuations. As noted above, the price is based on negotiations and factors such as prevailing market conditions and the market valuation of comparable companies. *(Note: The text does mention a \"most recent quarterly valuation\" in the context of determining the share price for a potential acquisition of \"Cursor,\" but this is unrelated to the determination of the IPO offering price).*\n\n**5. Underwriters' Potential Conflicts**\nThe preamble outlines the potential conflicts of interest regarding the underwriters' research and trading activities:\n* \"The underwriters and their respective affiliates may also make investment recommendations or publish or express independent research views in respect of such securities or instruments and may at any time hold, or recommend to clients that they acquire, long or short positions in such securities and instruments.\"\n\n**6. Directed Share Program Without Lock-Up Restrictions**\nThe prospectus details the directed share program (DSP) and explicitly notes the lack of lock-up restrictions for these specific shares:\n* \"At our request, the underwriters have reserved up to \u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 percent of the shares of Class A common stock offered by this prospectus for sale at the initial public offering price through a directed share program to certain employees and persons identified by our management, which may include parties with whom we have a business relationship and friends and family of management. If purchased by these persons, these shares will not be subject to a lock-up restriction. The number of shares of Class A common stock available for sale to the general public will be reduced by the number of reserved shares sold to these persons. Any reserved shares not purchased by these persons\""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13982,
+        "completion_tokens": 522,
+        "cached_tokens": 11584,
+        "cost_usd": 0.025695
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-06-24T22:53:55.894966+00:00",
+      "source": "agent",
+      "message": "Now I have a comprehensive understanding of the filing's disclosures. Let me calculate the implied compound growth rate between the two tender offer valuations.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive understanding of the filing's disclosures. Let me summarize what I've found:\n\n1. **Stock Split**: The filing discloses a 5-for-1 forward stock split effective May 4, 2026 (the \"2026 Stock Split\"). All share and per-share information has been retroactively adjusted. There was also a 10-for-1 split in 2022.\n\n2. **Tender Offers**: The filing does NOT use the term \"tender offer.\" Instead, it discloses share repurchase programs conducted at \"then current fair market value.\" The filing does NOT explicitly mention $350 billion or $800 billion valuations.\n\n3. **Share Repurchases (2024-2025)**:\n   - 2024: $920 million for 38.7 million shares of SpaceX Common Stock (~$23.77/share implied)\n   - 2024: $101 million for 0.1 million shares of SpaceX Redeemable Convertible Preferred Stock\n   - 2025: $522 million for 14.0 million shares of SpaceX Common Stock (~$37.29/share implied)\n   - 2025: $600 million for 11.8 million shares of xAI Common Stock\n\n4. **Basis for Pricing**: The filing states that repurchases were conducted \"at a purchase price per share equal to the then current fair market value.\" The filing does NOT explicitly disclose the methodology used to determine fair market value for repurchases (no explicit reference to 409A valuations or third-party appraisals for repurchase purposes). However, the filing does disclose the use of 409A valuations for stock option grant pricing.\n\n5. **IPO Price Determination**: The IPO price was determined through negotiations between the company and underwriters, based on prevailing market conditions, future prospects, historical financial performance, and market valuation of comparable companies. The filing does NOT state that the IPO price will be based on prior tender offer prices, secondary market prices, or private valuations.\n\n6. **Lack of Prior Public Market**: The filing explicitly states there has been no prior public market for the company's Class A common stock.\n\nNow let me calculate the implied compound growth rate:\n- December 2024: $350 billion\n- December 2025: $800 billion\n- Time period: 1 year\n\nCAGR = (800/350)^(1/1) - 1 = (800/350) - 1 = 2.285714... - 1 = 1.285714... = 128.57%\n\nSo the implied compound growth rate is approximately 128.57% over the one-year period.\n\nLet me verify this calculation.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_548e2d3e793048a1ae8d3a2b",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(800 / 350) ** (1/1) - 1"
+          }
+        },
+        {
+          "tool_call_id": "call_edca0277d38a4700ba3f56b0",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "800 / 350"
+          }
+        },
+        {
+          "tool_call_id": "call_b9d32291d13d4e8f98dcaee6",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(800 / 350 - 1) * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_548e2d3e793048a1ae8d3a2b",
+            "content": "1.2857142857142856"
+          },
+          {
+            "source_call_id": "call_edca0277d38a4700ba3f56b0",
+            "content": "2.2857142857142856"
+          },
+          {
+            "source_call_id": "call_b9d32291d13d4e8f98dcaee6",
+            "content": "128.57142857142856"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16215,
+        "completion_tokens": 646,
+        "cached_tokens": 13952,
+        "cost_usd": 0.0295575
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-06-24T22:54:00.746028+00:00",
+      "source": "agent",
+      "message": "Let me verify the per-share repurchase prices for additional context.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "The implied compound growth rate is approximately 128.57% over the one-year period from December 2024 to December 2025.\n\nNow let me also verify the per-share repurchase prices to provide additional context. Let me also check if there's any additional disclosure about the basis for tender offer pricing or any analytical limitations.\n\nLet me also calculate the implied per-share prices for the repurchases to provide additional context.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8abd3ccd20aa4d76a36c94dc",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "920 / 38.7"
+          }
+        },
+        {
+          "tool_call_id": "call_d1a2f3ddde3b4f39b71c606d",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "522 / 14.0"
+          }
+        },
+        {
+          "tool_call_id": "call_2e135f52e9e344f8bccd7fd2",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "37.2857 / 23.7665 - 1"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_8abd3ccd20aa4d76a36c94dc",
+            "content": "23.772609819121445"
+          },
+          {
+            "source_call_id": "call_d1a2f3ddde3b4f39b71c606d",
+            "content": "37.285714285714285"
+          },
+          {
+            "source_call_id": "call_2e135f52e9e344f8bccd7fd2",
+            "content": "0.5688342835503755"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16906,
+        "completion_tokens": 152,
+        "cached_tokens": 16192,
+        "cost_usd": 0.023545
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-06-24T22:55:07.593511+00:00",
+      "source": "agent",
+      "message": "Let me search for any additional context about the determination of fair market value and any analytical limitations.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Interesting - the implied per-share repurchase prices show:\n- 2024: ~$23.77/share\n- 2025: ~$37.29/share\n- Growth: ~56.88%\n\nThis is much lower than the 128.57% growth in the tender offer valuations ($350B to $800B). This discrepancy is analytically important because it suggests that the tender offer valuations may not be directly comparable to the share repurchase prices, or that the share counts changed significantly between the two periods (e.g., due to new share issuances).\n\nWait - I need to be careful here. The question states that the filing \"discloses the most recent tender offer valuation and the stock split.\" Let me re-read the question:\n\n\"Using the December 2024 tender offer valuation of approximately $350 billion and the December 2025 tender offer valuation of approximately $800 billion as data points, calculate the implied compound growth rate in inferred valuation between the two events.\"\n\nSo the question is providing these as external data points (from secondary market platforms like Forge Global and Nasdaq Private Market). The question asks me to:\n1. Calculate the implied compound growth rate (which I've done: ~128.57%)\n2. What does the filing disclose about the basis for tender offer pricing?\n3. What analytical limitations arise from using tender offer valuations as a proxy for IPO pricing?\n\nFor #2, the filing discloses that share repurchases (which are functionally analogous to tender offers) were conducted \"at a purchase price per share equal to the then current fair market value.\" The filing does NOT explicitly disclose the methodology used to determine fair market value for repurchases.\n\nFor #3, the analytical limitations include:\n- The filing does not publish a current fair market value estimate\n- The filing states there has been no prior public market for the company's common stock\n- The IPO price was determined through negotiations with underwriters, not based on prior tender offer prices\n- Tender offer valuations may reflect different methodologies, participant pools, and timing than IPO pricing\n- The share repurchase prices implied from the filing ($23.77 in 2024, $37.29 in 2025) show a much lower growth rate (~56.88%) than the tender offer valuations ($350B to $800B, ~128.57%), suggesting potential discrepancies\n\nLet me also note that the filing does NOT explicitly mention $350 billion or $800 billion valuations, and does NOT use the term \"tender offer.\" The filing uses \"share repurchase\" terminology instead.\n\nNow let me also check if there's any disclosure about the basis for tender offer pricing or any analytical limitations. Let me search for any additional context.\n\nActually, I think I have enough information to provide a comprehensive answer. Let me also verify the stock split disclosure one more time.\n\nThe filing discloses:\n1. A 5-for-1 forward stock split effective May 4, 2026 (the \"2026 Stock Split\")\n2. A 10-for-1 stock split in 2022 (the \"2022 Stock Split\")\n\nThe question mentions \"the stock split\" - this likely refers to the 2026 Stock Split, which is the most recent one disclosed in the filing.\n\nNow let me also check if there's any disclosure about the basis for tender offer pricing or any analytical limitations. Let me search for any additional context about the determination of fair market value.\n\nActually, I think I have enough information. Let me also verify the calculation one more time.\n\nCAGR = (Ending Value / Beginning Value)^(1/n) - 1\nwhere n = number of years\n\nFor December 2024 to December 2025:\n- n = 1 year\n- Ending Value = $800 billion\n- Beginning Value = $350 billion\n\nCAGR = (800/350)^(1/1) - 1 = 2.2857 - 1 = 1.2857 = 128.57%\n\nSo the implied compound growth rate is approximately 128.57% over the one-year period.\n\nNow let me prepare my final answer. I should:\n1. Calculate the implied compound growth rate (~128.57%)\n2. Explain what the filing discloses about the basis for tender offer pricing\n3. Explain the analytical limitations of using tender offer valuations as a proxy for IPO pricing\n\nLet me also note the important caveats:\n- The filing does NOT explicitly mention $350 billion or $800 billion valuations\n- The filing does NOT use the term \"tender offer\" - it uses \"share repurchase\"\n- The filing discloses share repurchases at \"then current fair market value\"\n- The filing does NOT explicitly disclose the methodology used to determine fair market value for repurchases\n- The implied per-share repurchase prices show a much lower growth rate (~56.88%) than the tender offer valuations (~128.57%)\n\nLet me also check if there's any additional context about the determination of fair market value or any analytical limitations.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_f4c24e28943b4f6e94741bb3",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any disclosure about how the company determines the fair market value of its common stock, including any reference to 409A valuations, third-party appraisals, board determinations, or valuation specialists. Also find any disclosure about the relationship between private valuations (tender offers, secondary market prices) and the IPO offering price. Look for any risk factors or disclosures about the limitations of using private valuations as a proxy for public market pricing. {{spacex_s1}}"
+          }
+        },
+        {
+          "tool_call_id": "call_dd9399cd392245119c3e8d1f",
+          "function_name": "retrieve_information",
+          "arguments": {
+            "prompt": "Find any disclosure about the company's share repurchase program, including the eligibility requirements, holding period requirements, and pricing methodology. Also find any disclosure about whether the repurchase price was based on a specific valuation, appraisal, or market price. Look for any disclosure about the total number of shares outstanding or the implied valuation based on repurchase prices. {{spacex_s1}}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_f4c24e28943b4f6e94741bb3",
+            "content": "Based on the provided text, here are the relevant disclosures regarding the determination of fair market value, the use of 409A valuations and specialists, and the relationship between private valuations and the IPO offering price:\n\n### 1. Determination of Fair Market Value for Stock Options (409A and Third-Party Appraisals)\nThe footnotes to the plan-based awards table explicitly state that the exercise price of stock options is determined using third-party valuations in compliance with Section 409A:\n> \"(3) The exercise price of each stock option granted during the 2025 Fiscal Year reflects the fair market value of a share of our Class C common stock on the date of grant and was determined based on a third-party valuation obtained in accordance with Section 409A of the Code.\"\n\n### 2. Use of Valuation Specialists for Equity Instruments\nIn both the critical accounting estimates section and the notes to the consolidated financial statements, the company discloses that it engages outside specialists to value its equity instruments:\n> \"Amounts which are subject to significant judgment and use of estimates include... the valuation and assumptions underlying share-based compensation. On an ongoing basis, the Company evaluates its estimates compared to historical experience and current trends, which forms the basis for making judgments about the carrying value of assets and liabilities. **In addition, the Company engages valuation specialists to assist in the valuation of equity instruments.**\"\n\n### 3. FASB ASC Topic 718 for Grant Date Fair Value\nThe footnotes also explain how the grant date fair value is calculated for accounting purposes:\n> \"(4) Amounts in this column represent the grant date fair value of stock options and RSUs, calculated in accordance with FASB ASC Topic 718, disregarding the effect of estimated forfeitures.\"\n\n### 4. Relationship Between Private Valuations and the IPO Offering Price\nThe prospectus discusses the lack of a historical public market and how the IPO price was determined through negotiations rather than a formula tied to past private valuations:\n> \"Prior to this offering, there has been no public market for our Class A common stock. The initial public offering price has been determined by negotiations between us and the representatives. Among the factors considered in determining the initial public offering price were prevailing market conditions, our future prospects and those of our industry in general, our historical financial and operating performance in recent periods, an assessment by our management and the consideration of the above factors in relation to market valuation of companies engaged in [similar businesses].\"\n\n### 5. Limitations and Risks Regarding Public Market Pricing\nThe document warns investors about the lack of a prior public market and the potential disconnect between private expectations and public market realities:\n> \"Prior to this offering, there has been no public market for our Class A common stock. Future sales of our Class A common stock in the public market, or the availability of such shares for sale in the public market, could adversely affect the market price of our Class A common stock prevailing from time to time.\" \n\n*(Note: While the text mentions the lack of a public market prior to the offering and the negotiation process for the IPO price, it does not contain specific risk factors comparing tender offer or secondary market prices to the IPO price within the provided chunks.)*"
+          },
+          {
+            "source_call_id": "call_dd9399cd392245119c3e8d1f",
+            "content": "# Share Repurchase Program Disclosures\n\n## Eligibility Requirements\n\nThe disclosures indicate that repurchases were limited to **\"eligible current and former employees\"** and **\"existing shareholders.\"** For transactions tied to the xAI Merger, repurchases were made from **\"eligible current and former xAI employees.\"**\n\n## Holding Period Requirements\n\nThe company imposed a **six-month holding period** requirement. The disclosure states:\n\n> \"The Company only repurchased shares held by eligible participants for **more than six months** at a purchase price per share equal to the then current fair market value.\"\n\nThis requirement is repeated in both the 2024/2025 annual disclosure and the Q1 2025/Q1 2026 quarterly disclosure.\n\n## Pricing Methodology\n\nThe repurchase price was based on **then-current fair market value** \u2014 not a specific third-party valuation or appraisal. The disclosure states shares were repurchased:\n\n> \"...at their then-current fair market value.\"\n\n> \"...at a purchase price per share equal to the then current fair market value.\"\n\nNo reference is made to a specific valuation report, appraisal, or formula-based pricing; the pricing is consistently tied to fair market value at the time of transaction.\n\n## Repurchase Activity Summary\n\n### SpaceX Common Stock\n\n| Period | Amount | Shares | Implied Price/Share |\n|---|---|---|---|\n| Year ended Dec 31, 2025 | $522 million | 14.0 million | ~$37.29 |\n| Year ended Dec 31, 2024 | $920 million | 38.7 million | ~$23.77 |\n| Three months ended Mar 31, 2026 (xAI Merger) | $2,413 million | 25.4 million | ~$94.99 |\n| Three months ended Mar 31, 2026 (existing shareholders) | Part of $1,933 million | 30.5 million | \u2014 |\n| Three months ended Mar 31, 2025 | $508 million | 28.0 million | ~$18.14 |\n\n### SpaceX Redeemable Convertible Preferred Stock\n\n| Period | Amount | Shares | Implied Price/Share |\n|---|---|---|---|\n| Year ended Dec 31, 2024 | $101 million | 0.1 million | ~$1,010 |\n| Three months ended Mar 31, 2026 | Part of $1,933 million | 2.1 million | \u2014 |\n\n### xAI Common Stock\n\n| Period | Amount | Shares | Implied Price/Share |\n|---|---|---|---|\n| Year ended Dec 31, 2025 | $600 million | 11.8 million | ~$50.85 |\n\n## Treatment of Repurchased Shares\n\nAll repurchased SpaceX and xAI shares **have been retired**:\n\n> \"All SpaceX shares repurchased to date have been retired.\"\n> \"All xAI shares repurchased to date have been retired.\"\n\n## Deemed Dividend Adjustment\n\nThe EPS reconciliation note discloses that the excess of fair market value over consideration transferred for repurchases of SpaceX Redeemable Convertible Preferred Stock was treated as a **deemed dividend**, increasing net loss attributable to common shareholders in the loss-per-share calculation.\n\n## Total Shares Outstanding\n\nAs of May 1, 2026 (after giving effect to the Class C Reclassification, Preferred Conversion, and 2026 Stock Split):\n\n- **Class A common stock:** 6,932,508,000 shares\n- **Class B common stock:** 5,602,790,410 shares\n- **Total:** ~12.535 billion shares\n\n## Implied Valuation Observations\n\nThe rising implied per-share repurchase prices across periods (from ~$18.14 in Q1 2025 to ~$94.99 in Q1 2026 for common stock) reflect significant valuation appreciation over the timeframe, consistent with the company's growth trajectory and the xAI Merger. However, the company does not explicitly state an aggregate implied equity valuation based on these repurchase prices."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 17101,
+        "completion_tokens": 1249,
+        "cached_tokens": 16896,
+        "cost_usd": 0.0341225
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-06-24T22:55:30.616124+00:00",
+      "source": "agent",
+      "message": "I now have comprehensive information to answer the question. Let me prepare my final answer.",
+      "model_name": "glm-5.2",
+      "reasoning_content": "Now I have a comprehensive understanding of the filing's disclosures. Let me also verify the calculation one more time and prepare my final answer.\n\nKey findings:\n1. **Stock Split**: The filing discloses a 5-for-1 forward stock split effective May 4, 2026 (the \"2026 Stock Split\"). All share and per-share information has been retroactively adjusted. There was also a 10-for-1 split in 2022.\n\n2. **Tender Offers**: The filing does NOT use the term \"tender offer.\" Instead, it discloses share repurchase programs conducted at \"then current fair market value.\" The filing does NOT explicitly mention $350 billion or $800 billion valuations.\n\n3. **Share Repurchases (2024-2025)**:\n   - 2024: $920 million for 38.7 million shares of SpaceX Common Stock (~$23.77/share implied)\n   - 2024: $101 million for 0.1 million shares of SpaceX Redeemable Convertible Preferred Stock\n   - 2025: $522 million for 14.0 million shares of SpaceX Common Stock (~$37.29/share implied)\n   - 2025: $600 million for 11.8 million shares of xAI Common Stock\n\n4. **Basis for Pricing**: The filing states that repurchases were conducted \"at a purchase price per share equal to the then current fair market value.\" The filing does NOT explicitly disclose the methodology used to determine fair market value for repurchases (no explicit reference to 409A valuations or third-party appraisals for repurchase purposes). However, the filing does disclose the use of 409A valuations for stock option grant pricing and the engagement of valuation specialists for equity instrument valuation.\n\n5. **IPO Price Determination**: The IPO price was determined through negotiations between the company and underwriters, based on prevailing market conditions, future prospects, historical financial performance, and market valuation of comparable companies. The filing does NOT state that the IPO price will be based on prior tender offer prices, secondary market prices, or private valuations.\n\n6. **Lack of Prior Public Market**: The filing explicitly states there has been no prior public market for the company's Class A common stock.\n\n7. **Implied Compound Growth Rate**: \n   - December 2024: $350 billion\n   - December 2025: $800 billion\n   - CAGR = (800/350)^(1/1) - 1 = 128.57%\n\n8. **Analytical Limitations**:\n   - The filing does not publish a current fair market value estimate\n   - The filing states there has been no prior public market for the company's common stock\n   - The IPO price was determined through negotiations with underwriters, not based on prior tender offer prices\n   - Tender offer valuations may reflect different methodologies, participant pools, and timing than IPO pricing\n   - The share repurchase prices implied from the filing ($23.77 in 2024, $37.29 in 2025) show a much lower growth rate (~56.88%) than the tender offer valuations ($350B to $800B, ~128.57%), suggesting potential discrepancies\n   - The filing does not explicitly disclose the methodology used to determine fair market value for repurchases\n   - The filing does not explicitly mention $350 billion or $800 billion valuations\n   - The filing does not use the term \"tender offer\" - it uses \"share repurchase\"\n\nNow let me prepare my final answer.\n\nActually, let me also verify the per-share repurchase price growth rate calculation:\n- 2024: $23.77/share\n- 2025: $37.29/share\n- Growth: ($37.29 / $23.77) - 1 = 0.5688 = 56.88%\n\nThis is much lower than the 128.57% growth in the tender offer valuations. This discrepancy is analytically important.\n\nWait - I need to be careful here. The share repurchase prices are on a pre-2026 Stock Split basis (since the 2026 Stock Split was effective May 4, 2026, and the repurchases occurred in 2024 and 2025). So the per-share prices are comparable.\n\nHowever, the share counts may have changed significantly between 2024 and 2025 due to new share issuances (e.g., the $13,001 million preferred stock issuance in 2024 and the $17,898 million preferred stock issuance in 2025). This could explain why the per-share repurchase price growth rate (~56.88%) is lower than the tender offer valuation growth rate (~128.57%).\n\nActually, let me reconsider. The tender offer valuations of $350B and $800B are external data points provided in the question. The filing does not explicitly mention these valuations. The share repurchase prices implied from the filing are:\n- 2024: ~$23.77/share\n- 2025: ~$37.29/share\n\nIf we assume the tender offer valuations are based on the same per-share prices, then:\n- 2024: $350B / $23.77/share = ~14.72 billion shares\n- 2025: $800B / $37.29/share = ~21.45 billion shares\n\nThis suggests the share count increased significantly between 2024 and 2025, which is consistent with the large preferred stock issuances during those years.\n\nHowever, I should be careful not to over-interpret this. The question is asking me to:\n1. Calculate the implied compound growth rate (which I've done: ~128.57%)\n2. What does the filing disclose about the basis for tender offer pricing?\n3. What analytical limitations arise from using tender offer valuations as a proxy for IPO pricing?\n\nLet me prepare my final answer.\n\nActually, I realize I should also note that the question mentions \"the filing discloses the most recent tender offer valuation and the stock split.\" Let me re-read the question:\n\n\"Secondary market platforms including Forge Global and Nasdaq Private Market use proprietary pricing models rather than observable transaction prices to derive their published SpaceX valuations. The filing discloses the most recent tender offer valuation and the stock split but does not publish a current fair market value estimate.\"\n\nSo the question is saying that the filing discloses:\n1. The most recent tender offer valuation\n2. The stock split\n\nBut does NOT publish a current fair market value estimate.\n\nBased on my research, the filing:\n1. Does NOT explicitly mention $350 billion or $800 billion valuations\n2. Does NOT use the term \"tender offer\" - it uses \"share repurchase\"\n3. DOES disclose share repurchases at \"then current fair market value\"\n4. DOES disclose the 2026 Stock Split (5-for-1, effective May 4, 2026)\n5. DOES disclose the 2022 Stock Split (10-for-1)\n\nSo the question's premise that \"the filing discloses the most recent tender offer valuation\" is not entirely accurate based on my research. The filing discloses share repurchases (not tender offers) at \"then current fair market value,\" but does not explicitly state the aggregate valuation.\n\nHowever, the question is providing the $350B and $800B figures as external data points (from secondary market platforms), and asking me to calculate the implied compound growth rate. I should answer the question as asked, while noting the important caveats about what the filing actually discloses.\n\nLet me prepare my final answer now.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_e3903b0eb6f74e88900fe881",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(800 / 350 - 1) * 100"
+          }
+        },
+        {
+          "tool_call_id": "call_11f95f6cfb984e16a9467c58",
+          "function_name": "calculator",
+          "arguments": {
+            "expression": "(37.285714 / 23.772610 - 1) * 100"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_e3903b0eb6f74e88900fe881",
+            "content": "128.57142857142856"
+          },
+          {
+            "source_call_id": "call_11f95f6cfb984e16a9467c58",
+            "content": "56.84316530662807"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 19877,
+        "completion_tokens": 1645,
+        "cached_tokens": 17088,
+        "cost_usd": 0.0447825
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-06-24T22:56:06.619739+00:00",
+      "source": "agent",
+      "message": "",
+      "model_name": "glm-5.2",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1e6a3d1fc9ae4178858154f9",
+          "function_name": "submit_final_result",
+          "arguments": {
+            "final_result": "# SpaceX Tender Offer Valuation Analysis\n\n## 1. Implied Compound Growth Rate (December 2024 \u2192 December 2025)\n\nUsing the two tender offer valuation data points provided:\n\n| Date | Inferred Valuation |\n|---|---|\n| December 2024 | ~$350 billion |\n| December 2025 | ~$800 billion |\n\n**CAGR formula:** (Ending Value / Beginning Value)^(1/n) \u2212 1, where n = 1 year\n\n**Calculation:**\n- ($800B / $350B)^(1/1) \u2212 1\n- = 2.2857 \u2212 1\n- = 1.2857\n- = **~128.57%**\n\nThe implied compound growth rate in inferred valuation between the December 2024 and December 2025 tender offer events is approximately **128.57%** (i.e., the inferred valuation roughly 2.29\u00d7'd over the one-year period).\n\n---\n\n## 2. What the Filing Discloses About the Basis for Tender Offer Pricing\n\n**Important terminology caveat:** The S-1 does **not** use the term \"tender offer\" anywhere in the retrieved text, nor does it explicitly state \"$350 billion\" or \"$800 billion\" as aggregate valuations. Instead, the filing discloses **share repurchase programs** that are functionally analogous to tender offers but described as repurchases. The $350B/$800B figures referenced in the question appear to be externally derived (e.g., from secondary-market platforms or press reports) rather than figures stated in the filing itself.\n\n### What the filing actually discloses:\n\n**(a) Pricing standard \u2014 \"then current fair market value\":**\n> \"The Company only repurchased shares held by eligible participants for more than six months at a purchase price per share equal to the then current fair market value.\"\n\nFor transactions with existing shareholders:\n> \"...in a number of unrelated transactions with existing shareholders at their then-current fair market value.\"\n\n**(b) Eligibility and holding-period requirements:**\n- Repurchases limited to \"eligible current and former employees\" and \"existing shareholders\"\n- Shares had to be held by eligible participants for **more than six months** before repurchase\n- Described as \"a number of unrelated transactions\" rather than a formal pro-rata tender offer \u2014 suggesting bilateral negotiated repurchases at fair market value\n\n**(c) Repurchase activity disclosed (implied per-share prices):**\n\n| Period | Security | Aggregate $ | Shares | Implied $/share |\n|---|---|---|---|---|\n| FY 2024 | SpaceX Common | $920M | 38.7M | ~$23.77 |\n| FY 2024 | SpaceX Redeemable Convertible Preferred | $101M | 0.1M | ~$1,010 |\n| FY 2025 | SpaceX Common | $522M | 14.0M | ~$37.29 |\n| FY 2025 | xAI Common | $600M | 11.8M | ~$50.85 |\n\nAll repurchased shares were **retired** (not held as treasury stock).\n\n**(d) Methodology gap:** The filing does **not** explicitly disclose the methodology used to establish \"then current fair market value\" for repurchase purposes. There is no explicit linkage to:\n- 409A valuations (these are disclosed only for stock-option exercise-price determination)\n- Third-party appraisals specifically for repurchases\n- Board determinations or specific valuation reports\n\nThe filing does note generally that \"the Company engages valuation specialists to assist in the valuation of equity instruments\" and that option exercise prices reflect \"fair market value... determined based on a third-party valuation obtained in accordance with Section 409A of the Code\" \u2014 but these disclosures relate to equity-compensation accounting, not to repurchase pricing.\n\n**(e) Stock split disclosure:** The filing discloses a **5-for-1 forward stock split effective May 4, 2026** (the \"2026 Stock Split\"), with all share and per-share information retroactively adjusted for all periods presented. (A prior 10-for-1 split occurred in 2022.) The 2026 Stock Split is the \"stock split\" referenced in the question.\n\n---\n\n## 3. Analytical Limitations of Using Tender Offer Valuations as a Proxy for IPO Pricing\n\nSeveral material limitations arise from treating tender offer valuations as a proxy for IPO pricing:\n\n### (a) The filing does not publish a current fair market value estimate\nThe S-1 does not contain a stated aggregate equity valuation, a per-share fair market value estimate as of the filing date, or any reconciliation between prior repurchase prices and the IPO offering price. Investors are left to infer valuation from repurchase activity, which the filing presents only in aggregate dollar and share-count terms.\n\n### (b) No prior public market \u2014 IPO price set by negotiation, not by private-market reference\nThe filing explicitly states:\n> \"Prior to this offering, there has been no public market for our Class A common stock.\"\n\nAnd the IPO price is determined by **negotiation** between the company and underwriters, considering:\n- Prevailing market conditions\n- Future prospects of the company and industry\n- Historical financial and operating performance\n- Market valuation of comparable public companies\n\nThe filing does **not** state that the IPO price will be based on, derived from, or anchored to prior tender offer prices, secondary-market prices, or private valuations. Tender offer valuations are therefore not a disclosed input to IPO pricing.\n\n### (c) Tender offer valuations reflect a different transaction structure and participant pool\n- Repurchases were bilateral, negotiated transactions with **eligible employees and existing shareholders** \u2014 not open-market auctions\n- The **six-month holding-period requirement** restricts the universe of sellers, meaning repurchase prices reflect a constrained, non-representative sample of holders\n- Tender offer valuations typically reflect **illiquid, controlled-context** pricing, whereas IPO pricing reflects broad public-market demand and underwriter book-building\n\n### (d) Discrepancy between per-share repurchase growth and aggregate valuation growth\nThe implied per-share repurchase prices disclosed in the filing grew at a materially different rate than the externally reported tender offer valuations:\n\n| Metric | Dec 2024 | Dec 2025 | Implied Growth |\n|---|---|---|---|\n| Externally reported tender offer valuation | ~$350B | ~$800B | **~128.57%** |\n| Filing-disclosed per-share repurchase price (SpaceX Common) | ~$23.77 | ~$37.29 | **~56.84%** |\n\nThis ~71-percentage-point gap suggests that the aggregate valuation growth was driven substantially by **share-count expansion** (e.g., the $13.0B preferred issuance in 2024 and $17.9B preferred issuance in 2025, plus the xAI Merger consideration) rather than purely by per-share appreciation. Using the aggregate tender offer valuation as a per-share IPO proxy without adjusting for share-count dilution would overstate per-share value growth.\n\n### (e) Methodology opacity\nThe filing does not disclose:\n- Whether repurchase \"fair market value\" was set by 409A valuation, board determination, third-party appraisal, or negotiation\n- The frequency or recency of valuation refreshes\n- Whether different repurchase tranches within a period used different valuations\n\nThis opacity makes it difficult to assess whether tender offer prices reflect contemporaneous, arm's-length fair value or company-influenced pricing designed to manage dilution or employee liquidity.\n\n### (f) Secondary-market platform valuations (Forge, NPM) are model-derived, not transaction-derived\nAs the question notes, platforms like Forge Global and Nasdaq Private Market use **proprietary pricing models** rather than observable transaction prices. These models incorporate assumptions about liquidity discounts, transfer restrictions, and comparable-company multiples that may diverge from both the company's internal fair-market-value determinations and the eventual IPO price. The filing does not endorse, reference, or reconcile to these platform valuations.\n\n### (g) Temporal and structural mismatch with IPO\nTender offer valuations are point-in-time, private-market estimates that:\n- Pre-date the IPO by months (the December 2025 valuation precedes the May 2026 S-1 filing)\n- Do not reflect post-IPO capital structure changes (Class C Reclassification, Preferred Conversion, 2026 Stock Split)\n- Do not incorporate IPO-specific factors (lock-up releases, float dynamics, index inclusion, retail demand)\n\n---\n\n## Summary\n\n| Item | Finding |\n|---|---|\n| Implied CAGR (Dec 2024 \u2192 Dec 2025) | **~128.57%** |\n| Filing's pricing standard for repurchases | \"Then current fair market value\" |\n| Holding-period requirement | >6 months |\n| Methodology disclosed for FMV determination? | **No** \u2014 not explicitly linked to 409A, appraisals, or board determinations for repurchases |\n| Filing states $350B or $800B? | **No** \u2014 these are externally derived figures |\n| Filing uses term \"tender offer\"? | **No** \u2014 uses \"repurchase\" |\n| Stock split disclosed | 5-for-1, effective May 4, 2026 (plus 10-for-1 in 2022) |\n| IPO price tied to tender offer valuations? | **No** \u2014 determined by negotiation with underwriters |\n| Current fair market value estimate published? | **No** |\n\nThe ~128.57% implied growth rate is striking, but it should be interpreted with caution: the filing does not endorse these valuations, does not disclose the methodology underlying repurchase pricing, and explicitly frames IPO pricing as a negotiated process independent of prior private-market valuations. The ~56.84% growth in filing-disclosed per-share repurchase prices further illustrates that aggregate valuation growth was significantly amplified by share-count expansion, limiting the usefulness of aggregate tender offer valuations as a per-share IPO proxy.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 share repurchase disclosures, 2026 Stock Split, fair market value language, IPO price determination, and lack of prior public market disclosures\"\n    }\n  ]\n}"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_1e6a3d1fc9ae4178858154f9",
+            "content": "# SpaceX Tender Offer Valuation Analysis\n\n## 1. Implied Compound Growth Rate (December 2024 \u2192 December 2025)\n\nUsing the two tender offer valuation data points provided:\n\n| Date | Inferred Valuation |\n|---|---|\n| December 2024 | ~$350 billion |\n| December 2025 | ~$800 billion |\n\n**CAGR formula:** (Ending Value / Beginning Value)^(1/n) \u2212 1, where n = 1 year\n\n**Calculation:**\n- ($800B / $350B)^(1/1) \u2212 1\n- = 2.2857 \u2212 1\n- = 1.2857\n- = **~128.57%**\n\nThe implied compound growth rate in inferred valuation between the December 2024 and December 2025 tender offer events is approximately **128.57%** (i.e., the inferred valuation roughly 2.29\u00d7'd over the one-year period).\n\n---\n\n## 2. What the Filing Discloses About the Basis for Tender Offer Pricing\n\n**Important terminology caveat:** The S-1 does **not** use the term \"tender offer\" anywhere in the retrieved text, nor does it explicitly state \"$350 billion\" or \"$800 billion\" as aggregate valuations. Instead, the filing discloses **share repurchase programs** that are functionally analogous to tender offers but described as repurchases. The $350B/$800B figures referenced in the question appear to be externally derived (e.g., from secondary-market platforms or press reports) rather than figures stated in the filing itself.\n\n### What the filing actually discloses:\n\n**(a) Pricing standard \u2014 \"then current fair market value\":**\n> \"The Company only repurchased shares held by eligible participants for more than six months at a purchase price per share equal to the then current fair market value.\"\n\nFor transactions with existing shareholders:\n> \"...in a number of unrelated transactions with existing shareholders at their then-current fair market value.\"\n\n**(b) Eligibility and holding-period requirements:**\n- Repurchases limited to \"eligible current and former employees\" and \"existing shareholders\"\n- Shares had to be held by eligible participants for **more than six months** before repurchase\n- Described as \"a number of unrelated transactions\" rather than a formal pro-rata tender offer \u2014 suggesting bilateral negotiated repurchases at fair market value\n\n**(c) Repurchase activity disclosed (implied per-share prices):**\n\n| Period | Security | Aggregate $ | Shares | Implied $/share |\n|---|---|---|---|---|\n| FY 2024 | SpaceX Common | $920M | 38.7M | ~$23.77 |\n| FY 2024 | SpaceX Redeemable Convertible Preferred | $101M | 0.1M | ~$1,010 |\n| FY 2025 | SpaceX Common | $522M | 14.0M | ~$37.29 |\n| FY 2025 | xAI Common | $600M | 11.8M | ~$50.85 |\n\nAll repurchased shares were **retired** (not held as treasury stock).\n\n**(d) Methodology gap:** The filing does **not** explicitly disclose the methodology used to establish \"then current fair market value\" for repurchase purposes. There is no explicit linkage to:\n- 409A valuations (these are disclosed only for stock-option exercise-price determination)\n- Third-party appraisals specifically for repurchases\n- Board determinations or specific valuation reports\n\nThe filing does note generally that \"the Company engages valuation specialists to assist in the valuation of equity instruments\" and that option exercise prices reflect \"fair market value... determined based on a third-party valuation obtained in accordance with Section 409A of the Code\" \u2014 but these disclosures relate to equity-compensation accounting, not to repurchase pricing.\n\n**(e) Stock split disclosure:** The filing discloses a **5-for-1 forward stock split effective May 4, 2026** (the \"2026 Stock Split\"), with all share and per-share information retroactively adjusted for all periods presented. (A prior 10-for-1 split occurred in 2022.) The 2026 Stock Split is the \"stock split\" referenced in the question.\n\n---\n\n## 3. Analytical Limitations of Using Tender Offer Valuations as a Proxy for IPO Pricing\n\nSeveral material limitations arise from treating tender offer valuations as a proxy for IPO pricing:\n\n### (a) The filing does not publish a current fair market value estimate\nThe S-1 does not contain a stated aggregate equity valuation, a per-share fair market value estimate as of the filing date, or any reconciliation between prior repurchase prices and the IPO offering price. Investors are left to infer valuation from repurchase activity, which the filing presents only in aggregate dollar and share-count terms.\n\n### (b) No prior public market \u2014 IPO price set by negotiation, not by private-market reference\nThe filing explicitly states:\n> \"Prior to this offering, there has been no public market for our Class A common stock.\"\n\nAnd the IPO price is determined by **negotiation** between the company and underwriters, considering:\n- Prevailing market conditions\n- Future prospects of the company and industry\n- Historical financial and operating performance\n- Market valuation of comparable public companies\n\nThe filing does **not** state that the IPO price will be based on, derived from, or anchored to prior tender offer prices, secondary-market prices, or private valuations. Tender offer valuations are therefore not a disclosed input to IPO pricing.\n\n### (c) Tender offer valuations reflect a different transaction structure and participant pool\n- Repurchases were bilateral, negotiated transactions with **eligible employees and existing shareholders** \u2014 not open-market auctions\n- The **six-month holding-period requirement** restricts the universe of sellers, meaning repurchase prices reflect a constrained, non-representative sample of holders\n- Tender offer valuations typically reflect **illiquid, controlled-context** pricing, whereas IPO pricing reflects broad public-market demand and underwriter book-building\n\n### (d) Discrepancy between per-share repurchase growth and aggregate valuation growth\nThe implied per-share repurchase prices disclosed in the filing grew at a materially different rate than the externally reported tender offer valuations:\n\n| Metric | Dec 2024 | Dec 2025 | Implied Growth |\n|---|---|---|---|\n| Externally reported tender offer valuation | ~$350B | ~$800B | **~128.57%** |\n| Filing-disclosed per-share repurchase price (SpaceX Common) | ~$23.77 | ~$37.29 | **~56.84%** |\n\nThis ~71-percentage-point gap suggests that the aggregate valuation growth was driven substantially by **share-count expansion** (e.g., the $13.0B preferred issuance in 2024 and $17.9B preferred issuance in 2025, plus the xAI Merger consideration) rather than purely by per-share appreciation. Using the aggregate tender offer valuation as a per-share IPO proxy without adjusting for share-count dilution would overstate per-share value growth.\n\n### (e) Methodology opacity\nThe filing does not disclose:\n- Whether repurchase \"fair market value\" was set by 409A valuation, board determination, third-party appraisal, or negotiation\n- The frequency or recency of valuation refreshes\n- Whether different repurchase tranches within a period used different valuations\n\nThis opacity makes it difficult to assess whether tender offer prices reflect contemporaneous, arm's-length fair value or company-influenced pricing designed to manage dilution or employee liquidity.\n\n### (f) Secondary-market platform valuations (Forge, NPM) are model-derived, not transaction-derived\nAs the question notes, platforms like Forge Global and Nasdaq Private Market use **proprietary pricing models** rather than observable transaction prices. These models incorporate assumptions about liquidity discounts, transfer restrictions, and comparable-company multiples that may diverge from both the company's internal fair-market-value determinations and the eventual IPO price. The filing does not endorse, reference, or reconcile to these platform valuations.\n\n### (g) Temporal and structural mismatch with IPO\nTender offer valuations are point-in-time, private-market estimates that:\n- Pre-date the IPO by months (the December 2025 valuation precedes the May 2026 S-1 filing)\n- Do not reflect post-IPO capital structure changes (Class C Reclassification, Preferred Conversion, 2026 Stock Split)\n- Do not incorporate IPO-specific factors (lock-up releases, float dynamics, index inclusion, retail demand)\n\n---\n\n## Summary\n\n| Item | Finding |\n|---|---|\n| Implied CAGR (Dec 2024 \u2192 Dec 2025) | **~128.57%** |\n| Filing's pricing standard for repurchases | \"Then current fair market value\" |\n| Holding-period requirement | >6 months |\n| Methodology disclosed for FMV determination? | **No** \u2014 not explicitly linked to 409A, appraisals, or board determinations for repurchases |\n| Filing states $350B or $800B? | **No** \u2014 these are externally derived figures |\n| Filing uses term \"tender offer\"? | **No** \u2014 uses \"repurchase\" |\n| Stock split disclosed | 5-for-1, effective May 4, 2026 (plus 10-for-1 in 2022) |\n| IPO price tied to tender offer valuations? | **No** \u2014 determined by negotiation with underwriters |\n| Current fair market value estimate published? | **No** |\n\nThe ~128.57% implied growth rate is striking, but it should be interpreted with caution: the filing does not endorse these valuations, does not disclose the methodology underlying repurchase pricing, and explicitly frames IPO pricing as a negotiated process independent of prior private-market valuations. The ~56.84% growth in filing-disclosed per-share repurchase prices further illustrates that aggregate valuation growth was significantly amplified by share-count expansion, limiting the usefulness of aggregate tender offer valuations as a per-share IPO proxy.\n\n---\n\n{\n  \"sources\": [\n    {\n      \"url\": \"https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm\",\n      \"name\": \"SpaceX S-1 Registration Statement (filed May 20, 2026) \u2014 share repurchase disclosures, 2026 Stock Split, fair market value language, IPO price determination, and lack of prior public market disclosures\"\n    }\n  ]\n}"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21548,
+        "completion_tokens": 2221,
+        "cached_tokens": 19840,
+        "cost_usd": 0.05128
+      },
+      "extra": {
+        "raw_response": {}
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 139718,
+    "total_completion_tokens": 7728,
+    "total_cached_tokens": 120960,
+    "total_cost_usd": 0.275375,
+    "total_steps": 13
+  }
+}
