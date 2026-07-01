@@ -1,89 +1,122 @@
-# Running Finance Agent Benchmark
+##IPO Finance Agent: Benchmark of LLM Financial Analysts Beyond Finance Agent v2, with Automated Rubric Generation, on the SpaceX (SPCX) IPO
 
-Our Finance Agent benchmark evaluates LLMs on their ability to use tools to research and answer complex financial questions about companies, financial statements, and SEC filings.
+## Paper: [https://arxiv.org/abs/2606.23032](https://arxiv.org/abs/2606.23032)
+
+[![](https://dcbadge.limes.pink/api/server/ekrySuRBf4)](https://discord.gg/ekrySuRBf4)
+
+
+# Running IPO Finance Agent Benchmark
+
+The IPO Finance Agent Benchmark evaluates LLM agents on their ability to analyze IPO filings and perform due diligence using public registration statements.
+
+Unlike traditional finance benchmarks that primarily focus on historical SEC filings and financial statements, this benchmark emphasizes reasoning over IPO registration documents (S-1, F-1, prospectuses, amendments, exhibits, and related filings), requiring agents to synthesize information across lengthy filings similarly to real-world investment research and venture due diligence.
 
 The agent has access to the following tools:
 
-- `web_search`: Search the web for information (via Tavily)
-- `edgar_search`: Search the SEC's EDGAR database for filings
+- `web_search`: Search the web for public information (via Tavily)
+- `edgar_search`: Search the SEC EDGAR database for IPO filings and related documents
 - `parse_html_page`: Parse and extract content from web pages
-- `retrieve_information`: Access stored information from previous steps
-- `price_history`: Fetch historical daily OHLCV price data for supported equities/ETFs, crypto, and FX using a single tool with `asset_class` routing
+- `retrieve_information`: Access information collected during previous reasoning steps
+- `price_history`: Fetch historical daily OHLCV price data for supported equities, ETFs, crypto, and FX
 
-For more details on the benchmark, please refer to our [public website](https://www.vals.ai/benchmarks/fabv2).
+The benchmark measures an agent's ability to:
+
+- analyze IPO registration statements (S-1, F-1, etc.)
+- reason across multiple sections of long filings
+- extract financial, operational, governance, and risk information
+- answer quantitative and qualitative due diligence questions
+- synthesize evidence from SEC filings and external sources
 
 ## Set up
 
 ### Dependencies
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency management. Then run:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency management.
 
-```
+Then run:
+
+```bash
 make install
 source .venv/bin/activate
 ```
 
-### Platform
-
-Access to the Vals platform is gated and requires approval. Please reach out to us at [vals.ai](https://www.vals.ai/) to request access.
-
-Once approved, make an account on [platform.vals.ai](https://www.platform.vals.ai/auth) with your company email address. Go to the admin page and create a new API key for yourself.
-
 ### Environment Variables
 
-Create a `.env` file in the root of the project and add the following:
+Create a `.env` file in the project root:
 
-```
-VALS_API_KEY=<api_key>
-
-# LLM API Keys (only set the ones you plan on using)
+```text
+# LLM API Keys
 OPENAI_API_KEY=<openai_api_key>
 ANTHROPIC_API_KEY=<anthropic_api_key>
 GOOGLE_API_KEY=<google_api_key>
-ETC_API_KEY=<etc_api_key>
 
 # Tool API Keys
 TAVILY_API_KEY=<tavily_api_key>
-SEC_EDGAR_API_KEY=<sec_api_key>  # supports semicolon-separated keys for round-robin rotation, e.g. key1;key2;key3
-PRICING_DATA_API_KEY=<pricing_data_api_key> # Tiingo API key
+SEC_EDGAR_API_KEY=<sec_api_key>   # Multiple keys may be separated by semicolons
+PRICING_DATA_API_KEY=<pricing_data_api_key>
 ```
 
-You can create a Tavily API key [here](https://tavily.com/), and an SEC API key [here](https://sec-api.io/).
+You can obtain:
 
-The `.env` takes precedence over set environment variables.
+- Tavily API key from https://tavily.com
+- SEC API key from https://sec-api.io
 
-Finally, you should add the "Test Suite IDs" to suites.json. These should have generally been provided to you via email, but you can also find them in the platform, by navigating to the "Test Suites" page, clicking the relevant test suite, and looking on the right sidebar under "Test Suite ID".
+The `.env` file takes precedence over existing environment variables.
 
 ## Running the benchmark
 
-For a list of command line options, run `finance-agent --help`
+Display all available options:
 
-To run, for example, a single question on openai/gpt-5.2-2025-12-11:
-
-```
-finance-agent --questions "What was Apple's revenue in 2023?" --model openai/gpt-5.2-2025-12-11
+```bash
+finance-agent --help
 ```
 
-You can specify multiple questions at once:
+Run a single question:
 
-```
-finance-agent --questions "What was Apple's revenue in 2023?" "What was NFLX's revenue in 2024?"
-```
-
-You can also specify a list of questions in a text file, one question per line:
-
-```
-finance-agent --question-file data/public.txt
+```bash
+finance-agent \
+  --questions "What customer concentration risks are disclosed in CoreWeave's S-1?" \
+  --model openai/gpt-5
 ```
 
-The default configuration is the one we used to run the benchmark.
+Run multiple questions:
 
-### List of Models
+```bash
+finance-agent \
+  --questions \
+  "What customer concentration risks are disclosed in CoreWeave's S-1?" \
+  "How does Circle generate revenue according to its registration statement?"
+```
 
-A list of available models can be found at our [model library](https://github.com/vals-ai/model-library/blob/main/model_library/config/all_models.json), and also by running `make browse-models` in the model library repository.
+Run questions from a file:
 
-To run your own harness or model, just modify the `get_custom_model` function as needed. To see the full documentation on how the SDK works, visit [our docs](https://docs.vals.ai/sdk/running_suites).
+```bash
+finance-agent \
+  --question-file data/questions.txt
+```
+
+The default configuration reproduces the benchmark settings used in our experiments.
+
+## Models
+
+Any supported LLM can be evaluated.
+
+You may also integrate your own inference harness by modifying the `get_custom_model` function.
 
 ## Logs
 
-The agent writes detailed logs to the `logs/` directory. Each run creates a timestamped directory with per-question log files containing tool usage, token counts, and error tracking.
+Each benchmark run produces detailed logs under the `logs/` directory.
+
+Logs include:
+
+- model reasoning trace
+- tool calls
+- retrieved documents
+- token usage
+- execution timing
+- errors
+- final answers
+
+These logs are useful for debugging, reproducibility, and agent analysis.
+
+## Forked from [Finance Agent v2](https://github.com/vals-ai/finance-agent-v2/tree/main) by [Vals AI](https://www.vals.ai/home)
