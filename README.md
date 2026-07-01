@@ -5,7 +5,7 @@
 ## Discord: [![](https://dcbadge.limes.pink/api/server/ekrySuRBf4)](https://discord.gg/ekrySuRBf4)
 
 
-# Running IPO Finance Agent Benchmark
+## Running IPO Finance Agent Benchmark
 
 The IPO Finance Agent Benchmark evaluates LLM agents on their ability to analyze IPO filings and perform due diligence using public registration statements.
 
